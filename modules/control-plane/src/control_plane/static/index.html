@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tectonic Control Plane</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="text-white">
+<div id="mode-banner" class="mode-banner mock">
+    <span id="mode-icon">⚡</span>
+    <span id="mode-text">Connecting...</span>
+</div>
+
+<div class="main-container">
+    <!-- Left Panel -->
+    <div class="left-panel">
+        <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center glow-pulse">
+                <i data-lucide="cpu" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold">Tectonic</h1>
+                <p class="text-xs text-gray-400">Autonomous Control Plane</p>
+            </div>
+        </div>
+
+        <div class="glass rounded-xl p-5 mb-4">
+            <h2 class="text-sm font-semibold mb-4 flex items-center gap-2 text-purple-300">
+                <i data-lucide="target" class="w-4 h-4"></i>NEW MISSION
+            </h2>
+            <form id="mission-form" class="space-y-4">
+                <textarea id="objective" rows="3" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-500 placeholder-gray-500 resize-none" placeholder="Describe your objective..."></textarea>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Risk</label>
+                        <select id="risk" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                            <option value="low">Low</option>
+                            <option value="moderate" selected>Moderate</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Mode</label>
+                        <select id="mode" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                            <option value="dynamic" selected>Dynamic</option>
+                            <option value="static">Static</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Max Tokens</label>
+                        <input type="number" id="max-tokens" value="50000" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Max Calls</label>
+                        <input type="number" id="max-calls" value="20" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                    </div>
+                </div>
+                <button type="submit" id="submit-btn" class="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 rounded-lg px-4 py-3 text-sm font-semibold transition-all flex items-center justify-center gap-2">
+                    <i data-lucide="rocket" class="w-4 h-4"></i>Launch Mission
+                </button>
+            </form>
+        </div>
+        <div id="status-card" class="glass rounded-xl p-4 mb-4 hidden">
+            <div class="flex items-center gap-3">
+                <div id="status-indicator" class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                <div class="flex-1">
+                    <div id="status-text" class="text-sm font-medium">Initializing...</div>
+                    <div id="status-detail" class="text-xs text-gray-400"></div>
+                </div>
+            </div>
+        </div>
+        <div id="budget-card" class="glass rounded-xl p-4 hidden">
+            <h3 class="text-xs font-semibold text-gray-400 mb-3">RESOURCES</h3>
+            <div class="space-y-2 text-xs">
+                <div class="flex justify-between"><span class="text-gray-400">Tokens</span><span id="tokens-used" class="text-blue-400">0</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">API Calls</span><span id="calls-used" class="text-purple-400">0</span></div>
+            </div>
+        </div>
+        <div class="mt-4 space-y-2">
+            <button id="download-btn" onclick="downloadReport()" class="hidden w-full bg-green-600/20 border border-green-500/30 rounded-lg px-4 py-2 text-sm text-green-400 flex items-center justify-center gap-2">
+                <i data-lucide="download" class="w-4 h-4"></i>Download Report
+            </button>
+            <button id="kill-btn" class="hidden w-full bg-red-600/20 border border-red-500/30 rounded-lg px-4 py-2 text-sm text-red-400 flex items-center justify-center gap-2">
+                <i data-lucide="octagon" class="w-4 h-4"></i>Emergency Stop
+            </button>
+        </div>
+    </div>
+
+    <!-- Center Panel - Graph -->
+    <div class="center-panel">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-white/5">
+            <h2 class="text-sm font-semibold flex items-center gap-2 text-blue-300">
+                <i data-lucide="git-branch" class="w-4 h-4"></i>EXECUTION FLOW
+            </h2>
+            <div id="task-count" class="text-xs text-gray-500"></div>
+        </div>
+        <div id="graph-container" class="flex-1 relative overflow-hidden">
+            <svg id="graph-svg" class="absolute inset-0 w-full h-full" style="pointer-events:none;"></svg>
+            <div id="graph-nodes" class="absolute inset-0 p-6 overflow-auto"></div>
+            <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-gray-500">
+                <div class="w-20 h-20 mb-4 rounded-2xl bg-white/5 flex items-center justify-center">
+                    <i data-lucide="workflow" class="w-10 h-10 opacity-30"></i>
+                </div>
+                <p class="text-sm">Launch a mission to visualize the flow</p>
+            </div>
+        </div>
+        <div id="results-panel" class="border-t border-white/5 max-h-48 overflow-auto hidden">
+            <div class="p-4">
+                <h3 class="text-sm font-semibold text-green-400 mb-3 flex items-center gap-2">
+                    <i data-lucide="check-circle" class="w-4 h-4"></i>MISSION COMPLETE
+                </h3>
+                <div id="results-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Panel - Thinking -->
+    <div class="right-panel">
+        <div class="thinking-header flex items-center gap-2">
+            <i data-lucide="brain" class="w-4 h-4 text-purple-400"></i>
+            <span class="text-sm font-semibold text-purple-300">AGENT THINKING</span>
+            <span id="thinking-status" class="ml-auto text-xs text-gray-500"></span>
+        </div>
+        <div id="thinking-stream" class="thinking-stream">
+            <div id="thinking-empty" class="text-center text-gray-500 text-sm py-8">
+                <div class="w-12 h-12 mx-auto mb-3 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                    <i data-lucide="sparkles" class="w-6 h-6 text-purple-400/50"></i>
+                </div>
+                Agent thoughts will appear here
+            </div>
+        </div>
+        <div class="evidence-header flex items-center gap-2">
+            <i data-lucide="scroll-text" class="w-4 h-4 text-orange-400"></i>
+            <span class="text-orange-300">EVIDENCE LOG</span>
+        </div>
+        <div id="events" class="evidence-log"></div>
+    </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

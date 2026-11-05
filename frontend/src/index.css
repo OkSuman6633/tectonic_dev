@@ -1,0 +1,417 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Dark (default): macOS-style vibrancy. Surfaces are translucent and frosted by backdrop blur. */
+  :root {
+    color-scheme: dark;
+    --studio-bg: #08080D;
+    --studio-surface: rgba(30, 31, 40, 0.5);      /* window glass */
+    --studio-card: rgba(255, 255, 255, 0.055);    /* grouped content inside glass */
+    --studio-border: rgba(255, 255, 255, 0.1);
+    --studio-hover: rgba(255, 255, 255, 0.08);
+    --studio-text: #F2F3F7;
+    --studio-text-secondary: rgba(235, 237, 245, 0.66);
+    --studio-text-muted: rgba(235, 237, 245, 0.4);
+    --glass-bg: rgba(34, 35, 46, 0.55);
+    --glass-card-bg: rgba(255, 255, 255, 0.06);
+    --glass-card-hover: rgba(255, 255, 255, 0.1);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-highlight: rgba(255, 255, 255, 0.14);
+    --glass-blur: blur(40px) saturate(185%);
+    --popover-bg: rgba(40, 41, 52, 0.78);
+    --window-header: rgba(255, 255, 255, 0.035);
+    --window-focus: rgba(255, 255, 255, 0.18);
+    --scrollbar-thumb: rgba(255, 255, 255, 0.16);
+    --scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
+    --accent-cyan: #2DD4FF;
+    --accent-violet: #A78BFA;
+    --accent-emerald: #34D399;
+    --accent-amber: #FBBF24;
+    --accent-blue: #60A5FA;
+    --accent-rose: #FB7185;
+  }
+
+  /* "Obsidian" — light, high-contrast corporate */
+  .light {
+    color-scheme: light;
+    --studio-bg: #F7F8FA;
+    --studio-surface: rgba(255, 255, 255, 0.62);
+    --studio-card: rgba(255, 255, 255, 0.55);
+    --studio-border: rgba(14, 17, 22, 0.09);
+    --studio-hover: #E9ECF1;
+    --studio-text: #0E1116;
+    --studio-text-secondary: #4A5160;
+    --studio-text-muted: #8A909C;
+    --glass-bg: rgba(255, 255, 255, 0.86);
+    --glass-card-bg: rgba(241, 243, 246, 0.8);
+    --glass-card-hover: rgba(233, 236, 241, 0.92);
+    --glass-border: rgba(14, 17, 22, 0.08);
+    --window-header: rgba(255, 255, 255, 0.5);
+    --window-focus: rgba(14, 17, 22, 0.14);
+    --glass-highlight: rgba(255, 255, 255, 0.9);
+    --glass-blur: blur(40px) saturate(170%);
+    --popover-bg: rgba(255, 255, 255, 0.86);
+    --scrollbar-thumb: rgba(0, 0, 0, 0.14);
+    --scrollbar-thumb-hover: rgba(0, 0, 0, 0.26);
+    --accent-cyan: #0891B2;
+    --accent-violet: #7C3AED;
+    --accent-emerald: #059669;
+    --accent-amber: #D97706;
+    --accent-blue: #2563EB;
+    --accent-rose: #E11D48;
+  }
+
+  body {
+    background-color: var(--studio-bg);
+    color: var(--studio-text);
+    @apply font-sans antialiased overflow-hidden;
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    width: 100vw;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  /* Sonoma-style wallpaper: what the glass frosts. GPU-only animation (transform). */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: -20%;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(38% 42% at 18% 22%, rgba(99, 102, 241, 0.55), transparent 70%),
+      radial-gradient(34% 40% at 82% 18%, rgba(217, 70, 239, 0.32), transparent 70%),
+      radial-gradient(40% 45% at 72% 86%, rgba(20, 184, 166, 0.38), transparent 70%),
+      radial-gradient(30% 36% at 28% 92%, rgba(45, 212, 255, 0.3), transparent 70%),
+      radial-gradient(60% 60% at 50% 50%, rgba(30, 27, 75, 0.6), transparent 80%);
+    filter: blur(40px);
+    animation: wallpaper-drift 48s ease-in-out infinite alternate;
+  }
+  .light body::before {
+    background:
+      radial-gradient(38% 42% at 18% 22%, rgba(129, 140, 248, 0.35), transparent 70%),
+      radial-gradient(34% 40% at 82% 18%, rgba(244, 114, 182, 0.22), transparent 70%),
+      radial-gradient(40% 45% at 72% 86%, rgba(45, 212, 191, 0.28), transparent 70%),
+      radial-gradient(30% 36% at 28% 92%, rgba(56, 189, 248, 0.25), transparent 70%);
+  }
+  @keyframes wallpaper-drift {
+    0% { transform: translate3d(0, 0, 0) scale(1); }
+    50% { transform: translate3d(-3%, 2%, 0) scale(1.05); }
+    100% { transform: translate3d(2%, -2%, 0) scale(1.02); }
+  }
+  @media (prefers-reduced-motion: reduce) { body::before { animation: none; } }
+  ::selection { background: rgba(45, 212, 255, 0.28); }
+  .tabular-nums, .font-mono { font-variant-numeric: tabular-nums; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 9999px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+}
+
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.glass-card {
+  background: var(--glass-card-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.glass-card-hover {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glass-card-hover:hover {
+  background: var(--glass-card-hover);
+  border-color: rgba(56, 189, 248, 0.35);
+  transform: translateY(-1px);
+}
+
+.gradient-border-accent {
+  position: relative;
+}
+.gradient-border-accent::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.6), rgba(168, 85, 247, 0.4), transparent);
+  border-radius: inherit;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Light mode specific overrides */
+.light .text-slate-100 { color: var(--studio-text); }
+.light .text-slate-200 { color: #1e293b; }
+.light .text-slate-300 { color: #334155; }
+.light .text-slate-400 { color: #475569; }
+.light .text-slate-500 { color: #64748b; }
+.light .bg-studio-bg { background-color: var(--studio-bg); }
+.light .bg-studio-surface { background-color: var(--studio-surface); }
+.light .bg-studio-card { background-color: var(--studio-card); }
+.light .border-studio-border { border-color: var(--studio-border); }
+.light .bg-white\/5 { background-color: rgba(0, 0, 0, 0.03); }
+.light .bg-white\/10 { background-color: rgba(0, 0, 0, 0.06); }
+.light .border-white\/5 { border-color: rgba(0, 0, 0, 0.05); }
+.light .border-white\/10 { border-color: rgba(0, 0, 0, 0.08); }
+.light .hover\:bg-white\/5:hover { background-color: rgba(0, 0, 0, 0.03); }
+.light .hover\:bg-white\/10:hover { background-color: rgba(0, 0, 0, 0.06); }
+
+/* AI Agent Animations */
+@keyframes neural-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.05); }
+}
+
+@keyframes thinking-dots {
+  0%, 80%, 100% { transform: scale(0); opacity: 0.5; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes data-flow {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+@keyframes agent-glow {
+  0%, 100% { box-shadow: 0 0 5px rgba(56, 189, 248, 0.3), 0 0 20px rgba(56, 189, 248, 0.1); }
+  50% { box-shadow: 0 0 20px rgba(56, 189, 248, 0.5), 0 0 40px rgba(56, 189, 248, 0.2); }
+}
+
+.animate-neural-pulse { animation: neural-pulse 2s ease-in-out infinite; }
+.animate-thinking-dots { animation: thinking-dots 1.4s ease-in-out infinite; }
+.animate-data-flow { 
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.3), transparent);
+  background-size: 200% 100%;
+  animation: data-flow 2s linear infinite;
+}
+.animate-agent-glow { animation: agent-glow 2s ease-in-out infinite; }
+
+/* Agent Status Indicators */
+.agent-active { @apply ring-2 ring-emerald-500/50 ring-offset-2 ring-offset-slate-900; }
+.agent-thinking { @apply ring-2 ring-sky-500/50 ring-offset-2 ring-offset-slate-900 animate-pulse; }
+.agent-idle { @apply opacity-60; }
+
+/* Scrollbar for agent logs */
+.scrollbar-thin::-webkit-scrollbar { width: 4px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(56, 189, 248, 0.3); border-radius: 2px; }
+
+/* No scrollbar utility */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Command Center: glide nodes to their new auto-layout positions (but not while dragging) */
+.command-flow .react-flow__node:not(.dragging) {
+  transition: transform 450ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.command-flow .react-flow__node {
+  cursor: pointer;
+}
+.command-flow .react-flow__node.selected,
+.command-flow .react-flow__node:focus-visible {
+  outline: none;
+}
+
+/* ---------------------------------------------------------------------------------------------
+   Workspace windows (react-grid-layout)
+   ------------------------------------------------------------------------------------------- */
+.workspace-grid .react-grid-item {
+  transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1), width 240ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.workspace-grid .react-grid-item.cssTransforms { transition-property: transform, width, height; }
+.workspace-grid .react-grid-item.resizing,
+.workspace-grid .react-grid-item.react-draggable-dragging { transition: none; z-index: 30; will-change: transform; }
+.workspace-grid .react-grid-item.react-draggable-dragging .studio-window {
+  box-shadow: 0 0 0 1px var(--window-focus), 0 24px 48px -12px rgba(0, 0, 0, 0.6);
+  transform: scale(1.005);
+}
+.workspace-grid .react-grid-placeholder {
+  background: rgba(45, 212, 255, 0.08) !important;
+  border: 1px dashed rgba(45, 212, 255, 0.45);
+  border-radius: 12px;
+  opacity: 1 !important;
+  transition-duration: 120ms;
+}
+.workspace-grid .react-resizable-handle {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  right: 2px;
+  bottom: 2px;
+  cursor: se-resize;
+  z-index: 5;
+  background: none;
+}
+.workspace-grid .react-resizable-handle::after {
+  content: '';
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--studio-text-muted);
+  border-bottom: 1.5px solid var(--studio-text-muted);
+  border-bottom-right-radius: 2px;
+  opacity: 0.5;
+  transition: opacity 150ms ease, border-color 150ms ease;
+}
+.workspace-grid .react-grid-item:hover > .react-resizable-handle::after { opacity: 1; border-color: var(--accent-cyan); }
+
+/* Maximized: the grid item itself goes full-screen (no remount, so canvases and scroll positions survive). */
+.workspace-grid .react-grid-item.window-maximized {
+  position: fixed !important;
+  inset: 52px 14px 84px 14px !important;
+  width: auto !important;
+  height: auto !important;
+  transform: none !important;
+  z-index: 40;
+  transition: none;
+}
+.workspace-grid .react-grid-item.window-maximized > .react-resizable-handle { display: none; }
+
+/* ---- Glass material (macOS vibrancy) ---------------------------------------------------------- */
+.glass {
+  background: var(--studio-surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 0 var(--glass-highlight), 0 0 0 0.5px rgba(0, 0, 0, 0.35);
+}
+.studio-window {
+  background: var(--studio-surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-highlight),
+    0 0 0 0.5px rgba(0, 0, 0, 0.45),
+    0 18px 40px -18px rgba(0, 0, 0, 0.55),
+    0 6px 14px -8px rgba(0, 0, 0, 0.35);
+  transition: box-shadow 220ms ease, background-color 220ms ease;
+}
+.studio-window.is-focused {
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-highlight),
+    0 0 0 0.5px rgba(0, 0, 0, 0.5),
+    0 30px 70px -22px rgba(0, 0, 0, 0.75),
+    0 10px 24px -10px rgba(0, 0, 0, 0.45);
+}
+.light .studio-window {
+  box-shadow: inset 0 1px 0 0 var(--glass-highlight), 0 0 0 0.5px rgba(15, 23, 42, 0.12), 0 18px 40px -20px rgba(15, 23, 42, 0.25);
+}
+.light .studio-window.is-focused {
+  box-shadow: inset 0 1px 0 0 var(--glass-highlight), 0 0 0 0.5px rgba(15, 23, 42, 0.16), 0 28px 60px -22px rgba(15, 23, 42, 0.35);
+}
+.studio-window-header {
+  background: var(--window-header);
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+.light .studio-window-header { border-color: rgba(14, 17, 22, 0.07) !important; }
+.studio-window:not(.is-focused) .studio-window-header h2 { opacity: 0.6; }
+@keyframes window-attention {
+  0%, 100% { box-shadow: inset 0 1px 0 0 var(--glass-highlight), 0 0 0 1px rgba(45, 212, 255, 0.0); }
+  50% { box-shadow: inset 0 1px 0 0 var(--glass-highlight), 0 0 0 2px rgba(45, 212, 255, 0.55), 0 0 40px -6px rgba(45, 212, 255, 0.6); }
+}
+.studio-window.attention { animation: window-attention 0.9s ease-in-out 2; }
+
+/* Menu bar + floating dock */
+.menu-bar {
+  background: rgba(20, 20, 28, 0.42);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+.light .menu-bar { background: rgba(255, 255, 255, 0.55); border-bottom-color: rgba(14, 17, 22, 0.08); }
+.dock-shelf {
+  background: rgba(40, 40, 52, 0.42);
+  backdrop-filter: blur(30px) saturate(190%);
+  -webkit-backdrop-filter: blur(30px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.12), 0 20px 50px -20px rgba(0, 0, 0, 0.7);
+}
+.light .dock-shelf { background: rgba(255, 255, 255, 0.5); border-color: rgba(255, 255, 255, 0.8); box-shadow: 0 16px 40px -18px rgba(15, 23, 42, 0.35); }
+
+/* Traffic lights: grey when the window isn't focused, colored when it is, glyphs on hover. */
+.traffic { display: flex; gap: 8px; align-items: center; }
+.traffic button {
+  width: 12px; height: 12px; border-radius: 9999px;
+  display: grid; place-items: center;
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.35);
+  transition: background-color 150ms ease, transform 120ms ease;
+}
+.light .traffic button { background: rgba(14, 17, 22, 0.14); }
+.traffic button svg { width: 8px; height: 8px; opacity: 0; color: rgba(0, 0, 0, 0.6); stroke-width: 3; transition: opacity 120ms ease; }
+.traffic button:active { transform: scale(0.9); }
+.studio-window.is-focused .traffic .tl-close, .traffic:hover .tl-close { background: #FF5F57; }
+.studio-window.is-focused .traffic .tl-min, .traffic:hover .tl-min { background: #FEBC2E; }
+.studio-window.is-focused .traffic .tl-zoom, .traffic:hover .tl-zoom { background: #28C840; }
+.traffic:hover button svg { opacity: 1; }
+
+/* Popovers and modals: frosted and more opaque so text stays legible over busy content. */
+.absolute.bg-studio-card, .fixed .bg-studio-card {
+  background: var(--popover-bg) !important;
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* React Flow sits directly on the glass. */
+.command-flow {
+  --xy-background-color: transparent;
+  --xy-minimap-background-color: rgba(20, 21, 28, 0.55);
+  --xy-controls-button-background-color: rgba(40, 41, 52, 0.7);
+  --xy-controls-button-background-color-hover: rgba(60, 61, 74, 0.8);
+  --xy-controls-button-border-color: rgba(255, 255, 255, 0.08);
+}
+.light .command-flow {
+  --xy-minimap-background-color: rgba(255, 255, 255, 0.6);
+  --xy-controls-button-background-color: rgba(255, 255, 255, 0.75);
+  --xy-controls-button-background-color-hover: rgba(255, 255, 255, 0.95);
+  --xy-controls-button-border-color: rgba(14, 17, 22, 0.08);
+}
+.command-flow .react-flow__controls { border-radius: 10px; overflow: hidden; box-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.5); }
+
+/* Embedded panels: their old outer chrome would double up inside a window. */
+.window-body > div:first-child { border-right-width: 0; }
+
+/* Light mode: neon accent text is tuned for dark surfaces; swap to deeper, high-contrast shades. */
+.light .text-sky-200, .light .text-sky-300, .light .text-sky-400 { color: #0E7490; }
+.light .text-indigo-200, .light .text-indigo-300, .light .text-indigo-400,
+.light .text-violet-300, .light .text-violet-400, .light .text-purple-300, .light .text-purple-400 { color: #6D28D9; }
+.light .text-emerald-200, .light .text-emerald-300, .light .text-emerald-400 { color: #047857; }
+.light .text-amber-200, .light .text-amber-300, .light .text-amber-400 { color: #B45309; }
+.light .text-rose-300, .light .text-rose-400 { color: #BE123C; }
+.light .text-blue-300, .light .text-blue-400 { color: #1D4ED8; }
+.light .text-cyan-300 { color: #0E7490; }
+
+/* Light-mode counterparts for the white-alpha glass utilities used in the menu bar and controls. */
+.light .menu-bar .bg-white\/\[0\.07\], .light .menu-bar .bg-white\/\[0\.08\], .light .menu-bar .bg-white\/\[0\.06\] { background-color: rgba(14, 17, 22, 0.06); }
+.light .menu-bar .bg-white\/\[0\.16\] { background-color: #FFFFFF; }
+.light .hover\:bg-white\/\[0\.1\]:hover, .light .hover\:bg-white\/\[0\.13\]:hover, .light .hover\:bg-white\/\[0\.08\]:hover { background-color: rgba(14, 17, 22, 0.07); }
+
+/* Chart marks (validated with the dataviz palette checker: lightness band, CVD ΔE, contrast).
+   Brighter neon accents stay for UI; data marks use these one-step-deeper ramp values. */
+:root { --chart-a: #0891B2; --chart-b: #8B5CF6; --status-good: #34D399; --status-warn: #FBBF24; --status-bad: #FB7185; }
+.light { --chart-a: #0891B2; --chart-b: #7C3AED; --status-good: #059669; --status-warn: #D97706; --status-bad: #E11D48; }
+
+/* 3D office name tags pop in on hover */
+@keyframes office-tag-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.92); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.office-tag { animation: office-tag-in 160ms ease-out; }

@@ -1,0 +1,153 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CSS Variables for theming */
+:root {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-canvas: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --border-light: #e2e8f0;
+  --card-bg: #ffffff;
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.dark {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-canvas: #020617;
+  --text-primary: #f8fafc;
+  --text-secondary: #e2e8f0;
+  --text-muted: #64748b;
+  --border-light: rgba(255, 255, 255, 0.05);
+  --card-bg: rgba(30, 41, 59, 0.8);
+  --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* Base styles */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body, #root { height: 100%; overflow: hidden; }
+body { 
+  font-family: 'Inter', system-ui, sans-serif; 
+  -webkit-font-smoothing: antialiased;
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body:not(.dark) { background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%); }
+.dark body { background: radial-gradient(ellipse 120% 80% at 50% 20%, #1e1b4b 0%, #0f0a1e 50%, #030712 100%); }
+
+@layer utilities {
+  /* Glass - Light mode */
+  .glass { @apply bg-white/80 backdrop-blur-xl border border-gray-200 shadow-sm; }
+  .glass-strong { @apply bg-white/90 backdrop-blur-2xl border border-gray-200 shadow-md; }
+  .glass-card { @apply bg-white/95 backdrop-blur-xl border border-gray-200 rounded-2xl shadow-sm; }
+  
+  /* Glass - Dark mode */
+  .dark .glass { @apply bg-white/5 backdrop-blur-xl border border-white/10; }
+  .dark .glass-strong { @apply bg-black/40 backdrop-blur-2xl border border-white/10; }
+  .dark .glass-card { @apply bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border border-white/10 rounded-2xl; }
+}
+
+/* Scrollbar - Light mode */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 9999px; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Scrollbar - Dark mode */
+.dark ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); }
+.dark ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); }
+.dark ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
+
+/* React Flow */
+.react-flow__node { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.react-flow__node.selected { box-shadow: 0 0 0 2px theme('colors.brain.500'); }
+.react-flow__edge-path { stroke-width: 2; }
+.react-flow__controls { @apply bg-dark-900/80 backdrop-blur-lg border border-white/10 rounded-xl overflow-hidden; }
+.react-flow__controls-button { @apply bg-transparent border-none text-white/60 hover:text-white hover:bg-white/10; }
+
+@keyframes flow-particles { 0% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -40; } }
+.flow-edge-animated { stroke-dasharray: 10 10; animation: flow-particles 1s linear infinite; }
+
+@keyframes glow-pulse { 0%, 100% { filter: drop-shadow(0 0 8px rgba(147, 51, 234, 0.4)); } 50% { filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.6)); } }
+.glow-animation { animation: glow-pulse 2s ease-in-out infinite; }
+
+@keyframes node-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+.node-active { animation: node-pulse 1s ease-in-out infinite; }
+
+@keyframes typing-cursor { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+.typing-cursor::after { content: '▊'; animation: typing-cursor 0.8s ease-in-out infinite; @apply text-brain-500; }
+
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.shimmer { background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent); background-size: 200% 100%; animation: shimmer 2s infinite; }
+
+/* Markdown - Light mode */
+.markdown-body { @apply text-sm leading-relaxed; }
+.markdown-body h1 { @apply text-xl font-bold mb-4 text-gray-900; }
+.markdown-body h2 { @apply text-lg font-semibold mb-3 text-gray-800; }
+.markdown-body p { @apply mb-3 text-gray-700; }
+.markdown-body ul, .markdown-body ol { @apply mb-3 pl-5 text-gray-700; }
+.markdown-body li { @apply mb-1; }
+.markdown-body code { @apply bg-gray-100 px-1.5 py-0.5 rounded text-brain-600 font-mono text-xs; }
+.markdown-body pre { @apply bg-gray-100 rounded-lg p-3 mb-3 overflow-x-auto; }
+.markdown-body pre code { @apply bg-transparent p-0; }
+.markdown-body strong { @apply font-semibold text-gray-900; }
+.markdown-body table { @apply w-full border-collapse mb-3; }
+.markdown-body th, .markdown-body td { @apply border border-gray-200 px-3 py-2 text-left; }
+
+/* Markdown - Dark mode */
+.dark .markdown-body h1 { @apply text-white; }
+.dark .markdown-body h2 { @apply text-white; }
+.dark .markdown-body p { @apply text-white/80; }
+.dark .markdown-body ul, .dark .markdown-body ol { @apply text-white/80; }
+.dark .markdown-body code { @apply bg-white/10 text-brain-300; }
+.dark .markdown-body pre { @apply bg-black/40; }
+.dark .markdown-body strong { @apply text-white; }
+.dark .markdown-body th, .dark .markdown-body td { @apply border-white/10; }
+
+/* Node styles */
+.brain-node { background: linear-gradient(135deg, rgba(147, 51, 234, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%); border: 2px solid rgba(147, 51, 234, 0.5); box-shadow: 0 0 30px rgba(147, 51, 234, 0.3); }
+.agent-node { background: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.9) 100%); border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(20px); }
+.agent-node.running { border-color: rgba(59, 130, 246, 0.6); box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
+.agent-node.completed { border-color: rgba(34, 197, 94, 0.6); box-shadow: 0 0 20px rgba(34, 197, 94, 0.3); }
+.agent-node.failed { border-color: rgba(239, 68, 68, 0.6); box-shadow: 0 0 20px rgba(239, 68, 68, 0.3); }
+
+.status-dot { @apply w-2.5 h-2.5 rounded-full; }
+.status-dot.pending { @apply bg-slate-400; }
+.status-dot.running { @apply bg-blue-400 animate-pulse; }
+.status-dot.completed { @apply bg-green-400; }
+.status-dot.failed { @apply bg-red-400; }
+
+/* Buttons - Light mode */
+.btn-primary { @apply bg-gradient-to-r from-brain-600 to-agent-600 hover:from-brain-500 hover:to-agent-500 text-white font-semibold px-4 py-2 rounded-lg transition-all shadow-md hover:shadow-lg; }
+.btn-secondary { @apply bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700 font-medium px-4 py-2 rounded-lg transition-all; }
+.btn-danger { @apply bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 font-medium px-4 py-2 rounded-lg transition-all; }
+
+/* Buttons - Dark mode */
+.dark .btn-primary { @apply shadow-lg; }
+.dark .btn-secondary { @apply bg-white/5 hover:bg-white/10 border-white/10 text-white; }
+.dark .btn-danger { @apply bg-danger-500/20 hover:bg-danger-500/30 border-danger-500/30 text-danger-400; }
+
+/* Inputs - Light mode */
+.input-field { @apply w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-brain-500 focus:ring-2 focus:ring-brain-500/20 transition-all; }
+.panel { @apply bg-white/90 backdrop-blur-xl border border-gray-200 shadow-sm; }
+
+/* Inputs - Dark mode */
+.dark .input-field { @apply bg-white/5 border-white/10 text-white placeholder-white/40; }
+.dark .panel { @apply bg-dark-900/80 border-white/5; }
+
+/* Filter tabs for task status */
+.filter-tab { @apply px-4 py-2 rounded-full text-sm font-medium transition-all cursor-pointer text-gray-500 hover:text-gray-700 hover:bg-gray-100; }
+.filter-tab.active { @apply bg-dark-900 text-white; }
+.dark .filter-tab { @apply text-white/60 hover:text-white/80 hover:bg-white/10; }
+.dark .filter-tab.active { @apply bg-white text-dark-900; }
+
+/* Floating cards */
+.floating-card { @apply bg-white rounded-2xl shadow-lg border border-gray-100 transition-all duration-300; }
+.floating-card:hover { @apply shadow-xl -translate-y-1; }
+.dark .floating-card { @apply bg-dark-800/90 border-white/10; }

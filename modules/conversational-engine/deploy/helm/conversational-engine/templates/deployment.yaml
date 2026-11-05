@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-conversational-engine
+  labels:
+    app.kubernetes.io/name: conversational-engine
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: conversational-engine
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: conversational-engine
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}-conversational-engine
+      {{- if .Values.priorityClassName }}
+      priorityClassName: {{ .Values.priorityClassName }}
+      {{- end }}
+      {{- if .Values.topologySpreadConstraints.enabled }}
+      topologySpreadConstraints:
+        - maxSkew: {{ .Values.topologySpreadConstraints.maxSkew }}
+          topologyKey: {{ .Values.topologySpreadConstraints.topologyKey }}
+          whenUnsatisfiable: {{ .Values.topologySpreadConstraints.whenUnsatisfiable }}
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: conversational-engine
+              app.kubernetes.io/instance: {{ .Release.Name }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: conversational-engine
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8081
+          env:
+            - name: CONVERSATIONAL_ENGINE_TENANT_ID
+              value: {{ .Values.config.tenantId | quote }}
+            - name: CONVERSATIONAL_ENGINE_MULTI_TENANCY_BASE_URL
+              value: {{ .Values.multiTenancyBaseUrl | quote }}
+            - name: CONVERSATIONAL_ENGINE_TELEMETRY__LOG_LEVEL
+              value: {{ .Values.config.logLevel | quote }}
+            - name: CONVERSATIONAL_ENGINE_TELEMETRY__OTLP_ENDPOINT
+              value: {{ .Values.config.otlpEndpoint | quote }}
+            - name: CONVERSATIONAL_ENGINE_SESSION__TTL_SECONDS
+              value: {{ .Values.config.sessionTtlSeconds | quote }}
+            - name: CONVERSATIONAL_ENGINE_HANDOFF__EMOTION_SCORE_THRESHOLD
+              value: {{ .Values.config.emotionScoreThreshold | quote }}
+            - name: CONVERSATIONAL_ENGINE_STREAMING__PROTOCOL
+              value: {{ .Values.config.streamingProtocol | quote }}
+            - name: CONVERSATIONAL_ENGINE_REDIS_URL
+              value: {{ .Values.redis.url | quote }}
+            - name: CONVERSATIONAL_ENGINE_LLM_GATEWAY_BASE_URL
+              value: {{ .Values.llmGatewayBaseUrl | quote }}
+            - name: CONVERSATIONAL_ENGINE_GUARDRAILS_BASE_URL
+              value: {{ .Values.guardrailsBaseUrl | quote }}
+            - name: CONVERSATIONAL_ENGINE_LONG_TERM_MEMORY_BASE_URL
+              value: {{ .Values.longTermMemoryBaseUrl | quote }}
+            - name: CONVERSATIONAL_ENGINE_HUMAN_OVERSIGHT_BASE_URL
+              value: {{ .Values.humanOversightBaseUrl | quote }}
+            - name: CONVERSATIONAL_ENGINE_OBSERVABILITY_BASE_URL
+              value: {{ .Values.observabilityBaseUrl | quote }}
+            - name: CONVERSATIONAL_ENGINE_AUDITABILITY_BASE_URL
+              value: {{ .Values.auditabilityBaseUrl | quote }}
+            {{- if .Values.database.existingSecret }}
+            - name: CONVERSATIONAL_ENGINE_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.existingSecret }}
+                  key: {{ .Values.database.existingSecretKey }}
+            {{- else }}
+            - name: CONVERSATIONAL_ENGINE_DATABASE_URL
+              value: {{ .Values.database.url | quote }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          startupProbe:
+            {{- toYaml .Values.startupProbe | nindent 12 }}
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

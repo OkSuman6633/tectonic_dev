@@ -1,0 +1,22 @@
+{
+  "name": "",
+  "description": "",
+  "version": "0.1.0",
+  "role": "sub_agent",
+  "agent_type": "llm",
+  "model": "gemini-3.6-flash",
+  "instruction": "",
+  "instruction_summary": "",
+  "tools": [],
+  "sub_agents": [],
+  "parent": "",
+  "capabilities": [],
+  "state_reads": [],
+  "state_writes": [],
+  "output_key": "",
+  "max_iterations": 3,
+  "input_modes": ["text"],
+  "output_modes": ["text"],
+  "guardrails": [],
+  "tags": []
+}

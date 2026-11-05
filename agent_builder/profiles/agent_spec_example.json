@@ -1,0 +1,171 @@
+{
+  "requirements": {
+    "project_name": "research_assistant",
+    "goal": "Answer research questions by finding sources on the web and writing a short cited summary that is saved to a local markdown file.",
+    "target_users": "Students and analysts who want quick, sourced overviews.",
+    "architecture": "sequential",
+    "root_agent": {
+      "name": "research_pipeline",
+      "role": "Pipeline runner",
+      "description": "Runs source discovery and summary writing in order.",
+      "instruction_outline": "",
+      "tools": [],
+      "output_key": "",
+      "agent_type": "sequential"
+    },
+    "sub_agents": [
+      {
+        "name": "source_finder",
+        "role": "Source finder",
+        "description": "Searches the web and lists the most relevant sources for the question.",
+        "instruction_outline": "- Turn the question into 2-3 search queries\n- Call search_web for each\n- Keep the 5 most relevant results with title, url and snippet",
+        "tools": ["search_web"],
+        "output_key": "sources",
+        "agent_type": "llm"
+      },
+      {
+        "name": "summary_writer",
+        "role": "Summary writer",
+        "description": "Writes a concise cited summary from the sources and saves it to disk.",
+        "instruction_outline": "- Read the sources from state\n- Write a 150-250 word summary with numbered citations\n- Save it with save_summary",
+        "tools": ["save_summary"],
+        "output_key": "summary",
+        "agent_type": "llm"
+      }
+    ],
+    "tools": [
+      {
+        "name": "search_web",
+        "description": "Search the web and return titles, URLs and snippets.",
+        "module": "research_tools",
+        "parameters": [
+          {"name": "query", "type": "str", "description": "Search query.", "required": true},
+          {"name": "max_results", "type": "int", "description": "Number of results, 1-10.", "required": false}
+        ],
+        "returns": "dict with status and a list of results",
+        "requires_network": true,
+        "requires_filesystem": false
+      },
+      {
+        "name": "save_summary",
+        "description": "Save a markdown summary into the local summaries folder.",
+        "module": "research_tools",
+        "parameters": [
+          {"name": "title", "type": "str", "description": "Summary title, used for the file name.", "required": true},
+          {"name": "markdown", "type": "str", "description": "Markdown body.", "required": true}
+        ],
+        "returns": "dict with status and the saved file path",
+        "requires_network": false,
+        "requires_filesystem": true
+      }
+    ],
+    "state_keys": ["sources", "summary"],
+    "inputs": ["A research question in plain text"],
+    "outputs": ["A cited summary shown in chat and saved as markdown"],
+    "extra_requirements": ["duckduckgo-search>=6.0.0"],
+    "guardrail_requirements": ["Only write files inside the summaries folder", "Always cite sources by number"],
+    "acceptance_criteria": [
+      "Given a question, source_finder stores at least three sources in state",
+      "summary_writer produces a summary that cites the stored sources",
+      "A markdown file appears in the summaries folder"
+    ],
+    "open_questions": [],
+    "questions_for_user": [],
+    "is_complete": true,
+    "collected_details_summary": "Complete research assistant pipeline specification."
+  },
+  "agent_cards": [
+    {
+      "name": "research_pipeline",
+      "description": "Runs source discovery and summary writing in order.",
+      "version": "0.1.0",
+      "role": "root",
+      "agent_type": "sequential",
+      "model": "gemini-3.6-flash",
+      "instruction": "",
+      "instruction_summary": "Sequential workflow: source_finder then summary_writer.",
+      "tools": [],
+      "sub_agents": ["source_finder", "summary_writer"],
+      "parent": "",
+      "capabilities": ["orchestrate research workflow"],
+      "state_reads": [],
+      "state_writes": [],
+      "output_key": "",
+      "max_iterations": 3,
+      "input_modes": ["text"],
+      "output_modes": ["text"],
+      "guardrails": [],
+      "tags": ["research"]
+    },
+    {
+      "name": "source_finder",
+      "description": "Searches the web and lists the most relevant sources for the question.",
+      "version": "0.1.0",
+      "role": "sub_agent",
+      "agent_type": "llm",
+      "model": "gemini-3.6-flash",
+      "instruction": "You find sources for the user's research question. Turn the question into two or three short search queries and call search_web for each. Keep the five most relevant results. Reply with a numbered list: title, url and a one-line note on why it is relevant. Do not answer the question yourself and do not invent sources.",
+      "instruction_summary": "Finds and ranks web sources.",
+      "tools": [
+        {
+          "name": "search_web",
+          "description": "Search the web and return titles, URLs and snippets.",
+          "module": "research_tools",
+          "parameters": [
+            {"name": "query", "type": "str", "description": "Search query.", "required": true},
+            {"name": "max_results", "type": "int", "description": "Number of results, 1-10.", "required": false}
+          ],
+          "returns": "dict with status and a list of results",
+          "requires_network": true,
+          "requires_filesystem": false
+        }
+      ],
+      "sub_agents": [],
+      "parent": "research_pipeline",
+      "capabilities": ["web search", "source ranking"],
+      "state_reads": [],
+      "state_writes": ["sources"],
+      "output_key": "sources",
+      "max_iterations": 3,
+      "input_modes": ["text"],
+      "output_modes": ["text"],
+      "guardrails": ["Never fabricate URLs"],
+      "tags": ["research"]
+    },
+    {
+      "name": "summary_writer",
+      "description": "Writes a concise cited summary from the sources and saves it to disk.",
+      "version": "0.1.0",
+      "role": "sub_agent",
+      "agent_type": "llm",
+      "model": "gemini-3.6-flash",
+      "instruction": "You write a 150 to 250 word summary that answers the user's question using only these sources:\n{sources}\nCite sources by number in square brackets. When finished call save_summary with a short title and the markdown text, then tell the user where the file was saved.",
+      "instruction_summary": "Writes and saves the cited summary.",
+      "tools": [
+        {
+          "name": "save_summary",
+          "description": "Save a markdown summary into the local summaries folder.",
+          "module": "research_tools",
+          "parameters": [
+            {"name": "title", "type": "str", "description": "Summary title, used for the file name.", "required": true},
+            {"name": "markdown", "type": "str", "description": "Markdown body.", "required": true}
+          ],
+          "returns": "dict with status and the saved file path",
+          "requires_network": false,
+          "requires_filesystem": true
+        }
+      ],
+      "sub_agents": [],
+      "parent": "research_pipeline",
+      "capabilities": ["summarisation", "citation"],
+      "state_reads": ["sources"],
+      "state_writes": ["summary"],
+      "output_key": "summary",
+      "max_iterations": 3,
+      "input_modes": ["text"],
+      "output_modes": ["text"],
+      "guardrails": ["Only write inside the summaries folder"],
+      "tags": ["research"]
+    }
+  ]
+}

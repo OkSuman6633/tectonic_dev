@@ -1,0 +1,47 @@
+# Cloud Build configuration for Tectonic - Full Agent Builder
+steps:
+  # Step 1: Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/tectonic:latest', '.']
+    timeout: '1800s'
+
+  # Step 2: Push the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/tectonic:latest']
+
+  # Step 3: Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'tectonic'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/tectonic:latest'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '2Gi'
+      - '--cpu'
+      - '2'
+      # One instance: sessions, accounts and agents live in this server's memory/disk, so every user must
+      # reach the same instance. Long timeout: a turn where the AI decides every step runs the whole build.
+      - '--max-instances'
+      - '1'
+      - '--timeout'
+      - '3600'
+      - '--port'
+      - '8080'
+      - '--set-secrets'
+      - 'GOOGLE_API_KEY=google-api-key:latest,GEMINI_API_KEY=google-api-key:latest,TECTONIC_AUTH_SECRET=tectonic-auth-secret:latest'
+      - '--set-env-vars'
+      - 'GEMINI_MODEL=gemini-3.6-flash,ADK_SUPPRESS_GEMINI_LITELLM_WARNINGS=true,BUILDER_MODEL=gemini-3.6-flash,TECTONIC_DATA_DIR=/app/data'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_8'
+
+timeout: '1800s'
