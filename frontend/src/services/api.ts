@@ -13,6 +13,7 @@ import type {
   AgentUndoResult,
   AgentEditHistory,
   StudioSettings,
+  ModelMode,
   ChatAttachment,
   DesignIdeas,
   DesignReview,
@@ -257,6 +258,32 @@ class ApiService {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.detail || `Saving settings failed (${res.status})`);
     return data as StudioSettings;
+  }
+
+  private async settingsCall(path: string, method: string, body?: unknown): Promise<StudioSettings> {
+    const res = await fetch(path, {
+      method,
+      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || `Request failed (${res.status})`);
+    return data as StudioSettings;
+  }
+
+  /** Overwrites this user's one custom override and switches to it. A new key is checked with its provider first. */
+  public saveCustomModel(model: string, apiKey?: string): Promise<StudioSettings> {
+    return this.settingsCall('/studio/settings/custom', 'PUT', { model, api_key: apiKey || null });
+  }
+
+  /** Toggles between the platform default and the saved override (the override is kept). */
+  public setModelMode(mode: ModelMode): Promise<StudioSettings> {
+    return this.settingsCall('/studio/settings/mode', 'POST', { mode });
+  }
+
+  /** Deletes the saved override (model and key) and returns to the platform default. */
+  public clearCustomModel(): Promise<StudioSettings> {
+    return this.settingsCall('/studio/settings/custom', 'DELETE');
   }
 
   // --- Environment & API Key Management (Zero LLM Interaction) ---

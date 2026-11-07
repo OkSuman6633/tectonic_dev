@@ -26,7 +26,8 @@ from fastapi.staticfiles import StaticFiles
 # ── Config ─────────────────────────────────────────────────────────────────────
 PROJECT_ROOT = Path(__file__).resolve().parent
 HOST = os.getenv("AGENT_BUILDER_HOST", "0.0.0.0")
-PORT = int(os.getenv("AGENT_BUILDER_PORT", "8080"))
+# Cloud Run injects PORT and expects the container to listen on it.
+PORT = int(os.getenv("PORT") or os.getenv("AGENT_BUILDER_PORT", "8080"))
 FRONTEND_DIR = PROJECT_ROOT / "frontend" / "dist"
 GENERATED_AGENTS_DIR = PROJECT_ROOT / os.getenv("AGENT_BUILDER_OUTPUT_DIR", "generated_agents")
 
@@ -185,8 +186,10 @@ async def websocket_telemetry(websocket: WebSocket):
 
     # 2. Module definitions — sent AFTER HELLO so they land after the reset.
     #    STICKY_TYPES bypasses seq-dedup so they're always processed.
-    for msg in _make_module_events():
-        await websocket.send_text(msg)
+    #    With the real runtime, the hub replays the live MODULE_REGISTERED/MODULE_STATE events instead.
+    if not (RUNTIME_AVAILABLE and hub is not None):
+        for msg in _make_module_events():
+            await websocket.send_text(msg)
 
     if hub is None:
         try:
@@ -216,22 +219,64 @@ async def websocket_telemetry(websocket: WebSocket):
 # ── 4. Optional tectonic_runtime ──────────────────────────────────────────────
 _runtime = None
 _is_running_fn = lambda: False
+_run_simulation = None
+_background: set = set()
 try:
+    from tectonic_runtime import bus as _module_bus
     from tectonic_runtime import get_runtime
-    from tectonic_runtime.simulation import is_running
+    from tectonic_runtime.simulation import is_running, run_office_simulation
     _runtime = get_runtime()
     _is_running_fn = is_running
+    _run_simulation = run_office_simulation
     RUNTIME_AVAILABLE = True
-    print("[STARTUP] tectonic_runtime loaded")
+    print("[STARTUP] tectonic_runtime loaded: %d modules" % len(_runtime.modules))
 except Exception as exc:
-    print(f"[STARTUP] tectonic_runtime unavailable (optional): {exc}")
+    # Loud: without the runtime, generated agents lose guardrails, memory, RAG, FinOps and audit.
+    print(f"[STARTUP] ERROR tectonic_runtime unavailable — platform modules DISABLED: {exc!r}")
+
+if RUNTIME_AVAILABLE and hub is not None:
+    # Same wiring as server.py: module activity reaches the Command Center, and every agent/tool/run event
+    # lands in the audit hash chain.
+    def _forward_module_event(event: dict) -> None:
+        hub.emit(event["type"], **{k: v for k, v in event.items() if k not in ("type", "timestamp")})
+
+    _module_bus.subscribe(_forward_module_event)
+    _runtime.announce()  # re-emit registrations now that the hub is listening
+    _audit = _runtime.module("auditability")
+    hub.add_listener(lambda event: None if event.get("type", "").startswith("MODULE_") else _audit.observe(event))
+
+    @app.on_event("shutdown")
+    async def _flush_platform_state() -> None:
+        await _audit.flush()
+        finops = _runtime.module("finops")
+        if getattr(finops, "repository", None) is not None:
+            finops.repository.flush()
+
+# After a conversational edit, drop the generated app's cached agent so its next run loads the new code.
+if ADK_AVAILABLE:
+    try:
+        import gc as _gc
+
+        from agent_builder import directory as _directory
+        from google.adk.cli.api_server import ApiServer as _ApiServer
+
+        def _evict_app(app_name: str) -> None:
+            agent_loader.remove_agent_from_cache(app_name)
+            for server in (o for o in _gc.get_objects() if isinstance(o, _ApiServer)):
+                server.runners_to_clean.add(app_name)
+
+        _directory.on_evict(_evict_app)
+    except Exception as exc:
+        print(f"[STARTUP] agent cache eviction unavailable: {exc}")
 
 # ── 5. Custom API routes ───────────────────────────────────────────────────────
 
 @app.get("/health")
+@app.get("/healthz")  # ADK registers its own /health first; /healthz always reaches this one
 async def health():
     return {"status": "healthy", "adk": ADK_AVAILABLE,
-            "telemetry": TELEMETRY_AVAILABLE, "runtime": RUNTIME_AVAILABLE}
+            "telemetry": TELEMETRY_AVAILABLE, "runtime": RUNTIME_AVAILABLE,
+            "modules": len(_runtime.modules) if RUNTIME_AVAILABLE else 0}
 
 @app.get("/api/env")
 async def get_env():
@@ -256,6 +301,10 @@ async def simulate_office():
         return {"status": "runtime_unavailable"}
     if _is_running_fn():
         return {"status": "already_running"}
+    import asyncio
+    task = asyncio.create_task(_run_simulation(_runtime, agent_events=hub.emit if hub is not None else None))
+    _background.add(task)
+    task.add_done_callback(_background.discard)
     return {"status": "started"}
 
 @app.post("/modules/{module}/{operation}")

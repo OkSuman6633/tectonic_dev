@@ -3,7 +3,6 @@
 import ast
 import importlib
 import json
-import os
 from pathlib import Path
 from typing import Optional
 
@@ -133,7 +132,13 @@ try:
 
         return provider
 
-except ImportError:
+except ImportError as _exc:  # standalone run, or a server shipped without tectonic_runtime
+    import logging
+
+    logging.getLogger(__name__).warning(
+        "Tectonic platform modules unavailable (%s): %s runs WITHOUT guardrails, memory, RAG, FinOps or audit tools.",
+        _exc, TEAM,
+    )
     CORE_MODULE_TOOLS = []
     CORE_MODULE_INSTRUCTIONS = ""
 
@@ -328,16 +333,19 @@ def scaffold_project(project_name: str, extra_requirements_json: str, tool_conte
 
     root = roots[0]
     configured_model = root.get("model", "gemini-3.6-flash") or "gemini-3.6-flash"
-    master_key = os.getenv("GOOGLE_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")
 
     env_example = f"""# Google Gemini Configuration
 GOOGLE_API_KEY=
 GEMINI_API_KEY=
 GEMINI_MODEL={configured_model}
 """
+    # The server's own key is never copied into a project: the project's files are readable by its owner
+    # (Studio file view, /api/system/agents/<name>/env). Inside the Tectonic server the agent runs on the
+    # platform key from the environment (load_dotenv never overrides it); run standalone, fill in your own.
     env_actual = f"""# Google Gemini Configuration for {project}
-GOOGLE_API_KEY={master_key}
-GEMINI_API_KEY={master_key}
+# Blank: inside the Tectonic server this agent uses the platform's key. Run standalone: add your own.
+GOOGLE_API_KEY=
+GEMINI_API_KEY=
 GEMINI_MODEL={configured_model}
 """
     requirements = sorted(set(_BASE_REQUIREMENTS + [str(e) for e in extras]))

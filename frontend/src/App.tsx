@@ -99,6 +99,7 @@ export const App: React.FC = () => {
   const signedIn = getUser();
   const builderModelLabel = studioSettings
     ? (studioSettings.catalogue.find((m) => m.id === studioSettings.model)?.label ?? studioSettings.model)
+      + (studioSettings.mode === 'custom' && !studioSettings.custom_error ? ' · custom' : '')
     : '…';
   const [isDarkMode, setIsDarkMode] = useState(() => {
     // Check localStorage or default to dark

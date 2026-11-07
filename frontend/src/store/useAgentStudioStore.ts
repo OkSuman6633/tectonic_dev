@@ -14,6 +14,7 @@ import type {
   EnvConfig,
   AgentEnvConfig,
   StudioSettings,
+  ModelMode,
   FileWriteEvent,
   AgentEvent,
   ChatAttachment
@@ -52,8 +53,14 @@ interface AgentStudioState {
   // The model the Agent Builder runs on (Gemini or Claude) and its provider keys
   studioSettings: StudioSettings | null;
   loadStudioSettings: () => Promise<void>;
-  /** Validated and applied by the backend at once (no restart); throws with the reason if refused. */
+  /** The platform default (admin, local server). Validated and applied at once; throws with the reason if refused. */
   saveStudioSettings: (model: string, keys: { anthropicApiKey?: string; googleApiKey?: string }) => Promise<StudioSettings>;
+  /** Overwrite this user's one custom override (model + optional own key) and switch to it. */
+  saveCustomModel: (model: string, apiKey?: string) => Promise<StudioSettings>;
+  /** Toggle between the platform default and the saved override (the override is kept). */
+  setModelMode: (mode: ModelMode) => Promise<StudioSettings>;
+  /** Delete the saved override (model and key) and return to the platform default. */
+  clearCustomModel: () => Promise<StudioSettings>;
 
   // Specific Agent .env in Sandbox
   selectedAgentEnv: AgentEnvConfig | null;
@@ -493,6 +500,21 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
     const settings = await api.saveStudioSettings(model, keys);
     set({ studioSettings: settings });
     await get().checkEnvConfig(); // the sandbox reads the Google key from the same .env
+    return settings;
+  },
+  saveCustomModel: async (model, apiKey) => {
+    const settings = await api.saveCustomModel(model, apiKey);
+    set({ studioSettings: settings });
+    return settings;
+  },
+  setModelMode: async (mode) => {
+    const settings = await api.setModelMode(mode);
+    set({ studioSettings: settings });
+    return settings;
+  },
+  clearCustomModel: async () => {
+    const settings = await api.clearCustomModel();
+    set({ studioSettings: settings });
     return settings;
   },
 

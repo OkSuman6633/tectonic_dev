@@ -359,10 +359,39 @@ export interface BuilderModelOption {
   description: string;
 }
 
-/** The Builder's model and which provider keys are configured (keys are only ever shown masked). */
-export interface StudioSettings {
+/** Which model serves a user's Builder: the platform default, or their own saved override. */
+export type ModelMode = 'default' | 'custom';
+
+/** A user's one saved override (GET /studio/settings). Their key is never returned, only its first characters. */
+export interface CustomModelOverride {
   model: string;
   provider: 'anthropic' | 'google';
+  /** The override carries the user's own key (else it uses the platform's key for that provider). */
+  has_own_key: boolean;
+  key_hint: string;
+  /** False when the saved key can no longer be decrypted (the server's secret changed): re-enter it. */
+  key_readable: boolean;
+  updated_at?: number | null;
+}
+
+/** The Builder's model and which provider keys are configured (keys are only ever shown masked). */
+export interface StudioSettings {
+  /** Absent on older servers (treated as 'default'). */
+  mode?: ModelMode;
+  /** The model actually serving this user right now. */
+  model: string;
+  provider: 'anthropic' | 'google';
+  /** Whose key the active model sends: the user's own (override) or the platform's. */
+  active_key_source?: 'user' | 'platform';
+  /** Set when the override is selected but cannot run, so the platform default is serving instead. */
+  custom_error?: string;
+  custom?: CustomModelOverride | null;
+  /** False when nobody is signed in (overrides belong to an account). */
+  can_customize?: boolean;
+  /** The platform default can be edited here (admin on a server that owns its .env, i.e. not Cloud Run). */
+  can_edit_default?: boolean;
+  default_managed_by?: 'studio' | 'deployment';
+  default_provider?: 'anthropic' | 'google';
   catalogue: BuilderModelOption[];
   has_anthropic_key: boolean;
   anthropic_key_hint: string;

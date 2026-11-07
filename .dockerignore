@@ -4,7 +4,9 @@
 
 # Python
 __pycache__
+**/__pycache__
 *.pyc
+**/*.pyc
 *.pyo
 *.pyd
 .Python
@@ -43,12 +45,24 @@ frontend/.cache
 tests/
 pytest.ini
 
-# Logs and generated files (will be created at runtime)
+# Logs, generated files and local accounts/keys (created at runtime, never baked into the image)
 logs/
 generated_agents/
+data/
 
-# Modules folder (heavy dependencies not needed for core agent builder)
-modules/
+# Modules: only the src/ trees tectonic_runtime loads in-process (keep in sync with
+# tectonic_runtime/_paths.py MODULE_PACKAGES; the Dockerfile's build check fails if one is missing).
+modules
+!modules/guardrails/src
+!modules/intent-detection/src
+!modules/short-term-memory/src
+!modules/long-term-memory/src
+!modules/tool-orchestration/src
+!modules/agentic-rag/src
+!modules/finops/src
+!modules/promptops/src
+!modules/vector-db/src
+!modules/auditability/src
 
 # Documentation (keep design playbook needed by agent_builder)
 !agent_builder/profiles/design_playbook.md
