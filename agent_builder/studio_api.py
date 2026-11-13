@@ -32,8 +32,11 @@ def auth_enabled() -> bool:
 
 def install(app) -> None:
     from . import model_settings  # noqa: F401  (registers each user's own Builder model)
+    from .connectors_api import router as connectors_router
 
     app.include_router(router)
+    # The chat's secure "connect a data source" form (credentials never pass through the agents).
+    app.include_router(connectors_router)
     if auth_enabled():
         app.add_middleware(auth.AuthMiddleware,
                            list_apps=lambda: [f"{module_prefix()}.{d.name}.{d.name}" for d in own_projects()])

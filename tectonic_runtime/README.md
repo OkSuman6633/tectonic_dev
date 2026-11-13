@@ -1,6 +1,6 @@
 # tectonic_runtime: shared core modules
 
-The Builder Agent and every worker agent it generates share one runtime. It runs ten core
+The Builder Agent and every worker agent it generates share one runtime. It runs eleven core
 functional modules from `modules/` in-process, behind one standardized API, and streams their
 activity to the Command Center's Agent Office view.
 
@@ -16,6 +16,7 @@ activity to the Command Center's Agent Office view.
 | `finops` | `report`, `check`, `recommendations`, `rates`, `set_budget`*, `set_rate`*, `optimise`* | `modules/finops` budgets, aggregation, forecasting, optimiser |
 | `promptops` | `resolve`, `record_outcome`, `list_prompts`, `versions`, `get_version`, `ab_status`, `register`*, `promote`*, `rollback`*, `start_ab_test`*, `conclude_ab_test`*, `check_drift`*, `propose_improvement`* | `modules/promptops` registry, A/B (z-test), drift, reflection |
 | `auditability` | `query`, `ask`, `verify`, `stats`, `export`* | `modules/auditability` SHA-256 hash chain, NL query, audit packs |
+| `external_connectors` | `catalog`, `connections`, `fetch_data`, `execute_action`, `request_credentials`, `disconnect` | `connectors/` — Meta Ads + Google Analytics 4 (see below) |
 
 `*` = admin-only (`@operation(..., permission="admin")`).
 
@@ -99,6 +100,61 @@ LlmAgent(..., instruction=MY_PROMPT + CORE_MODULE_INSTRUCTIONS, tools=[*my_tools
 `POST /modules/simulate` runs a real shift: the Builder spins up four workers who use every module
 concurrently, including retries on a flaky tool and a blocked jailbreak. `GET /modules` lists the
 registry.
+
+## External connectors (clients' own data)
+
+`connectors/` lets generated agents read a client's third-party data and, for Meta, stage paused campaigns.
+
+| Connector | Connection inputs (External Tools window) | Agent tools |
+| --- | --- | --- |
+| Meta Ads (Marketing API) | Graph API access token, ad account id (`act_…`), optional app secret | `meta_ads_insights` (spend, CTR/CPC/CPM, purchases, ROAS), `meta_ads_campaigns`, `meta_ads_account`, `meta_ads_create_campaign` / `meta_ads_create_ad_set` (always `PAUSED`) |
+| Google Analytics 4 (Data API) | property id + service-account JSON key, or an OAuth access token (optionally refresh token + client id/secret) | `ga4_report`, `ga4_traffic_overview`, `ga4_source_medium`, `ga4_conversions`, `ga4_metadata` |
+
+Plus `connector_status`. Every tool is declared from the connector's JSON Schema and adds its own usage rules to the
+agent's system prompt; `connectors.tools.tool_specs()` / `dispatch()` expose the same tools to non-ADK frameworks.
+
+**Connect once, use everywhere.** Users connect each data source in the Studio's **External Tools** window (plug icon
+in the dock). `POST /connectors/connect` validates the credentials against the live API and stores them for the
+account, so every agentic workflow of that account uses the connection. Several accounts of one source (one Meta ad
+account per client) are separate named connections that agents select with `connection="<label>"`. Only the
+connection comes from the user: agents choose every query detail (dates, levels, metrics, filters) themselves.
+
+**When data cannot be fetched.** Nothing is invented. The tool returns `not_connected`, `connection_failed` (rejected
+or revoked credentials, which stay failed until reconnected), `fetch_failed` (provider error), or `ok` with
+`no_data=true`, and the module records a data notice. The chat (Live Sandbox, and `@agent` in the Builder chat) shows
+each notice as a pop-up above the agent's reply, with an **Open External Tools** button. Once the source is connected,
+a **Continue with the data** button lets the agent carry on. Meanwhile the agent tells the user what is missing and
+continues with the parts of the task that do not need it.
+
+**Security model.**
+- Credentials never pass through a chat message, a tool argument, a module payload or a result. The External Tools
+  form posts them to `agent_builder/connectors_api.py` only, and agents only ever see data.
+- Vault (`connectors/vault.py`): Fernet-encrypted in process memory with a per-process key, scoped to
+  (account, connector, connection) and expiring after `TECTONIC_CONNECTOR_TTL_HOURS` (default 12). A restart
+  means users reconnect. Implement `SecretStore` to back it with a managed secret manager instead.
+- Redaction (`connectors/redaction.py`): stored values and well-known token shapes are masked in every log record,
+  in telemetry tool payloads, in the audit trail and in upstream error messages. `ConnectorSecretsPlugin` strips
+  credentials pasted into a chat message before any model or session sees them, and the UI refuses to send them.
+- Tokens travel in `Authorization` headers, never in URLs. A service-account key's `token_uri` is allow-listed to
+  Google, and Meta writes are forced to `PAUSED` and re-checked after creation.
+
+**Enabling it for a project.** Add `external_connectors` to `ENABLED_MODULES` in the project's
+`shared_libraries/core_modules.py` (`None` already enables every module). The Builder offers it in the modules
+checklist and selects it when requirements mention Meta Ads, GA4, ROAS, ad spend or web traffic. Optional settings:
+`META_GRAPH_API_VERSION` (default `v24.0`), `TECTONIC_CONNECTOR_TIMEOUT` (s), `TECTONIC_CONNECTOR_MAX_ATTEMPTS`.
+
+**Adding a connector** (LinkedIn, HubSpot, ...): subclass `connectors.BaseConnector`. Declare `auth_schemes`
+(the form fields) and `capabilities` (JSON Schemas), implement `authenticate` / `fetch_data` / `execute_action`,
+and call `register_connector(MyConnector)`. Its tools, its card in External Tools and its API come with it.
+
+## One model for every workflow
+
+Generated projects name a model in `shared_libraries/constants.py`, but inside the Studio that is only a placeholder.
+`agent_builder/workflow_model.py` (a plugin on every run) points each of the project's agents (root, sub-agents and
+AgentTool specialists) at the Agent Builder's live model: the platform default, or the user's custom model from the
+Builder settings, resolved per call. Switching the Builder's model therefore switches every workflow too. The
+generated model applies only when a project runs standalone (`adk run`). Agents built on a bespoke `BaseLlm`
+subclass are left as written.
 
 ## Adding a module
 

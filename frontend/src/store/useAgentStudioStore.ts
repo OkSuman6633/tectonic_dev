@@ -21,6 +21,8 @@ import type {
 } from '../types/agent';
 import { api, DEFAULT_MOCK_SPEC, SessionMissingError, type ChatResponse, type RuntimeChatResponse } from '../services/api';
 import { storageScope } from '../services/auth';
+import { fetchConnectorNotices, looksLikeCredential, noticeCursor } from '../services/connectorsApi';
+import type { ConnectorNotice } from '../types/connectors';
 
 export type StudioTab = 'command' | 'visualizer' | 'sandbox' | 'inspector';
 
@@ -158,6 +160,12 @@ interface AgentStudioState {
   resetSandbox: () => void;
   resetDemoToInitial: () => void;
 
+  // External data connectors: data problems agents hit (not connected, failed, no data) pop up in the chat
+  /** Show the notices a project's agents raised after `after` (the cursor taken before the turn). */
+  syncConnectorNotices: (where: 'sandbox' | 'chat', project: string, after: number, target?: string) => Promise<void>;
+  /** After connecting a source in External Tools: let the agent continue with the data. */
+  continueAfterConnect: (where: 'sandbox' | 'chat', messageId: string) => Promise<void>;
+
   // Conversational editing of the selected agent (then re-run on the updated code)
   /** Keys the editor's conversation, so follow-up changes refer to the previous ones. */
   editSessionKey: string;
@@ -276,9 +284,19 @@ let sandboxStarting: Promise<string> | null = null;
 export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get) => {
   const systemChat = (content: string): ChatMessage => ({ id: newId('msg-system'), sender: 'system', content, timestamp: stamp() });
   const sandboxNotice = (content: string): SandboxChatMessage => ({ id: newId('sb-notice'), sender: 'system', kind: 'notice', content, timestamp: stamp() });
+  /** Credentials must never travel in a chat message: such a message is not sent at all. */
+  const credentialWarning = (kind: string) =>
+    `🔒 That message contains ${kind}, so it was **not sent**. Never paste credentials into the chat: connect the data source in **External Tools** (plug icon in the dock), which stores them securely without the AI ever seeing them.`;
+  const noticeCard = (where: 'sandbox' | 'chat', notice: ConnectorNotice, project: string, target?: string) => {
+    const view = { notice, project, target };
+    const content = `${notice.label}: ${notice.kind.replace('_', ' ')}`;
+    return where === 'sandbox'
+      ? ({ id: newId('sb-conn'), sender: 'system', kind: 'connector-notice', content, timestamp: stamp(), connectorNotice: view } as SandboxChatMessage)
+      : ({ id: newId('msg-conn'), sender: 'assistant', content: '', timestamp: stamp(), agentTarget: target, agentName: notice.agent, connectorNotice: view } as ChatMessage);
+  };
 
   /** Show a Builder reply (live or recovered after a refresh) and resync what it may have changed. */
-  const applyBuilderResponse = async (resp: ChatResponse, userMsgId: string, recovered = false) => {
+  const applyBuilderResponse = async (resp: ChatResponse, userMsgId: string, recovered = false, noticesAfter: number | null = null) => {
     const assistantMsg: ChatMessage = {
       id: newId('msg'),
       sender: 'assistant',
@@ -322,6 +340,10 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
       }));
     }
     if (resp.edited) await onAgentEdited(resp.edited.project, 'Agent updated from the Builder chat');
+    if (resp.routedTo && noticesAfter !== null) {
+      const routed = get().agentDirectory.find((a) => a.id === resp.routedTo);
+      if (routed?.project) await get().syncConnectorNotices('chat', routed.project, noticesAfter, routed.id);
+    }
   };
 
   const applySandboxResponse = async (resp: RuntimeChatResponse, recovered = false) => {
@@ -833,6 +855,11 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
   sendArchitectMessage: async (content: string, display?: string, attachments: ChatAttachment[] = []) => {
     if (!content.trim() && attachments.length === 0) return;
     if (!content.trim()) content = 'Please look at the attached file(s).';
+    const pastedCredential = content.includes('DECISIONS_JSON:') ? null : looksLikeCredential(content);
+    if (pastedCredential) {
+      set((state) => ({ chatMessages: [...state.chatMessages, systemChat(credentialWarning(pastedCredential))] }));
+      return;
+    }
 
     let sid = get().builderSessionId;
     if (!sid) {
@@ -878,6 +905,7 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
 
     if (target) {
       try {
+        const targetNotices = await noticeCursor();
         const result = await api.chatWithAgent(target.id, text, sid, attachments);
         set((state) => ({
           chatMessages: [...state.chatMessages, {
@@ -892,6 +920,7 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
           isChatLoading: false,
           isStreaming: false,
         }));
+        if (result.project && targetNotices !== null) await get().syncConnectorNotices('chat', result.project, targetNotices, result.target);
       } catch (err: any) {
         set((state) => ({
           chatMessages: [...state.chatMessages, {
@@ -912,6 +941,7 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
     // Remembered until the reply arrives: if the page is refreshed meanwhile, the next load recovers it.
     const sentAt = Date.now();
     set((state) => ({ pendingTurns: { ...state.pendingTurns, builder: { sessionId: sid!, text: content, userMsgId: userMsg.id, sentAt } } }));
+    const builderNotices = await noticeCursor(); // the Builder may route this turn to an agent that hits a connector
     try {
       // The Agent Builder: builds and edits agents, and routes requests for existing ones through ask_agent.
       let resp: ChatResponse;
@@ -931,7 +961,7 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
         resp = await api.sendBuilderChat(content, sid, attachments);
       }
       if (get().builderSessionId !== sid) return; // a new Builder session was started meanwhile
-      await applyBuilderResponse(resp, userMsg.id);
+      await applyBuilderResponse(resp, userMsg.id, false, builderNotices);
     } catch (err: any) {
       console.error(err);
       if (get().builderSessionId !== sid) return;
@@ -1179,33 +1209,16 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
     const attachments = opts?.attachments ?? [];
     if (!content.trim() && attachments.length === 0) return;
     if (!content.trim()) content = 'Please look at the attached file(s).';
+    const pastedCredential = looksLikeCredential(content);
+    if (pastedCredential) {
+      set((state) => ({ sandboxMessages: [...state.sandboxMessages, sandboxNotice(credentialWarning(pastedCredential))] }));
+      return;
+    }
 
-    const { selectedAgent, selectedAgentEnv } = get();
+    // No per-agent key check: every workflow runs on the Agent Builder's current model and its key.
+    const { selectedAgent } = get();
     const appName = selectedAgent ? selectedAgent.appName : 'agent_builder';
     const agentName = selectedAgent ? selectedAgent.name : appName;
-
-    // Verify particular agent's .env has key before running
-    if (selectedAgent) {
-      let agentEnv = selectedAgentEnv;
-      if (!agentEnv || agentEnv.agentName !== selectedAgent.name) {
-        agentEnv = await get().checkSelectedAgentEnv(selectedAgent.name);
-      }
-
-      if (!agentEnv?.hasKey) {
-        // Must configure API key first
-        set({ showAgentEnvModal: true });
-        const warnMsg: SandboxChatMessage = {
-          id: newId('sb-warn'),
-          sender: 'system',
-          content: `⚠️ **Google API Key Required:** Please configure the Google API Key for **${selectedAgent.name}** before running it. The key will be saved directly into its \`.env\` file without any LLM interaction.`,
-          timestamp: stamp()
-        };
-        set((state) => ({
-          sandboxMessages: [...state.sandboxMessages, warnMsg]
-        }));
-        return;
-      }
-    }
 
     let sid = get().sandboxSessionId;
     if (!sid || get().sandboxAgentName !== agentName) {
@@ -1231,6 +1244,7 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
       pendingTurns: { ...state.pendingTurns, sandbox: { appName, agentName, sessionId: sid!, text: content, sentAt } },
     }));
 
+    const sandboxNotices = selectedAgent ? await noticeCursor() : null;
     try {
       // Real backend LLM run
       let resp: RuntimeChatResponse;
@@ -1247,6 +1261,8 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
         return;
       }
       await applySandboxResponse(resp);
+      // Data problems the agent (or a specialist it called) hit while fetching from connectors pop up here.
+      if (selectedAgent && sandboxNotices !== null) await get().syncConnectorNotices('sandbox', selectedAgent.name, sandboxNotices);
     } catch (err: any) {
       console.error(err);
       if (get().sandboxSessionId !== sid) {
@@ -1272,6 +1288,52 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
 
   resetSandbox: () => {
     get().startNewSandboxSession();
+  },
+
+  syncConnectorNotices: async (where, project, after, target) => {
+    let notices: ConnectorNotice[];
+    try {
+      notices = (await fetchConnectorNotices(after, project)).notices;
+    } catch {
+      return; // connectors API unreachable: nothing to show
+    }
+    // One card per data source and problem per turn, however many tool calls hit it.
+    const seen = new Set<string>();
+    const fresh = notices.filter((n) => {
+      const key = `${n.kind}:${n.connector}:${n.connection}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    if (!fresh.length) return;
+    // Shown just above the agent's reply of this turn: the data problem first, then how the agent carried on.
+    const beforeReply = <M extends SandboxChatMessage | ChatMessage>(messages: M[], cards: M[]): M[] => {
+      const last = messages[messages.length - 1];
+      const replied = last && (last.sender === 'agent' || last.sender === 'assistant') && !last.connectorNotice;
+      return replied ? [...messages.slice(0, -1), ...cards, last] : [...messages, ...cards];
+    };
+    if (where === 'sandbox') {
+      set((state) => ({ sandboxMessages: beforeReply(state.sandboxMessages, fresh.map((n) => noticeCard('sandbox', n, project) as SandboxChatMessage)) }));
+    } else {
+      set((state) => ({ chatMessages: beforeReply(state.chatMessages, fresh.map((n) => noticeCard('chat', n, project, target) as ChatMessage)) }));
+    }
+  },
+
+  continueAfterConnect: async (where, messageId) => {
+    const mark = <M extends SandboxChatMessage | ChatMessage>(m: M): M =>
+      m.id === messageId && m.connectorNotice ? { ...m, connectorNotice: { ...m.connectorNotice, continued: true } } : m;
+    const messages: (SandboxChatMessage | ChatMessage)[] = where === 'sandbox' ? get().sandboxMessages : get().chatMessages;
+    const view = messages.find((m) => m.id === messageId)?.connectorNotice;
+    if (!view) return;
+    if (where === 'sandbox') set((state) => ({ sandboxMessages: state.sandboxMessages.map(mark) }));
+    else set((state) => ({ chatMessages: state.chatMessages.map(mark) }));
+    const label = view.notice.label + (view.notice.connection !== 'default' ? ` (${view.notice.connection})` : '');
+    const text = `I've connected ${label} in External Tools. Please continue with my previous request using that data.`;
+    if (where === 'sandbox') {
+      if (get().selectedAgent?.name === view.project) await get().sendSandboxMessage(text);
+    } else {
+      await get().sendArchitectMessage(`@${view.target ?? view.project} ${text}`, text);
+    }
   },
 
   resetDemoToInitial: () => {

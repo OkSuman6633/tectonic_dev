@@ -1,3 +1,5 @@
+import type { ConnectorNoticeView } from './connectors';
+
 export interface AgentTool {
   name: string;
   description: string;
@@ -184,6 +186,8 @@ export interface ChatMessage {
   designReview?: DesignReview;
   codeReview?: DesignReview;
   autopilot?: AutopilotRun;
+  /** An agent could not get data from a connector (not connected, failed, no data): shown as a pop-up. */
+  connectorNotice?: ConnectorNoticeView;
   structuredInfo?: {
     goal?: string;
     tools?: string[];
@@ -273,9 +277,11 @@ export interface SandboxChatMessage {
   sender: 'user' | 'agent' | 'system';
   content: string;
   timestamp: string;
-  /** 'edit-request': the user's change request; 'edit': its outcome; 'notice': session / re-run markers. */
-  kind?: 'edit-request' | 'edit' | 'notice';
+  /** 'edit-request': the user's change request; 'edit': its outcome; 'notice': session / re-run markers;
+   *  'connector-notice': the agent could not get data from a connector (not connected, failed, no data). */
+  kind?: 'edit-request' | 'edit' | 'notice' | 'connector-notice';
   edit?: SandboxEditView;
+  connectorNotice?: ConnectorNoticeView;
   /** A test message re-sent automatically to the updated agent. */
   rerun?: boolean;
   /** Files the user attached (names and types only). */

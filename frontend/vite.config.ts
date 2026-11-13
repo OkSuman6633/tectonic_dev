@@ -199,6 +199,12 @@ export default defineConfig({
         changeOrigin: true,
         configure: (proxy) => proxy.on('proxyReq', (proxyReq) => proxyReq.setHeader('origin', `http://${BACKEND}`)),
       },
+      // External data sources: the chat's secure "connect Meta Ads / GA4" form (server.py)
+      '/connectors': {
+        target: `http://${BACKEND}`,
+        changeOrigin: true,
+        configure: (proxy) => proxy.on('proxyReq', (proxyReq) => proxyReq.setHeader('origin', `http://${BACKEND}`)),
+      },
       // Shared core-module registry and live office simulation (server.py)
       '/modules': {
         target: `http://${BACKEND}`,

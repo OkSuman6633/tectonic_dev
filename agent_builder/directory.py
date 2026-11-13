@@ -213,14 +213,17 @@ def _short(value: Any, limit: int = 160) -> str:
 
 
 def _plugins() -> list:
+    from tectonic_runtime.connectors.plugin import connector_secrets_plugin
+
     from .attachments import attachment_plugin
+    from .workflow_model import workflow_model_plugin
 
     try:
         from .telemetry import telemetry_plugin
 
-        return [attachment_plugin, telemetry_plugin]
+        return [attachment_plugin, telemetry_plugin, connector_secrets_plugin, workflow_model_plugin]
     except Exception:  # telemetry is optional (e.g. in tests)
-        return [attachment_plugin]
+        return [attachment_plugin, connector_secrets_plugin, workflow_model_plugin]
 
 
 def session_id_for(session_key: str, entry_id: str) -> str:

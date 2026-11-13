@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
 
-export type WindowId = 'chat' | 'command' | 'blueprint' | 'roster' | 'events' | 'sandbox' | 'inspector' | 'knowledge' | 'finops' | 'promptops' | 'audit';
+export type WindowId = 'chat' | 'command' | 'blueprint' | 'roster' | 'events' | 'sandbox' | 'inspector' | 'knowledge' | 'finops' | 'promptops' | 'audit' | 'connectors';
 export type PresetId = 'build' | 'monitor' | 'debug' | 'platform';
 
 export interface Cell {
@@ -15,7 +15,7 @@ export interface Cell {
 export const GRID_COLS = 24;
 export const GRID_ROWS = 24;
 
-export const ALL_WINDOWS: WindowId[] = ['chat', 'command', 'blueprint', 'roster', 'events', 'sandbox', 'inspector', 'knowledge', 'finops', 'promptops', 'audit'];
+export const ALL_WINDOWS: WindowId[] = ['chat', 'command', 'blueprint', 'roster', 'events', 'sandbox', 'inspector', 'knowledge', 'finops', 'promptops', 'audit', 'connectors'];
 
 interface Preset {
   label: string;
@@ -83,6 +83,7 @@ const FALLBACK: Record<WindowId, Cell> = {
   finops: { x: 10, y: 0, w: 7, h: 14 },
   promptops: { x: 12, y: 0, w: 12, h: 14 },
   audit: { x: 0, y: 14, w: 14, h: 10 },
+  connectors: { x: 14, y: 0, w: 10, h: 16 },
 };
 
 function presetState(preset: PresetId) {
@@ -218,12 +219,14 @@ export const useWorkspaceStore = create<WorkspaceState>()(
           const c = p.layouts?.[id];
           if (c && [c.x, c.y, c.w, c.h].every((n) => Number.isFinite(n)) && c.w >= 2 && c.h >= 2) layouts[id] = c;
         }
+        // A window added since the layout was saved starts closed (dock icon only), not dropped onto the grid.
+        const added = p.layouts ? ALL_WINDOWS.filter((id) => !p.layouts?.[id]) : [];
         return {
           ...current,
           preset: p.preset && p.preset in PRESETS ? p.preset : current.preset,
           layouts,
           minimized: (p.minimized ?? current.minimized).filter((id) => ALL_WINDOWS.includes(id)),
-          closed: (p.closed ?? current.closed).filter((id) => ALL_WINDOWS.includes(id)),
+          closed: [...new Set([...(p.closed ?? current.closed), ...added])].filter((id) => ALL_WINDOWS.includes(id)),
         };
       },
     },

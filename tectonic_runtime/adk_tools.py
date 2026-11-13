@@ -340,29 +340,50 @@ _TOOL_MODULE = {
 }
 
 
-def worker_tools(team: str = "default", modules: list[str] | tuple[str, ...] | None = None) -> list[Callable[..., Any]]:
+CONNECTORS_MODULE = "external_connectors"
+
+
+def _connectors_enabled(modules: list[str] | tuple[str, ...] | None) -> bool:
+    return modules is None or CONNECTORS_MODULE in modules
+
+
+def module_instructions(modules: list[str] | tuple[str, ...] | None = None) -> str:
+    """CORE_MODULE_INSTRUCTIONS plus the rules of the optional modules a project enabled."""
+    from .connectors.tools import CONNECTOR_INSTRUCTIONS
+
+    return CORE_MODULE_INSTRUCTIONS + (CONNECTOR_INSTRUCTIONS if _connectors_enabled(modules) else "")
+
+
+def worker_tools(team: str = "default", modules: list[str] | tuple[str, ...] | None = None,
+                 connectors: list[str] | tuple[str, ...] | None = None) -> list[Any]:
     """Tool set for generated worker agents.
 
     Args:
         team: The worker's team (generated project name).
         modules: Platform modules enabled in the approved architecture spec; None enables all of them.
             Governance (budget metering, audit, prompt management) still applies platform-side either way.
+        connectors: With ``external_connectors`` enabled, limit its tools to these data sources
+            (e.g. ["meta_ads"]); None gives every registered connector.
     """
-    tools = [core_guardrails_check, core_classify_intent, core_define_intents, core_memory_note, core_memory_context,
-             core_remember, *_team_tools(team), core_list_tools, core_call_tool,
-             core_knowledge_search, core_ask_knowledge, core_add_knowledge, core_spend_status, core_prompt_feedback,
-             core_audit_trail]
-    if modules is None:
-        return tools
-    enabled = set(modules)
+    tools: list[Any] = [core_guardrails_check, core_classify_intent, core_define_intents, core_memory_note,
+                        core_memory_context, core_remember, *_team_tools(team), core_list_tools, core_call_tool,
+                        core_knowledge_search, core_ask_knowledge, core_add_knowledge, core_spend_status,
+                        core_prompt_feedback, core_audit_trail]
+    if modules is not None:
+        enabled = set(modules)
 
-    def allowed(tool: Callable[..., Any]) -> bool:
-        owner = _TOOL_MODULE.get(getattr(tool, "__name__", ""))
-        if owner is None:
-            return True
-        return bool(enabled.intersection(owner if isinstance(owner, tuple) else (owner,)))
+        def allowed(tool: Callable[..., Any]) -> bool:
+            owner = _TOOL_MODULE.get(getattr(tool, "__name__", ""))
+            if owner is None:
+                return True
+            return bool(enabled.intersection(owner if isinstance(owner, tuple) else (owner,)))
 
-    return [t for t in tools if allowed(t)]
+        tools = [t for t in tools if allowed(t)]
+    if _connectors_enabled(modules):
+        from .connectors.tools import connector_tools
+
+        tools += connector_tools(connectors)
+    return tools
 
 
 def builder_tools(team: str = "default") -> list[Callable[..., Any]]:

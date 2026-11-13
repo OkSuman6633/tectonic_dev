@@ -84,6 +84,14 @@ PLATFORM_MODULES: dict[str, dict[str, Any]] = {
                   "tools": ["core_prompt_feedback"], "match": r"promptops|prompt version|a/b"},
     "auditability": {"label": "Audit trail", "description": "Tamper-evident trace of reasoning, tool calls and decisions.",
                      "tools": ["core_audit_trail"], "match": r"audit|trace|compliance log"},
+    "external_connectors": {
+        "label": "External data connectors (Meta Ads, Google Analytics 4)",
+        "description": "Read the client's own ad performance (spend, ROAS) and web analytics (traffic, sources, conversions); "
+                       "stage paused campaigns. The client connects each account once in the External Tools window.",
+        "tools": ["connector_status", "meta_ads_insights", "meta_ads_campaigns",
+                  "meta_ads_create_campaign", "ga4_report", "ga4_traffic_overview", "ga4_source_medium", "ga4_conversions"],
+        "match": r"meta ads|facebook ads|instagram ads|ads manager|marketing api|google analytics|\bga4\b|roas|"
+                 r"ad spend|campaign performance|web traffic|connector|external data"},
 }
 GOVERNANCE_MODULES = ("guardrails", "finops", "promptops", "auditability")
 
@@ -215,6 +223,7 @@ def _assign(mid: str, lead: dict, subs: list[dict]) -> list[str]:
         "short_term_memory": r"conversation|session|dialog|coordinat",
         "intent_detection": r"triage|route|classif|intake|dispatch",
         "tool_orchestration": r"api|external|integrat|fetch|sync|send|notify",
+        "external_connectors": r"\bads?\b|campaign|analytic|traffic|marketing|performance|report|roas|spend|insight|conversion",
     }
     chosen = [s["name"] for s in subs if re.search(patterns.get(mid, r"$^"), _text(s.get("name"), s.get("role"), s.get("description"), s.get("instruction_outline")))]
     if mid in ("short_term_memory", "intent_detection", "long_term_memory"):
@@ -279,6 +288,9 @@ def _lead_prompt(project: str, req: dict, lead: dict, subs: list[dict], modules:
         "finops": "Check core_spend_status before expensive multi-step work; be concise when the budget is tight.",
         "promptops": "Report task success or failure with core_prompt_feedback when the user confirms an outcome.",
         "auditability": "When asked what happened, read core_audit_trail rather than guessing.",
+        "external_connectors": "Pull the client's real Meta Ads (meta_ads_*) and GA4 (ga4_*) numbers instead of estimating; if a "
+                               "source is not connected or returns no data, tell the user (connect it in the External Tools "
+                               "window) and continue with what you can.",
     }
     mine = [mid for mid, users in modules.items() if lead_name in users]
     if mine:

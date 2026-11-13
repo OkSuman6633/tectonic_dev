@@ -73,7 +73,11 @@ try:
         allow_origins=origins,
         # workspace first: it binds the signed-in user that telemetry and the Builder's tools rely on
         extra_plugins=["agent_builder.workspace.workspace_plugin", "agent_builder.attachments.attachment_plugin",
-                       "agent_builder.telemetry.telemetry_plugin"],
+                       "agent_builder.telemetry.telemetry_plugin",
+                       # Credentials pasted into a chat message are removed before any model sees them.
+                       "tectonic_runtime.connectors.plugin.connector_secrets_plugin",
+                       # Generated workflows run on the Builder's current model (default or the user's custom one).
+                       "agent_builder.workflow_model.workflow_model_plugin"],
     )
     ADK_AVAILABLE = True
     print("[STARTUP] ADK ready  →  /run  /apps/*")
@@ -104,7 +108,7 @@ except Exception as exc:
 
 # ── Module definitions – emitted on every WS connect ──────────────────────────
 # tectonic_runtime is not loaded in Cloud Run, so emit these synthetically so
-# the Command Center office floor plan always shows the 10 platform modules.
+# the Command Center office floor plan always shows every platform module.
 import time as _time, uuid as _uuid
 _SERVER_ID = _uuid.uuid4().hex
 _MODULE_DEFS = [
@@ -118,10 +122,11 @@ _MODULE_DEFS = [
     ("finops",             "FinOps",             "governance",   "Token-level cost metering, budget enforcement and spend dashboards."),
     ("promptops",          "PromptOps",          "governance",   "Versioned prompt management with A/B testing and rollback."),
     ("auditability",       "Auditability",       "compliance",   "Immutable audit trail of every agent action and module call."),
+    ("external_connectors", "External Connectors", "integration", "Secure bridge to clients' Meta Ads and Google Analytics 4 data."),
 ]
 
 def _make_module_events() -> list[str]:
-    """Build MODULE_REGISTERED + MODULE_STATE events for all 10 platform modules.
+    """Build MODULE_REGISTERED + MODULE_STATE events for every platform module.
 
     Critical rules from the frontend store (useTelemetryStore.ts):
     1. seq must be POSITIVE and > lastSeq (which starts at 0 after HELLO resets).
@@ -166,7 +171,7 @@ async def websocket_telemetry(websocket: WebSocket):
                       hub's own HELLO (which we then discard from the queue).
                       Two different server_ids would cause a double reset that
                       wipes the module events we send in step 2.
-      2. MODULE_REGISTERED + MODULE_STATE x10  — populates the office floor plan.
+      2. MODULE_REGISTERED + MODULE_STATE per module  — populates the office floor plan.
          These are STICKY_TYPES so they bypass the seq-dedup filter and always land.
       3. Hub replay (agent history, recent events) — hub's HELLO is skipped.
       4. Live streaming events as they arrive.
@@ -380,7 +385,7 @@ if FRONTEND_DIR.exists():
     if (FRONTEND_DIR / "assets").exists():
         app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIR / "assets")), name="assets")
 
-    _API_PREFIXES = ("api/", "health", "modules", "directory", "studio",
+    _API_PREFIXES = ("api/", "health", "modules", "directory", "studio", "connectors/",
                      "run", "apps/", "list-apps", "ws/")
 
     @app.get("/{path:path}")

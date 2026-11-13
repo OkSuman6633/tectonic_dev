@@ -42,18 +42,25 @@ from google.adk.tools.agent_tool import AgentTool
 from .tracing import logger
 from .workspace import current_user
 
+try:  # connector credentials must never reach the Command Center or the audit trail
+    from tectonic_runtime.connectors.redaction import scrub as _scrub_secrets
+except Exception:  # pragma: no cover - runtime package absent
+    def _scrub_secrets(value: Any) -> Any:
+        return value
+
 _MAX_STRING = 6_000
 _REPLAY_EVENTS = 500
 _CHUNK_SIZE = 48
 
 
 def _jsonable(value: Any, depth: int = 0) -> Any:
-    """Convert arbitrary tool/model payloads into bounded, JSON-serializable data."""
+    """Convert arbitrary tool/model payloads into bounded, JSON-serializable data (secrets masked)."""
     if depth > 8:
         return "…"
     if value is None or isinstance(value, (bool, int, float)):
         return value
     if isinstance(value, str):
+        value = _scrub_secrets(value)
         return value if len(value) <= _MAX_STRING else value[:_MAX_STRING] + f"… [+{len(value) - _MAX_STRING} chars]"
     if isinstance(value, dict):
         return {str(k): _jsonable(v, depth + 1) for k, v in list(value.items())[:200]}

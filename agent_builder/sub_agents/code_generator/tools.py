@@ -69,6 +69,9 @@ _kwargs = {"model": MODEL_NAME, "num_retries": 5}
 if GOOGLE_API_KEY and "gemini" in MODEL_NAME:
     _kwargs["api_key"] = GOOGLE_API_KEY
 
+# Placeholder. Inside the Tectonic Studio every agent of this project runs on the model the Agent Builder
+# currently uses (the platform default or the user's custom model, switched live in the Builder settings).
+# This GEMINI_MODEL-based model only applies when the project runs standalone (plain `adk run`).
 MODEL = LiteLlm(**_kwargs)
 
 
@@ -93,7 +96,8 @@ _GEN_CORE_MODULES = '''"""Shared Tectonic platform modules for this project's ag
 
 Inside the Tectonic agent server every agent gets the platform as ADK tools (guardrails, intent,
 short/long-term memory, tool orchestration, Agentic RAG knowledge, FinOps spend, PromptOps feedback,
-audit trail) and its instruction is served by PromptOps as '<team>.<agent>' (versioned, A/B-testable).
+audit trail, external data connectors such as Meta Ads and GA4) and its instruction is served by
+PromptOps as '<team>.<agent>' (versioned, A/B-testable).
 Run standalone (plain `adk run`), the import fails and the agents work with their static prompts.
 """
 
@@ -110,9 +114,10 @@ def _fill(text, context, state_keys):
 
 
 try:
-    from tectonic_runtime.adk_tools import CORE_MODULE_INSTRUCTIONS, worker_tools
+    from tectonic_runtime.adk_tools import module_instructions, worker_tools
 
     CORE_MODULE_TOOLS = worker_tools(team=TEAM, modules=ENABLED_MODULES)
+    CORE_MODULE_INSTRUCTIONS = module_instructions(ENABLED_MODULES)
 
     def managed_instruction(agent_name, template, state_keys=()):
         """Instruction provider served by PromptOps ('<team>.<agent>'), falling back to the template."""

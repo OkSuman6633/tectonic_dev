@@ -31,6 +31,7 @@ import { refreshAllViews } from '../../workspace/refreshAllViews';
 import { AttachButton, AttachmentChips, useAttachments } from './Attachments';
 import { AutopilotAnswerCard, IdeasCard, ReviewCard } from './ReviewCards';
 import type { ChatMessage } from '../../types/agent';
+import { ConnectorNoticeCard } from '../connectors/ConnectorNoticeCard';
 
 const AUTOPILOT_KEY = 'tectonic-autopilot';
 const ATTACHED_ONLY = 'Please look at the attached file(s).';
@@ -95,7 +96,8 @@ export const ArchitectChat: React.FC = () => {
     isRefreshing,
     refreshCreatedAgents,
     setSelectedAgent,
-    setActiveTab
+    setActiveTab,
+    continueAfterConnect
   } = useAgentStudioStore();
 
   const [inputVal, setInputVal] = useState('');
@@ -360,6 +362,14 @@ export const ArchitectChat: React.FC = () => {
                   {msg.architectureSpec && <SpecCard spec={msg.architectureSpec} />}
 
                   {!isUser && msg.trace && msg.trace.length > 0 && <CallTrace steps={msg.trace} />}
+
+                  {/* The agent could not get connector data: pop-up pointing to External Tools */}
+                  {msg.connectorNotice && (
+                    <div className="mt-2">
+                      <ConnectorNoticeCard view={msg.connectorNotice} busy={isChatLoading}
+                        onContinue={() => continueAfterConnect('chat', msg.id)} />
+                    </div>
+                  )}
 
                   {/* If this message contains interactive decisions, render the form */}
                   {msg.decisionGroup && (
