@@ -12,6 +12,12 @@ import gc
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+load_dotenv(PROJECT_ROOT / ".env")
+load_dotenv()
+
 import uvicorn
 from fastapi import Body, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
@@ -32,7 +38,7 @@ PORT = int(os.getenv("AGENT_BUILDER_PORT", "8000"))
 FRONTEND_DIR = PROJECT_ROOT / "frontend" / "dist"
 
 # Get allowed origins from environment or use defaults
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174").split(",")
 # Add wildcard for Cloud Run deployments
 if os.getenv("K_SERVICE"):  # Cloud Run sets this environment variable
     ALLOWED_ORIGINS.append("*")
@@ -203,7 +209,7 @@ if FRONTEND_DIR.exists():
     async def serve_frontend(request: Request, full_path: str):
         """Serve frontend files. Falls back to index.html for SPA routing."""
         # Skip API routes
-        if full_path.startswith(("api/", "ws/", "run", "apps/", "list-apps", "directory/", "modules")):
+        if full_path.startswith(("api/", "ws/", "run", "apps/", "list-apps", "directory/", "modules", "auth", "studio")):
             raise HTTPException(404, "Not found")
         
         file_path = FRONTEND_DIR / full_path

@@ -79,6 +79,17 @@ async def auth_config():
     return {"auth": auth_enabled()}
 
 
+@router.get("/auth/local-token")
+async def auth_local_token():
+    """Returns a token for the primary local account to allow instant local frontend access."""
+    users = auth._load()
+    if users:
+        user = users.get("anikpal") or next(iter(users.values()))
+        return {"token": auth.issue_token(user), "user": user}
+    return {"token": None, "user": None}
+
+
+
 @router.post("/auth/register")
 async def auth_register(body: dict = Body(...)):
     try:

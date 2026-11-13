@@ -18,7 +18,10 @@ import re
 import threading
 from pathlib import Path
 
-import anthropic
+try:
+    import anthropic
+except ImportError:
+    anthropic = None
 from google.adk.models.base_llm import BaseLlm
 
 from .shared_libraries.constants import MODEL, PROJECT_ROOT, build_model
@@ -150,6 +153,8 @@ def _update_env_file(updates: dict[str, str]) -> None:
 
 async def _check_claude(model: str, api_key: str) -> None:
     """Confirm the key works and can use the model (a metadata lookup: no tokens are spent)."""
+    if anthropic is None:
+        raise SettingsError("Anthropic SDK is not installed. Install with 'pip install anthropic' to use Claude models.")
     client = anthropic.AsyncAnthropic(api_key=api_key, max_retries=1, timeout=20.0)
     try:
         await client.models.retrieve(claude_model_id(model))

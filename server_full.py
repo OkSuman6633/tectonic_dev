@@ -17,6 +17,12 @@ import json
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+load_dotenv(PROJECT_ROOT / ".env")
+load_dotenv()
+
 import uvicorn
 from fastapi import Body, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,7 +30,6 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 # ── Config ─────────────────────────────────────────────────────────────────────
-PROJECT_ROOT = Path(__file__).resolve().parent
 HOST = os.getenv("AGENT_BUILDER_HOST", "0.0.0.0")
 PORT = int(os.getenv("AGENT_BUILDER_PORT", "8080"))
 FRONTEND_DIR = PROJECT_ROOT / "frontend" / "dist"

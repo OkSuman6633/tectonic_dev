@@ -14,9 +14,18 @@ import re
 from collections import deque
 from typing import AsyncGenerator, Callable, Optional
 
-import anthropic
-from anthropic import AsyncAnthropic, transform_schema
-from google.adk.models.anthropic_llm import AnthropicLlm
+try:
+    import anthropic
+    from anthropic import AsyncAnthropic, transform_schema
+    from google.adk.models.anthropic_llm import AnthropicLlm
+    ANTHROPIC_AVAILABLE = True
+except ImportError:
+    anthropic = None
+    AsyncAnthropic = None
+    transform_schema = None
+    from google.adk.models.base_llm import BaseLlm as AnthropicLlm
+    ANTHROPIC_AVAILABLE = False
+
 from google.adk.models.base_llm import BaseLlm
 from google.adk.models.llm_request import LlmRequest
 from google.adk.models.llm_response import LlmResponse
@@ -128,6 +137,8 @@ class StudioClaude(AnthropicLlm):
 
 
 def build_claude(model: str, api_key: str) -> StudioClaude:
+    if not ANTHROPIC_AVAILABLE:
+        raise RuntimeError("anthropic is not installed. Install with 'pip install anthropic' to use Claude models.")
     return StudioClaude(model=claude_model_id(model), max_tokens=CLAUDE_MAX_TOKENS, client=AsyncAnthropic(api_key=api_key))
 
 
