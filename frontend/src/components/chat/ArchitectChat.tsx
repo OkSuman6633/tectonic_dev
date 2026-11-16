@@ -23,6 +23,7 @@ import { DecisionCardGroup } from './DecisionCardGroup';
 import { JourneyStepper } from './JourneyStepper';
 import { AgentTargetPicker, MentionSuggestions } from './AgentTargetPicker';
 import { CallTrace } from './CallTrace';
+import { GeneratedImages } from './GeneratedImages';
 import { SpecCard } from './SpecCard';
 import { MarkdownContent } from './MarkdownContent';
 import { StreamingAgentDisplay } from './StreamingAgentDisplay';
@@ -351,8 +352,9 @@ export const ArchitectChat: React.FC = () => {
                       : 'bg-studio-card/90 border border-white/5 text-slate-200 rounded-tl-none shadow-sm'
                   }`}
                 >
-                  <MarkdownContent content={msg.content} isUser={isUser} />
+                  {msg.content && <MarkdownContent content={msg.content} isUser={isUser} />}
                   {msg.attachments && <div className="mt-2"><AttachmentChips files={msg.attachments} onDark={isUser} /></div>}
+                  <GeneratedImages images={msg.images} />
 
                   {msg.autopilot && <AutopilotAnswerCard run={msg.autopilot} />}
                   {msg.designIdeas && <IdeasCard ideas={msg.designIdeas} />}

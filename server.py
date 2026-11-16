@@ -205,7 +205,7 @@ if FRONTEND_DIR.exists():
     async def serve_frontend(request: Request, full_path: str):
         """Serve frontend files. Falls back to index.html for SPA routing."""
         # Skip API routes
-        if full_path.startswith(("api/", "ws/", "run", "apps/", "list-apps", "directory/", "modules", "connectors/")):
+        if full_path.startswith(("api/", "ws/", "run", "apps/", "list-apps", "directory/", "modules", "connectors/", "media/")):
             raise HTTPException(404, "Not found")
         
         file_path = FRONTEND_DIR / full_path

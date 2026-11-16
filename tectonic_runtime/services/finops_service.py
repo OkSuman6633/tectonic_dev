@@ -46,6 +46,12 @@ DEFAULT_RATES: dict[str, dict[str, Any]] = {
     "gemini-2.5-flash": {"input": 0.30, "output": 2.50, "estimate": True, "note": "list price"},
     "gemini-2.5-flash-lite": {"input": 0.10, "output": 0.40, "estimate": True, "note": "list price"},
     "gemini-embedding-001": {"input": 0.15, "output": 0.0, "estimate": True, "note": "list price"},
+    # Image models: output is billed per image token (1290 tokens per image, about $0.039 each).
+    "gemini-2.5-flash-image": {"input": 0.30, "output": 30.00, "estimate": True, "note": "list price (image output tokens)"},
+    # Imagen bills per image ($0.04); the module meters each image as 1290 output tokens.
+    "imagen-4.0-generate-001": {"input": 0.0, "output": 31.01, "estimate": True, "note": "$0.04 per image"},
+    "imagen-4.0-fast-generate-001": {"input": 0.0, "output": 15.50, "estimate": True, "note": "$0.02 per image"},
+    "imagen-4.0-ultra-generate-001": {"input": 0.0, "output": 46.51, "estimate": True, "note": "$0.06 per image"},
     # Anthropic list prices (first-party API) for the Claude models the Builder can run on.
     "claude-fable-5-1": {"input": 10.00, "output": 50.00, "estimate": True, "note": "Anthropic list price"},
     "claude-opus-5-5": {"input": 4.00, "output": 20.00, "estimate": True, "note": "Anthropic list price"},

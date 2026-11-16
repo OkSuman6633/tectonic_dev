@@ -311,6 +311,7 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
       designReview: resp.designReview,
       codeReview: resp.codeReview,
       autopilot: resp.autopilot,
+      images: resp.images,
     };
     set((state) => ({
       // A question routed to an existing agent belongs to that agent (deleted together with it).
@@ -364,6 +365,7 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
       toolCalls: resp.toolCalls,
       guardrailTriggered: resp.guardrailTriggered,
       cardPayload: resp.cardPayload,
+      images: resp.images,
       recovered,
     };
     set((state) => ({ sandboxMessages: [...state.sandboxMessages, agentMsg], isSandboxLoading: false }));
@@ -916,6 +918,7 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
             agentTarget: result.target,
             agentName: result.agent,
             trace: result.trace,
+            images: result.images?.length ? result.images : undefined,
           }],
           isChatLoading: false,
           isStreaming: false,

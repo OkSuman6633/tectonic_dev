@@ -92,6 +92,13 @@ PLATFORM_MODULES: dict[str, dict[str, Any]] = {
                   "meta_ads_create_campaign", "ga4_report", "ga4_traffic_overview", "ga4_source_medium", "ga4_conversions"],
         "match": r"meta ads|facebook ads|instagram ads|ads manager|marketing api|google analytics|\bga4\b|roas|"
                  r"ad spend|campaign performance|web traffic|connector|external data"},
+    "image_generation": {
+        "label": "Image generation",
+        "description": "Creates and edits images (product shots, logos, posters, illustrations, social visuals) from a "
+                       "prompt or from the user's attached pictures; the images appear in the chat.",
+        "tools": ["core_generate_image"],
+        "match": r"image generat|generate (an |the )?images?|text[- ]to[- ]image|illustrat|logo design|poster|thumbnail|"
+                 r"visual content|product shot|render (an |the )?image|draw(ing)?s?\b|edit (the |my )?(photo|image|picture)"},
 }
 GOVERNANCE_MODULES = ("guardrails", "finops", "promptops", "auditability")
 
@@ -224,6 +231,7 @@ def _assign(mid: str, lead: dict, subs: list[dict]) -> list[str]:
         "intent_detection": r"triage|route|classif|intake|dispatch",
         "tool_orchestration": r"api|external|integrat|fetch|sync|send|notify",
         "external_connectors": r"\bads?\b|campaign|analytic|traffic|marketing|performance|report|roas|spend|insight|conversion",
+        "image_generation": r"image|visual|design|creative|illustrat|logo|poster|banner|thumbnail|photo|draw|art",
     }
     chosen = [s["name"] for s in subs if re.search(patterns.get(mid, r"$^"), _text(s.get("name"), s.get("role"), s.get("description"), s.get("instruction_outline")))]
     if mid in ("short_term_memory", "intent_detection", "long_term_memory"):
@@ -291,6 +299,8 @@ def _lead_prompt(project: str, req: dict, lead: dict, subs: list[dict], modules:
         "external_connectors": "Pull the client's real Meta Ads (meta_ads_*) and GA4 (ga4_*) numbers instead of estimating; if a "
                                "source is not connected or returns no data, tell the user (connect it in the External Tools "
                                "window) and continue with what you can.",
+        "image_generation": "Create or edit images with core_generate_image (use_attached_images=true for the user's attached "
+                            "pictures); the images show in the chat by themselves, so describe them in a line, never paste URLs.",
     }
     mine = [mid for mid, users in modules.items() if lead_name in users]
     if mine:

@@ -193,6 +193,12 @@ export default defineConfig({
         changeOrigin: true,
         configure: (proxy) => proxy.on('proxyReq', (proxyReq) => proxyReq.setHeader('origin', `http://${BACKEND}`)),
       },
+      // Images generated in the chat (served to their owner only)
+      '/media': {
+        target: `http://${BACKEND}`,
+        changeOrigin: true,
+        configure: (proxy) => proxy.on('proxyReq', (proxyReq) => proxyReq.setHeader('origin', `http://${BACKEND}`)),
+      },
       // Builder model choice and provider keys (server.py, applied live)
       '/studio': {
         target: `http://${BACKEND}`,

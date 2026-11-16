@@ -385,7 +385,7 @@ if FRONTEND_DIR.exists():
     if (FRONTEND_DIR / "assets").exists():
         app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIR / "assets")), name="assets")
 
-    _API_PREFIXES = ("api/", "health", "modules", "directory", "studio", "connectors/",
+    _API_PREFIXES = ("api/", "health", "modules", "directory", "studio", "connectors/", "media/",
                      "run", "apps/", "list-apps", "ws/")
 
     @app.get("/{path:path}")

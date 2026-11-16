@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useAgentStudioStore } from '../../store/useAgentStudioStore';
 import { MarkdownContent } from '../chat/MarkdownContent';
+import { GeneratedImages } from '../chat/GeneratedImages';
 import { EditResultCard } from './EditResultCard';
 import { ConnectorNoticeCard } from '../connectors/ConnectorNoticeCard';
 import { ModelSettingsModal } from '../settings/ModelSettingsModal';
@@ -417,8 +418,9 @@ export const LiveAgentRunner: React.FC = () => {
                         : 'bg-studio-card/90 border border-white/5 text-slate-200 rounded-tl-none'
                     }`}
                   >
-                    <MarkdownContent content={msg.content} isUser={isUser} />
+                    {msg.content && <MarkdownContent content={msg.content} isUser={isUser} />}
                     {msg.attachments && <div className="mt-2"><AttachmentChips files={msg.attachments} onDark={isUser} /></div>}
+                    <GeneratedImages images={msg.images} />
 
                     {/* Raw JSON Payload Inspector */}
                     {showRawJson && (msg.toolCalls || msg.cardPayload) && (
