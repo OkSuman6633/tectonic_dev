@@ -48,11 +48,11 @@ function Toolbar({ onRelayout }: { onRelayout: () => void }) {
   const statusColor = status === 'open' ? '#10b981' : status === 'connecting' ? '#f59e0b' : '#64748b';
   const statusLabel = status === 'open' ? 'Live' : status === 'connecting' ? 'Connecting' : 'Offline';
 
-  const btn = 'flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium text-[var(--studio-text-secondary)] hover:bg-white/5 hover:text-[var(--studio-text)] transition-colors disabled:opacity-40';
+  const btn = 'flex h-7 items-center gap-1.5 rounded-md px-2 text-[11px] font-medium leading-none text-[var(--studio-text-secondary)] transition-colors hover:bg-white/5 hover:text-[var(--studio-text)] disabled:opacity-40';
 
   return (
     <div className="pointer-events-none absolute left-3 right-3 top-3 z-10 flex items-start justify-between gap-3">
-      <div className="pointer-events-auto flex items-center gap-3 rounded-lg border border-studio-border bg-studio-surface/85 px-3 py-1.5 shadow-lg backdrop-blur-md">
+      <div className="pointer-events-auto flex h-8 items-center gap-3 rounded-lg border border-studio-border bg-studio-surface/85 px-3 shadow-lg backdrop-blur-md">
         <div className="flex items-center gap-1.5 font-mono text-[10.5px]" title="Telemetry WebSocket: /ws/telemetry">
           <span className="relative flex h-2 w-2">
             {status === 'open' && <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ background: statusColor }} />}
@@ -72,7 +72,7 @@ function Toolbar({ onRelayout }: { onRelayout: () => void }) {
         )}
       </div>
 
-      <div className="pointer-events-auto flex items-center gap-0.5 rounded-lg border border-studio-border bg-studio-surface/85 p-1 shadow-lg backdrop-blur-md">
+      <div className="pointer-events-auto flex h-8 items-center gap-0.5 rounded-lg border border-studio-border bg-studio-surface/85 p-0.5 shadow-lg backdrop-blur-md">
         <button type="button" className={btn} onClick={onRelayout} title="Re-run auto layout and fit view">
           <LayoutGrid className="h-3.5 w-3.5" /> Layout
         </button>

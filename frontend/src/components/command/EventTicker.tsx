@@ -77,15 +77,14 @@ export function EventLog({ onSelectAgent }: { onSelectAgent: (id: string) => voi
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-studio-border px-2 py-1.5 no-scrollbar">
+      <div className="flex h-9 shrink-0 items-center gap-1 overflow-x-auto border-b border-studio-border px-2 no-scrollbar">
         {FILTERS.map((f) => (
           <button
             key={f}
             type="button"
             onClick={() => setFilter(f)}
-            className={`rounded-md px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wider transition-colors ${
-              filter === f ? 'bg-sky-400/15 text-sky-300' : 'text-[var(--studio-text-muted)] hover:bg-white/[0.04] hover:text-[var(--studio-text-secondary)]'
-            }`}
+            className={`inline-flex h-6 shrink-0 items-center rounded-md px-2 font-mono text-[10px] font-medium uppercase leading-none tracking-wider transition-colors ${filter === f ? 'bg-sky-400/15 text-sky-300' : 'text-[var(--studio-text-muted)] hover:bg-white/[0.04] hover:text-[var(--studio-text-secondary)]'
+              }`}
           >
             {f}
           </button>

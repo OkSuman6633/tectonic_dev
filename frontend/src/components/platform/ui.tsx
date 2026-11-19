@@ -5,13 +5,13 @@ import { useTelemetryStore } from '../../store/useTelemetryStore';
 
 export function Tabs<T extends string>({ tabs, value, onChange, id }: { tabs: { id: T; label: string; icon?: LucideIcon }[]; value: T; onChange: (t: T) => void; id: string }) {
   return (
-    <div className="relative flex shrink-0 items-center gap-0.5 border-b border-studio-border px-2 pt-1.5">
+    <div className="relative flex h-9 shrink-0 items-stretch gap-0.5 border-b border-studio-border px-2">
       {tabs.map((t) => (
         <button key={t.id} type="button" onClick={() => onChange(t.id)}
-          className={`relative flex items-center gap-1.5 px-2.5 pb-2 pt-1 text-[12px] font-medium transition-colors ${value === t.id ? 'text-[var(--studio-text)]' : 'text-[var(--studio-text-muted)] hover:text-[var(--studio-text-secondary)]'}`}>
+          className={`relative flex items-center gap-1.5 px-2.5 text-[12px] font-medium transition-colors ${value === t.id ? 'text-[var(--studio-text)]' : 'text-[var(--studio-text-muted)] hover:text-[var(--studio-text-secondary)]'}`}>
           {t.icon && <t.icon className="h-3.5 w-3.5" />}
           {t.label}
-          {value === t.id && <motion.span layoutId={`tab-${id}`} className="absolute inset-x-1 -bottom-px h-[2px] rounded-full bg-sky-400" />}
+          {value === t.id && <motion.span layoutId={`tab-${id}`} className="absolute inset-x-1 bottom-0 h-[2px] rounded-full bg-sky-400" />}
         </button>
       ))}
     </div>
@@ -22,10 +22,10 @@ export function Card({ title, icon: Icon, actions, children, className = '' }: {
   return (
     <section className={`rounded-xl border border-studio-border bg-studio-card p-3 ${className}`}>
       {(title || actions) && (
-        <header className="mb-2 flex items-center gap-2">
-          {Icon && <Icon className="h-3.5 w-3.5 text-[var(--studio-text-muted)]" />}
-          {title && <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--studio-text-secondary)]">{title}</h3>}
-          <div className="ml-auto flex items-center gap-1.5">{actions}</div>
+        <header className="mb-2.5 flex min-h-[18px] items-center gap-2">
+          {Icon && <Icon className="h-3.5 w-3.5 shrink-0 text-[var(--studio-text-muted)]" />}
+          {title && <h3 className="min-w-0 truncate text-[11px] font-semibold uppercase leading-[18px] tracking-[0.08em] text-[var(--studio-text-secondary)]">{title}</h3>}
+          <div className="ml-auto flex shrink-0 items-center gap-1.5">{actions}</div>
         </header>
       )}
       {children}
@@ -43,21 +43,33 @@ export function Button({ children, onClick, busy, variant = 'default', disabled,
   }[variant];
   return (
     <button type={type} onClick={onClick} disabled={disabled || busy} title={title}
-      className={`inline-flex h-7 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-medium transition-colors disabled:opacity-50 ${styles}`}>
+      className={`inline-flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[12px] font-medium leading-none transition-colors disabled:opacity-50 ${styles}`}>
       {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
       {children}
     </button>
   );
 }
 
-const field = 'w-full rounded-lg border border-studio-border bg-black/20 px-2.5 py-1.5 text-[12.5px] text-[var(--studio-text)] placeholder:text-[var(--studio-text-muted)] focus:border-sky-400/60 focus:outline-none';
+/**
+ * One control height (28px) for every input, select and button, so mixed rows
+ * always share a common baseline. Text areas opt out and grow vertically.
+ */
+export const CONTROL_H = 'h-7';
+export const controlClass = 'inline-flex items-center rounded-lg border border-studio-border bg-black/20 px-2.5 text-[12.5px] text-[var(--studio-text)] focus:border-sky-400/60 focus:outline-none';
+
+const field = `w-full ${controlClass} placeholder:text-[var(--studio-text-muted)]`;
 
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={`${field} ${props.className ?? ''}`} />;
+  return <input {...props} className={`${field} ${CONTROL_H} leading-none ${props.className ?? ''}`} />;
 }
 
 export function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...props} className={`${field} resize-y font-mono text-[11.5px] leading-relaxed ${props.className ?? ''}`} />;
+  return <textarea {...props} className={`${field} resize-y py-1.5 font-mono text-[11.5px] leading-relaxed ${props.className ?? ''}`} />;
+}
+
+/** Native `<select>` styled to the exact same box as `Input`, so rows line up. */
+export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return <select {...props} className={`${field} ${CONTROL_H} cursor-pointer pr-1.5 ${props.className ?? ''}`} />;
 }
 
 export function Chip({ children, tone = 'neutral', title }: { children: ReactNode; tone?: 'neutral' | 'cyan' | 'violet' | 'good' | 'warn' | 'bad'; title?: string }) {
@@ -69,25 +81,25 @@ export function Chip({ children, tone = 'neutral', title }: { children: ReactNod
     warn: 'border-amber-400/30 bg-amber-400/10 text-amber-300',
     bad: 'border-rose-400/30 bg-rose-400/10 text-rose-300',
   }[tone];
-  return <span title={title} className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-px font-mono text-[10px] font-medium ${tones}`}>{children}</span>;
+  return <span title={title} className={`inline-flex h-[18px] items-center gap-1 rounded-md border px-1.5 font-mono text-[10px] font-medium leading-none ${tones}`}>{children}</span>;
 }
 
 /** Status is never color alone: icon + label + color. */
 export function StatusPill({ status, label }: { status: 'good' | 'warn' | 'bad'; label: string }) {
   const Icon = status === 'good' ? CheckCircle2 : status === 'warn' ? AlertTriangle : OctagonX;
   return (
-    <span className="inline-flex items-center gap-1 text-[11.5px] font-medium" style={{ color: `var(--status-${status})` }}>
-      <Icon className="h-3.5 w-3.5" /> {label}
+    <span className="inline-flex items-center gap-1 text-[11.5px] font-medium leading-none" style={{ color: `var(--status-${status})` }}>
+      <Icon className="h-3.5 w-3.5 shrink-0" /> {label}
     </span>
   );
 }
 
 export function Kpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-xl border border-studio-border bg-studio-card px-3 py-2.5">
-      <div className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--studio-text-muted)]">{label}</div>
-      <div className="mt-0.5 text-[20px] font-semibold tabular-nums tracking-tight text-[var(--studio-text)]">{value}</div>
-      {sub && <div className="text-[11px] text-[var(--studio-text-secondary)]">{sub}</div>}
+    <div className="flex min-w-0 flex-col justify-between rounded-xl border border-studio-border bg-studio-card px-3 py-2.5">
+      <div className="truncate text-[10.5px] font-medium uppercase leading-[14px] tracking-[0.08em] text-[var(--studio-text-muted)]">{label}</div>
+      <div className="mt-1 text-[20px] font-semibold leading-none tabular-nums tracking-tight text-[var(--studio-text)]">{value}</div>
+      {sub && <div className="mt-1 truncate text-[11px] leading-[14px] text-[var(--studio-text-secondary)]">{sub}</div>}
     </div>
   );
 }

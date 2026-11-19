@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AttachButton, AttachmentChips, useAttachments } from '../chat/Attachments';
-import { 
-  Send, 
-  Bot, 
-  User, 
-  ShieldAlert, 
-  Wrench, 
-  AlertTriangle, 
-  Code, 
+import {
+  Send,
+  Bot,
+  User,
+  ShieldAlert,
+  Wrench,
+  AlertTriangle,
+  Code,
   Terminal,
   Clock,
   Sparkles,
@@ -33,10 +33,10 @@ const EDIT_SUGGESTIONS = [
 ];
 
 export const LiveAgentRunner: React.FC = () => {
-  const { 
-    sandboxMessages, 
-    sendSandboxMessage, 
-    isSandboxLoading, 
+  const {
+    sandboxMessages,
+    sendSandboxMessage,
+    isSandboxLoading,
     activeToolTrace,
     activeGuardrailTrace,
     createdAgents,
@@ -192,27 +192,24 @@ export const LiveAgentRunner: React.FC = () => {
   return (
     <div className="flex flex-col h-full bg-studio-surface/40 backdrop-blur-xl relative">
       {/* Sandbox Header */}
-      <div className="p-3 border-b border-studio-border bg-studio-card/80 flex items-center justify-between z-20">
-        <div className="flex items-center gap-3">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-          
+      <div className="studio-toolbar z-20 bg-studio-card/80">
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="h-2 w-2 shrink-0 rounded-full bg-emerald-400 animate-pulse" />
+
           {/* Agent Switcher Dropdown */}
           <div className="relative">
             <button
               onClick={() => setAgentDropdownOpen(!agentDropdownOpen)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-studio-surface border border-white/10 hover:border-emerald-500/40 text-left transition-all"
+              className="flex h-7 max-w-[260px] items-center gap-1.5 rounded-lg border border-white/10 bg-studio-surface px-2.5 text-left transition-all hover:border-emerald-500/40"
+              title={agentAppFullName}
             >
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-semibold text-slate-100 font-mono">
-                    {agentDisplayName}
-                  </span>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                </div>
-                <span className="text-[10px] text-slate-500 font-mono block">
-                  {agentAppFullName}
-                </span>
-              </div>
+              <span className="truncate font-mono text-[11.5px] font-semibold leading-none text-slate-100">
+                {agentDisplayName}
+              </span>
+              <span className="hidden truncate font-mono text-[10px] leading-none text-slate-500 xl:inline">
+                {agentAppFullName}
+              </span>
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
             </button>
 
             {agentDropdownOpen && (
@@ -232,11 +229,10 @@ export const LiveAgentRunner: React.FC = () => {
                         setSelectedAgent(ag);
                         setAgentDropdownOpen(false);
                       }}
-                      className={`w-full text-left p-2 rounded-lg text-xs font-mono transition-colors flex items-center justify-between ${
-                        selectedAgent?.name === ag.name
+                      className={`w-full text-left p-2 rounded-lg text-xs font-mono transition-colors flex items-center justify-between ${selectedAgent?.name === ag.name
                           ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                           : 'hover:bg-white/5 text-slate-300'
-                      }`}
+                        }`}
                     >
                       <div>
                         <span className="font-semibold block">{ag.name}</span>
@@ -256,15 +252,14 @@ export const LiveAgentRunner: React.FC = () => {
           {selectedAgent && (
             <button
               onClick={() => setShowAgentEnvModal(true)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono border transition-all ${
-                selectedAgentEnv?.hasKey
+              className={`inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 font-mono text-[11.5px] leading-none transition-all ${selectedAgentEnv?.hasKey
                   ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20'
                   : 'bg-amber-500/15 text-amber-300 border-amber-500/40 hover:bg-amber-500/25 animate-pulse'
-              }`}
+                }`}
               title={`Configure .env for ${selectedAgent.name}`}
             >
-              <Key className="w-3.5 h-3.5" />
-              <span>{selectedAgentEnv?.hasKey ? '.env: Configured ✓' : '.env: Missing Key ⚠️'}</span>
+              <Key className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{selectedAgentEnv?.hasKey ? '.env: Configured ✓' : '.env: Missing Key ⚠️'}</span>
             </button>
           )}
 
@@ -272,58 +267,57 @@ export const LiveAgentRunner: React.FC = () => {
           {selectedAgent && (
             <button
               onClick={() => setShowAgentEnvModal(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border border-sky-500/30 transition-all shadow-sm"
+              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 px-2.5 font-mono text-[11.5px] leading-none text-sky-300 shadow-sm transition-all hover:bg-sky-500/20"
               title={`Active Model: ${selectedAgentEnv?.model || 'gemini-3.6-flash'} (Click to change)`}
             >
-              <Cpu className="w-3.5 h-3.5 text-sky-400" />
-              <span>{selectedAgentEnv?.model || 'gemini-3.6-flash'}</span>
+              <Cpu className="h-3.5 w-3.5 shrink-0 text-sky-400" />
+              <span className="truncate">{selectedAgentEnv?.model || 'gemini-3.6-flash'}</span>
             </button>
           )}
 
           {/* Session ID badge */}
           {sandboxSessionId && (
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hidden md:inline-block">
+            <span className="hidden h-[18px] items-center rounded border border-emerald-500/20 bg-emerald-500/10 px-1.5 font-mono text-[10px] leading-none text-emerald-400 md:inline-flex">
               sess:{sandboxSessionId.slice(0, 8)}...
             </span>
           )}
         </div>
 
         {/* Right Header Controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {/* Active Tool Trace Indicator */}
           {activeToolTrace && (
-            <div className="px-2.5 py-1 rounded-md bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-mono flex items-center gap-1.5 animate-pulse">
-              <Wrench className="w-3.5 h-3.5 text-rose-400" />
-              <span>Tool: {activeToolTrace}()</span>
+            <div className="flex h-7 items-center gap-1.5 rounded-md border border-rose-500/30 bg-rose-500/20 px-2 font-mono text-[11.5px] leading-none text-rose-300 animate-pulse">
+              <Wrench className="h-3.5 w-3.5 shrink-0 text-rose-400" />
+              <span className="truncate">Tool: {activeToolTrace}()</span>
             </div>
           )}
 
           {/* Active Guardrail Trace */}
           {activeGuardrailTrace && (
-            <div className="px-2.5 py-1 rounded-md bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-mono flex items-center gap-1.5 animate-bounce">
-              <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-              <span>{activeGuardrailTrace}</span>
+            <div className="flex h-7 items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/20 px-2 font-mono text-[11.5px] leading-none text-amber-300 animate-bounce">
+              <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-amber-400" />
+              <span className="truncate">{activeGuardrailTrace}</span>
             </div>
           )}
 
           <button
             onClick={() => setShowRawJson(!showRawJson)}
-            className={`text-xs px-2.5 py-1.5 rounded-lg border transition-colors flex items-center gap-1.5 ${
-              showRawJson
+            className={`flex h-7 items-center gap-1.5 rounded-lg border px-2.5 text-[11.5px] leading-none transition-colors ${showRawJson
                 ? 'bg-sky-500/20 border-sky-400 text-sky-300'
                 : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
-            }`}
+              }`}
           >
-            <Code className="w-3.5 h-3.5" />
+            <Code className="h-3.5 w-3.5 shrink-0" />
             <span>{showRawJson ? 'Hide JSON' : 'Inspect JSON'}</span>
           </button>
 
           <button
             onClick={() => startNewSandboxSession()}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-medium transition-colors"
+            className="flex h-7 items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/15 px-2.5 text-[11.5px] font-medium leading-none text-emerald-300 transition-colors hover:bg-emerald-500/25"
             title="Start fresh sandbox session for this agent"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="h-3.5 w-3.5 shrink-0" />
             <span>New Session</span>
           </button>
         </div>
@@ -331,16 +325,16 @@ export const LiveAgentRunner: React.FC = () => {
 
       {/* Warning banner if particular agent's .env key is missing */}
       {selectedAgent && selectedAgentEnv && !selectedAgentEnv.hasKey && (
-        <div className="px-4 py-2 bg-amber-500/15 border-b border-amber-500/30 flex items-center justify-between text-xs text-amber-200">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+        <div className="flex items-center justify-between gap-3 border-b border-amber-500/30 bg-amber-500/15 px-3 py-1.5 text-[11.5px] leading-tight text-amber-200">
+          <div className="flex min-w-0 items-center gap-2">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-400" />
             <span>
               <strong>{selectedAgent.name}</strong> needs a Google API Key before running. It will be configured directly in <code className="font-mono text-[11px] text-amber-300">generated_agents/{selectedAgent.name}/.env</code> with zero LLM interaction.
             </span>
           </div>
           <button
             onClick={() => setShowAgentEnvModal(true)}
-            className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-xs shrink-0 transition-colors"
+            className="h-7 shrink-0 rounded-lg bg-amber-500 px-2.5 text-[11.5px] font-semibold leading-none text-slate-950 transition-colors hover:bg-amber-400"
           >
             Configure API Key
           </button>
@@ -491,11 +485,10 @@ export const LiveAgentRunner: React.FC = () => {
 
                   {/* Message Content */}
                   <div
-                    className={`p-3.5 rounded-2xl text-xs leading-relaxed ${
-                      isUser
+                    className={`p-3.5 rounded-2xl text-xs leading-relaxed ${isUser
                         ? 'bg-sky-600 text-white rounded-tr-none'
                         : 'bg-studio-card/90 border border-white/5 text-slate-200 rounded-tl-none'
-                    }`}
+                      }`}
                   >
                     <MarkdownContent content={msg.content} isUser={isUser} />
                     {msg.attachments && <div className="mt-2"><AttachmentChips files={msg.attachments} onDark={isUser} /></div>}
@@ -554,15 +547,15 @@ export const LiveAgentRunner: React.FC = () => {
       </div>
 
       {/* Suggested Quick Test Prompts */}
-      <div className="px-4 py-2 border-t border-white/5 bg-studio-surface/60 flex items-center gap-2 overflow-x-auto no-scrollbar">
+      <div className="flex items-center gap-2 overflow-x-auto border-t border-white/5 bg-studio-surface/60 px-3 py-1.5 no-scrollbar">
         {editing ? (
           <>
-            <span className="text-[10px] uppercase font-mono text-slate-500 shrink-0">Try a change:</span>
+            <span className="shrink-0 font-mono text-[10px] uppercase leading-none text-slate-500">Try a change:</span>
             {EDIT_SUGGESTIONS.map((suggestion) => (
               <button
                 key={suggestion}
                 onClick={() => setInputVal(suggestion)}
-                className="text-[11px] px-2.5 py-1 rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/20 whitespace-nowrap transition-colors"
+                className="inline-flex h-6 shrink-0 items-center whitespace-nowrap rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 text-[11px] leading-none text-amber-300 transition-colors hover:bg-amber-500/20"
               >
                 {suggestion}
               </button>
@@ -570,13 +563,13 @@ export const LiveAgentRunner: React.FC = () => {
           </>
         ) : (
           <>
-            <span className="text-[10px] uppercase font-mono text-slate-500 shrink-0">Test Cases:</span>
+            <span className="shrink-0 font-mono text-[10px] uppercase leading-none text-slate-500">Test Cases:</span>
             {getQuickTests().map((qt, idx) => (
               <button
                 key={idx}
                 onClick={() => handleQuickTest(qt.prompt)}
                 disabled={busy}
-                className="text-[11px] px-2.5 py-1 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/20 whitespace-nowrap transition-colors disabled:opacity-40"
+                className="inline-flex h-6 shrink-0 items-center whitespace-nowrap rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 text-[11px] leading-none text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:opacity-40"
               >
                 {qt.label}
               </button>
@@ -587,7 +580,7 @@ export const LiveAgentRunner: React.FC = () => {
 
       {/* Input Test Console */}
       <form onSubmit={handleSubmit} onDrop={editing ? undefined : attach.onDrop} onDragOver={(e) => e.preventDefault()}
-            className="p-3 border-t border-studio-border bg-studio-card/90">
+        className="p-3 border-t border-studio-border bg-studio-card/90">
         {!editing && (attach.files.length > 0 || attach.error) && (
           <div className="mb-2 space-y-1">
             <AttachmentChips files={attach.files} onRemove={attach.remove} />
@@ -596,26 +589,26 @@ export const LiveAgentRunner: React.FC = () => {
         )}
         <div className="flex items-center gap-2">
           {/* Run the agent, or describe a change to it (applied, verified, then re-run) */}
-          <div className="flex shrink-0 items-center rounded-xl bg-studio-surface/90 border border-white/10 p-0.5">
+          <div className="flex h-9 shrink-0 items-center rounded-xl border border-white/10 bg-studio-surface/90 p-0.5">
             <button
               type="button"
               onClick={() => setMode('run')}
-              className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors ${!editing ? 'bg-emerald-500/20 text-emerald-300' : 'text-slate-400 hover:text-slate-200'}`}
+              className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11.5px] font-medium leading-none transition-colors ${!editing ? 'bg-emerald-500/20 text-emerald-300' : 'text-slate-400 hover:text-slate-200'}`}
               title="Send test messages to the agent"
             >
-              <Play className="w-3 h-3" /> Run
+              <Play className="h-3.5 w-3.5 shrink-0" /> Run
             </button>
             <button
               type="button"
               onClick={() => setMode('edit')}
               disabled={!selectedAgent}
-              className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors disabled:opacity-40 ${editing ? 'bg-amber-500/20 text-amber-300' : 'text-slate-400 hover:text-slate-200'}`}
+              className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11.5px] font-medium leading-none transition-colors disabled:opacity-40 ${editing ? 'bg-amber-500/20 text-amber-300' : 'text-slate-400 hover:text-slate-200'}`}
               title={selectedAgent ? `Describe a change to ${selectedAgent.name}; it is applied, verified and re-run` : 'Select a generated agent to edit'}
             >
-              <Pencil className="w-3 h-3" /> Edit agent
+              <Pencil className="h-3.5 w-3.5 shrink-0" /> Edit agent
             </button>
           </div>
-          <div className="relative flex flex-1 items-center">
+          <div className="relative flex h-9 flex-1 items-center">
             {!editing && <AttachButton onFiles={attach.add} disabled={busy} className="absolute left-1.5 z-10" />}
             <input
               type="text"
@@ -626,15 +619,15 @@ export const LiveAgentRunner: React.FC = () => {
               placeholder={editing
                 ? `Describe a change to ${agentDisplayName} (e.g. “reply in bullet points”)…`
                 : `Send query to ${agentDisplayName} in local sandbox...`}
-              className={`w-full text-xs bg-studio-surface/90 border rounded-xl ${editing ? 'pl-3.5' : 'pl-9'} pr-10 py-2.5 text-slate-100 placeholder-slate-500 focus:outline-none transition-colors font-sans ${editing ? 'border-amber-500/30 focus:border-amber-500/60' : 'border-white/10 focus:border-emerald-500/50'}`}
+              className={`h-9 w-full rounded-xl border bg-studio-surface/90 text-xs text-slate-100 placeholder-slate-500 transition-colors focus:outline-none font-sans ${editing ? 'pl-3.5' : 'pl-9'} pr-11 ${editing ? 'border-amber-500/30 focus:border-amber-500/60' : 'border-white/10 focus:border-emerald-500/50'}`}
             />
             <button
               type="submit"
               disabled={(!inputVal.trim() && (editing || attach.files.length === 0)) || busy}
-              className={`absolute right-2 p-1.5 rounded-lg text-white disabled:opacity-30 transition-colors ${editing ? 'bg-amber-500 hover:bg-amber-400' : 'bg-emerald-500 hover:bg-emerald-400'}`}
+              className={`absolute right-1.5 flex h-7 w-7 items-center justify-center rounded-lg text-white transition-colors disabled:opacity-30 ${editing ? 'bg-amber-500 hover:bg-amber-400' : 'bg-emerald-500 hover:bg-emerald-400'}`}
               title={editing ? 'Apply the change, then re-run the agent' : 'Run'}
             >
-              {editing ? <Pencil className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}
+              {editing ? <Pencil className="h-3.5 w-3.5" /> : <Send className="h-3.5 w-3.5" />}
             </button>
           </div>
         </div>
@@ -722,19 +715,17 @@ export const LiveAgentRunner: React.FC = () => {
                           setModalModel(m.id);
                           setIsCustomModel(false);
                         }}
-                        className={`w-full text-left p-2.5 rounded-xl border transition-all flex items-start justify-between ${
-                          isSelected
+                        className={`w-full text-left p-2.5 rounded-xl border transition-all flex items-start justify-between ${isSelected
                             ? 'bg-sky-500/20 border-sky-400 text-sky-100 shadow-md shadow-sky-500/10'
                             : 'bg-studio-surface/80 hover:bg-white/5 border-white/5 text-slate-300'
-                        }`}
+                          }`}
                       >
                         <div className="space-y-0.5">
                           <div className="flex items-center gap-2">
                             <span className="font-semibold font-mono text-xs">{m.name}</span>
                             <span
-                              className={`text-[9px] uppercase px-1.5 py-0.2 rounded font-mono ${
-                                isSelected ? 'bg-sky-400 text-slate-950 font-bold' : 'bg-white/10 text-slate-400'
-                              }`}
+                              className={`text-[9px] uppercase px-1.5 py-0.2 rounded font-mono ${isSelected ? 'bg-sky-400 text-slate-950 font-bold' : 'bg-white/10 text-slate-400'
+                                }`}
                             >
                               {m.tag}
                             </span>
@@ -751,11 +742,10 @@ export const LiveAgentRunner: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setIsCustomModel(true)}
-                    className={`w-full text-left p-2.5 rounded-xl border transition-all flex items-center justify-between ${
-                      isCustomModel
+                    className={`w-full text-left p-2.5 rounded-xl border transition-all flex items-center justify-between ${isCustomModel
                         ? 'bg-purple-500/20 border-purple-400 text-purple-200'
                         : 'bg-studio-surface/80 hover:bg-white/5 border-white/5 text-slate-400'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-2">
                       <Cpu className="w-3.5 h-3.5 text-purple-400" />
@@ -800,11 +790,10 @@ export const LiveAgentRunner: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSavingKey || !modalApiKey.trim()}
-                  className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold shadow-md transition-all ${
-                    keySavedToast
+                  className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold shadow-md transition-all ${keySavedToast
                       ? 'bg-emerald-500 text-white'
                       : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/20 disabled:opacity-40'
-                  }`}
+                    }`}
                 >
                   {keySavedToast ? (
                     <>

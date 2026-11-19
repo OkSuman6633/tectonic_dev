@@ -54,7 +54,7 @@ function DockIcon({ id, mouseX }: { id: WindowId; mouseX: MotionValue<number> })
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.96 }}
             transition={{ duration: 0.12 }}
-            className="glass pointer-events-none absolute -top-9 whitespace-nowrap rounded-md px-2.5 py-1 text-[12px] font-medium text-[var(--studio-text)]"
+            className="glass pointer-events-none absolute -top-9 inline-flex h-6 items-center whitespace-nowrap rounded-lg px-2.5 text-[11.5px] font-medium leading-none text-[var(--studio-text)]"
           >
             {label}
           </motion.span>

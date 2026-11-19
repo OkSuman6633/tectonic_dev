@@ -14,8 +14,8 @@ function CallRow({ call, onAgent }: { call: ModuleCallRecord; onAgent: (id: stri
   const [open, setOpen] = useState(false);
   const icon =
     call.status === 'running' ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-sky-400" />
-    : call.status === 'error' ? <XCircle className="h-3.5 w-3.5 shrink-0 text-rose-400" />
-    : <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />;
+      : call.status === 'error' ? <XCircle className="h-3.5 w-3.5 shrink-0 text-rose-400" />
+        : <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />;
   return (
     <motion.div layout="position" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="rounded-lg border border-studio-border bg-studio-surface/60">
       <button type="button" onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-2 px-2.5 py-2 text-left">
@@ -44,7 +44,7 @@ function CallRow({ call, onAgent }: { call: ModuleCallRecord; onAgent: (id: stri
                 <div className="mb-0.5 text-[9.5px] uppercase tracking-wider text-[var(--studio-text-muted)]">{call.status === 'error' ? 'Error' : 'Result'}</div>
                 {call.status === 'running' ? <span className="text-slate-500">pending…</span>
                   : call.status === 'error' ? <span className="whitespace-pre-wrap text-rose-300">{call.error}</span>
-                  : <JsonTree value={call.result} defaultExpandDepth={2} />}
+                    : <JsonTree value={call.result} defaultExpandDepth={2} />}
               </div>
             </div>
           </motion.div>
@@ -98,14 +98,14 @@ export function ModuleTelemetryPanel({ host = 'graph' }: { host?: SelectionOrigi
           transition={{ type: 'spring', stiffness: 320, damping: 34 }}
           className="absolute bottom-0 right-0 top-0 z-20 flex w-[min(480px,92%)] flex-col border-l border-studio-border bg-[var(--popover-bg)] shadow-2xl backdrop-blur-2xl backdrop-saturate-150"
         >
-          <header className="border-b border-studio-border px-4 py-3">
+          <header className="border-b border-studio-border px-3 py-2.5">
             <div className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full" style={{ background: MODULE_STATE_STYLES[mod.state].color }} />
-              <h2 className="flex-1 truncate text-sm font-semibold text-[var(--studio-text)]">{mod.label}</h2>
-              <span className="rounded border border-studio-border px-1.5 font-mono text-[9.5px] uppercase tracking-wider text-[var(--studio-text-muted)]">
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: MODULE_STATE_STYLES[mod.state].color }} />
+              <h2 className="min-w-0 flex-1 truncate text-sm font-semibold leading-none text-[var(--studio-text)]">{mod.label}</h2>
+              <span className="inline-flex h-[18px] shrink-0 items-center rounded border border-studio-border px-1.5 font-mono text-[9.5px] uppercase leading-none tracking-wider text-[var(--studio-text-muted)]">
                 {mod.category}
               </span>
-              <button type="button" onClick={() => selectModule(null)} className="rounded p-1 text-slate-400 hover:bg-white/5 hover:text-white" title="Close (Esc)">
+              <button type="button" onClick={() => selectModule(null)} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-white/5 hover:text-white" title="Close (Esc)">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -118,19 +118,19 @@ export function ModuleTelemetryPanel({ host = 'graph' }: { host?: SelectionOrigi
             {mod.description && <p className="mt-1.5 text-[11px] text-[var(--studio-text-secondary)]">{mod.description}</p>}
           </header>
 
-          <nav className="flex gap-1 border-b border-studio-border px-2 pt-1.5">
+          {/* Same geometry as the shared Tabs primitive so drawers and window bodies read alike. */}
+          <nav className="relative flex h-9 shrink-0 items-stretch gap-0.5 border-b border-studio-border px-2">
             {tabs.map((t) => (
               <button
                 key={t.id}
                 type="button"
                 onClick={() => setTab(t.id)}
-                className={`relative flex items-center gap-1.5 px-2.5 pb-2 pt-1 text-[11px] font-medium transition-colors ${
-                  tab === t.id ? 'text-[var(--studio-text)]' : 'text-[var(--studio-text-muted)] hover:text-[var(--studio-text-secondary)]'
-                }`}
+                className={`relative flex items-center gap-1.5 px-2.5 text-[12px] font-medium transition-colors ${tab === t.id ? 'text-[var(--studio-text)]' : 'text-[var(--studio-text-muted)] hover:text-[var(--studio-text-secondary)]'
+                  }`}
               >
                 {t.icon}
                 {t.label}
-                {tab === t.id && <motion.span layoutId="module-tab" className="absolute inset-x-1 -bottom-px h-[2px] rounded-full bg-violet-400" />}
+                {tab === t.id && <motion.span layoutId="module-tab" className="absolute inset-x-1 bottom-0 h-[2px] rounded-full bg-violet-400" />}
               </button>
             ))}
           </nav>

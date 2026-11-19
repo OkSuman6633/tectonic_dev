@@ -42,9 +42,8 @@ export const AgentActivitySidebar: React.FC<{ onSelectAgent: (id: string) => voi
               type="button"
               onClick={() => onSelectAgent(id)}
               style={{ paddingLeft: 8 + depth * 10 }}
-              className={`w-full flex items-center gap-2 pr-2 py-1.5 rounded-md border text-left transition-colors ${
-                selectedId === id ? 'border-sky-500/40 bg-sky-500/10' : 'border-transparent hover:bg-white/5'
-              }`}
+              className={`flex min-h-[36px] w-full items-center gap-2 rounded-md border py-1.5 pr-2 text-left leading-none transition-colors ${selectedId === id ? 'border-sky-500/40 bg-sky-500/10' : 'border-transparent hover:bg-white/5'
+                }`}
             >
               <span
                 className={`h-2 w-2 shrink-0 rounded-full ${style.pulse ? 'animate-pulse' : ''}`}
@@ -53,7 +52,7 @@ export const AgentActivitySidebar: React.FC<{ onSelectAgent: (id: string) => voi
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <span className="truncate font-mono text-[11px] text-[var(--studio-text)]">{agent.role}</span>
-                  <span className={`shrink-0 rounded border px-1 font-mono text-[8px] uppercase tracking-wider ${ROLE_STYLES[agentRole(id)].chip}`}>
+                  <span className={`inline-flex h-[14px] shrink-0 items-center rounded border px-1 font-mono text-[8px] uppercase leading-none tracking-wider ${ROLE_STYLES[agentRole(id)].chip}`}>
                     {ROLE_STYLES[agentRole(id)].label}
                   </span>
                 </div>
@@ -70,14 +69,14 @@ export const AgentActivitySidebar: React.FC<{ onSelectAgent: (id: string) => voi
       {/* File Generation Progress */}
       {isGeneratingAgent && pendingFiles.length > 0 && (
         <div className="mt-4 pt-3 border-t border-studio-border">
-          <div className="flex items-center gap-2 mb-2">
-            <FileCode className="w-3.5 h-3.5 text-emerald-400" />
+          <div className="mb-2 flex items-center gap-2">
+            <FileCode className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
             <span className="text-[10px] font-semibold text-emerald-300">Generating Files</span>
           </div>
           <div className="space-y-1 max-h-32 overflow-y-auto scrollbar-thin">
             {pendingFiles.map((f) => (
-              <div key={f.path} className="text-[9px] font-mono text-slate-500 truncate flex items-center gap-1">
-                <span className="w-1 h-1 rounded-full bg-emerald-500" />
+              <div key={f.path} className="flex items-center gap-1 truncate font-mono text-[9px] leading-none text-slate-500">
+                <span className="h-1 w-1 shrink-0 rounded-full bg-emerald-500" />
                 {f.path.split('/').pop()}
               </div>
             ))}

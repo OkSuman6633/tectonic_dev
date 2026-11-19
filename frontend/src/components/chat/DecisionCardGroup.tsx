@@ -128,41 +128,41 @@ export const DecisionCardGroup: React.FC<DecisionCardGroupProps> = ({ decisionGr
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: 'easeOut' }}
-      className={`mt-4 rounded-xl border p-4 shadow-xl backdrop-blur-md transition-all ${
+      className={`mt-4 rounded-xl border p-4 shadow-sm backdrop-blur-md transition-all ${
         isSubmitted
-          ? 'bg-slate-900/60 border-emerald-500/30 shadow-emerald-950/20'
-          : 'bg-studio-card/85 border-sky-500/30 shadow-sky-950/20'
+          ? 'bg-slate-900/70 border-emerald-500/30'
+          : 'bg-slate-900/80 border-sky-500/30'
       }`}
     >
       {/* Header Bar */}
-      <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-4">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-sky-500/10 border border-sky-500/20">
+      <div className="flex items-start justify-between gap-2 border-b border-white/10 pb-3 mb-3 min-w-0">
+        <div className="flex items-start gap-2 min-w-0 flex-1">
+          <div className="p-1.5 rounded-lg bg-sky-500/10 border border-sky-500/20 shrink-0 mt-0.5">
             <Sparkles className="w-4 h-4 text-sky-400 animate-pulse" />
           </div>
-          <div>
-            <h4 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
-              <span>{activeGroup.title}</span>
+          <div className="min-w-0 flex-1">
+            <h4 className="text-xs sm:text-sm font-semibold text-slate-100 flex items-center gap-2 flex-wrap">
+              <span className="truncate">{activeGroup.title}</span>
               {isSubmitted && (
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 shrink-0">
                   <Check className="w-3 h-3" />
                   Choices Submitted
                 </span>
               )}
             </h4>
             {activeGroup.step?.key === 'plan' && (
-              <p className="text-[11px] text-sky-300/80 mt-1">
+              <p className="text-[11px] text-sky-300/80 mt-1 leading-snug">
                 Tick the steps you want to decide yourself. The AI decides the rest and keeps going without stopping.
               </p>
             )}
             {activeGroup.step && activeGroup.step.key !== 'plan' && (
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-sky-300/80">{activeGroup.step.phase}</span>
+                <span className="text-[10px] font-mono uppercase tracking-wider text-sky-300/80 shrink-0">{activeGroup.step.phase}</span>
                 <div className="flex gap-0.5" aria-label={`Step ${activeGroup.step.number} of ${activeGroup.step.total}`}>
                   {Array.from({ length: activeGroup.step.total }, (_, i) => (
                     <span
                       key={i}
-                      className={`h-1 w-4 rounded-full ${
+                      className={`h-1 w-3.5 rounded-full ${
                         i < activeGroup.step!.number - 1 ? 'bg-emerald-400/70' : i === activeGroup.step!.number - 1 ? 'bg-sky-400' : 'bg-white/10'
                       }`}
                     />
@@ -171,7 +171,7 @@ export const DecisionCardGroup: React.FC<DecisionCardGroupProps> = ({ decisionGr
               </div>
             )}
             {activeGroup.description && (
-              <p className="text-xs text-slate-400 mt-0.5">{activeGroup.description}</p>
+              <p className="text-xs text-slate-400 mt-0.5 leading-snug">{activeGroup.description}</p>
             )}
           </div>
         </div>
@@ -181,43 +181,43 @@ export const DecisionCardGroup: React.FC<DecisionCardGroupProps> = ({ decisionGr
           <button
             onClick={handleProceedDefaults}
             type="button"
-            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg bg-indigo-500/15 text-indigo-300 hover:bg-indigo-500/25 border border-indigo-500/30 transition-all shadow-sm active:scale-95 font-medium"
+            className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-indigo-500/15 text-indigo-300 hover:bg-indigo-500/25 border border-indigo-500/30 transition-all shadow-sm active:scale-95 font-medium shrink-0"
             title="Automatically accept all AI recommended defaults"
           >
-            <Zap className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Use Defaults</span>
+            <Zap className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+            <span className="whitespace-nowrap">Defaults</span>
           </button>
         )}
       </div>
 
       {/* Decision Questions List */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {activeGroup.questions.map((question, qIdx) => {
           return (
             <div 
               key={question.id} 
-              className="rounded-lg bg-studio-surface/70 border border-white/5 p-3 hover:border-white/10 transition-colors"
+              className="rounded-lg bg-white/[0.03] border border-white/5 p-2.5 hover:border-white/10 transition-colors"
             >
-              <div className="flex items-center justify-between mb-2.5">
-                <div className="flex items-center gap-2">
-                  <div className="p-1 rounded bg-white/5">
+              <div className="flex items-center justify-between mb-2 min-w-0 gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="p-1 rounded bg-white/5 shrink-0">
                     {getQuestionIcon(question.id)}
                   </div>
-                  <span className="text-xs font-semibold text-slate-200">
+                  <span className="text-xs font-semibold text-slate-200 truncate">
                     <span className="text-sky-400 font-mono mr-1.5">{qIdx + 1}.</span>
                     {question.title}
                   </span>
                 </div>
                 {question.multiSelect && (
-                  <span className="text-[10px] font-mono text-slate-400">choose any</span>
+                  <span className="text-[10px] font-mono text-slate-400 shrink-0">choose any</span>
                 )}
               </div>
               {question.description && (
-                <p className="-mt-1 mb-2.5 text-[11px] leading-relaxed text-slate-400">{question.description}</p>
+                <p className="-mt-1 mb-2 text-[11px] leading-relaxed text-slate-400">{question.description}</p>
               )}
 
-              {/* Checkbox Options Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {/* Checkbox Options List */}
+              <div className="grid grid-cols-1 gap-1.5">
                 {question.options.map((option) => {
                   const isSelected = !question.isCustom && (question.multiSelect
                     ? (question.selectedOptions ?? []).includes(option.id)
@@ -229,37 +229,37 @@ export const DecisionCardGroup: React.FC<DecisionCardGroupProps> = ({ decisionGr
                       type="button"
                       disabled={isSubmitted}
                       onClick={() => updateDecisionOption(question.id, option.id)}
-                      className={`relative flex items-start gap-2.5 p-2.5 rounded-lg text-left text-xs transition-all ${
+                      className={`relative flex items-start gap-2.5 p-2 rounded-lg text-left text-xs transition-all ${
                         isSelected
-                          ? 'bg-sky-500/20 border-sky-400/60 text-white shadow-sm shadow-sky-500/20'
-                          : 'bg-white/[0.02] border-white/5 text-slate-300 hover:bg-white/[0.05] hover:border-white/15'
+                          ? 'bg-sky-50 dark:bg-sky-500/20 border-sky-500/80 dark:border-sky-400/60 text-sky-900 dark:text-white shadow-sm'
+                          : 'bg-white dark:bg-white/[0.02] border-slate-200/90 dark:border-white/5 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.05]'
                       } border disabled:opacity-60 disabled:cursor-not-allowed`}
                     >
                       {/* Checkbox Square */}
                       <div className="pt-0.5 shrink-0">
                         <div className={`w-4 h-4 rounded-md border flex items-center justify-center transition-all ${
                           isSelected 
-                            ? 'border-sky-400 bg-sky-500 text-white shadow-sm shadow-sky-500/50' 
-                            : 'border-slate-500/80 bg-slate-800/40 text-transparent hover:border-slate-400'
+                            ? 'border-sky-500 bg-sky-500 text-white shadow-sm shadow-sky-500/50' 
+                            : 'border-slate-300 dark:border-slate-500/80 bg-white dark:bg-slate-800/40 text-transparent hover:border-slate-400'
                         }`}>
                           <Check className={`w-3 h-3 stroke-[3] transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0'}`} />
                         </div>
                       </div>
 
-                      <div className="flex-1 pr-1">
+                      <div className="flex-1 pr-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className={`font-medium leading-relaxed ${isSelected ? 'text-white' : 'text-slate-300'}`}>
+                          <span className={`font-medium leading-relaxed ${isSelected ? 'text-sky-900 dark:text-white font-semibold' : 'text-slate-800 dark:text-slate-300'}`}>
                             {option.label}
                           </span>
                           {option.isRecommended && (
-                            <span className="inline-flex items-center gap-0.5 text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                            <span className="inline-flex items-center gap-0.5 text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/30 shrink-0 font-semibold">
                               <Sparkles className="w-2.5 h-2.5" />
                               AI Recommended
                             </span>
                           )}
                         </div>
                         {option.description && (
-                          <div className="mt-0.5 text-[11px] leading-snug text-slate-400">{option.description}</div>
+                          <div className="mt-0.5 text-[11px] leading-snug text-slate-500 dark:text-slate-400">{option.description}</div>
                         )}
                       </div>
                     </button>
@@ -271,23 +271,23 @@ export const DecisionCardGroup: React.FC<DecisionCardGroupProps> = ({ decisionGr
                   type="button"
                   disabled={isSubmitted}
                   onClick={() => toggleCustomDecision(question.id, !question.isCustom)}
-                  className={`relative flex items-center gap-2.5 p-2.5 rounded-lg text-left text-xs transition-all ${
+                  className={`relative flex items-center gap-2.5 p-2 rounded-lg text-left text-xs transition-all ${
                     question.isCustom
-                      ? 'bg-purple-500/20 border-purple-400/60 text-white shadow-sm shadow-purple-500/20'
-                      : 'bg-white/[0.02] border-white/5 text-slate-300 hover:bg-white/[0.05] hover:border-white/15'
+                      ? 'bg-purple-50 dark:bg-purple-500/20 border-purple-500/80 dark:border-purple-400/60 text-purple-900 dark:text-white shadow-sm'
+                      : 'bg-white dark:bg-white/[0.02] border-slate-200/90 dark:border-white/5 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.05]'
                   } border disabled:opacity-60 disabled:cursor-not-allowed`}
                 >
                   {/* Custom Checkbox Square */}
                   <div className={`w-4 h-4 rounded-md border flex items-center justify-center transition-all ${
                     question.isCustom 
-                      ? 'border-purple-400 bg-purple-500 text-white shadow-sm shadow-purple-500/50' 
-                      : 'border-slate-500/80 bg-slate-800/40 text-transparent hover:border-slate-400'
+                      ? 'border-purple-500 bg-purple-500 text-white shadow-sm shadow-purple-500/50' 
+                      : 'border-slate-300 dark:border-slate-500/80 bg-white dark:bg-slate-800/40 text-transparent hover:border-slate-400'
                   }`}>
                     <Check className={`w-3 h-3 stroke-[3] transition-opacity ${question.isCustom ? 'opacity-100' : 'opacity-0'}`} />
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <Edit3 className="w-3 h-3 text-purple-400" />
-                    <span className="font-medium">Other / Custom Preference...</span>
+                    <Edit3 className="w-3 h-3 text-purple-500 dark:text-purple-400" />
+                    <span className="font-medium text-slate-800 dark:text-slate-200">Other / Custom Preference...</span>
                   </div>
                 </button>
               </div>
@@ -333,34 +333,34 @@ export const DecisionCardGroup: React.FC<DecisionCardGroupProps> = ({ decisionGr
             value={activeGroup.extraNotes || ''}
             onChange={(e) => setExtraNotes(e.target.value)}
             placeholder="e.g. Enforce biometric verification or maximum 5 retries..."
-            className="w-full text-xs px-3 py-2 rounded-lg bg-studio-surface/80 border border-white/10 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500/50 transition-colors"
+            className="w-full text-xs px-3 py-2 rounded-lg bg-slate-950/80 border border-white/10 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500/50 transition-colors"
           />
         </div>
       )}
 
       {/* Actions Bar */}
-      <div className="mt-4 pt-3 flex items-center justify-between gap-3 border-t border-white/10">
-        <span className="text-[11px] text-slate-400">
-          {isSubmitted ? 'Preferences submitted to agent architect' : 'Select options with checkboxes, then click submit'}
+      <div className="mt-4 pt-3 flex items-center justify-between gap-2.5 border-t border-white/10 flex-wrap">
+        <span className="text-[10px] text-slate-400 truncate max-w-full">
+          {isSubmitted ? 'Preferences submitted to agent architect' : 'Select options, then submit'}
         </span>
 
         {!isSubmitted ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
               disabled={isChatLoading || isGeneratingAgent}
               onClick={handleProceedDefaults}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 text-xs transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 text-xs transition-colors shrink-0"
             >
-              <Zap className="w-3.5 h-3.5 text-amber-400" />
-              <span>Proceed with Defaults</span>
+              <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span>Defaults</span>
             </button>
 
             <button
               type="button"
               disabled={isChatLoading || isGeneratingAgent}
               onClick={handleSubmitSelected}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white text-xs font-semibold shadow-md shadow-sky-500/25 active:scale-95 transition-all disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white text-xs font-semibold shadow-md shadow-sky-500/25 active:scale-95 transition-all disabled:opacity-50 shrink-0"
             >
               {isChatLoading || isGeneratingAgent ? (
                 <>
@@ -370,7 +370,7 @@ export const DecisionCardGroup: React.FC<DecisionCardGroupProps> = ({ decisionGr
               ) : (
                 <>
                   <Send className="w-3.5 h-3.5" />
-                  <span>Submit Selected Choices 🚀</span>
+                  <span>Submit Choices 🚀</span>
                 </>
               )}
             </button>

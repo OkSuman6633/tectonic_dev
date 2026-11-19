@@ -29,9 +29,9 @@ export const SpecCard: React.FC<{ spec: ArchitectureSpec }> = ({ spec }) => {
   ];
 
   return (
-    <div className="mt-3 rounded-xl border border-indigo-400/30 bg-studio-surface/70 overflow-hidden">
-      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-white/10 bg-indigo-500/[0.06]">
-        <div className="flex items-center gap-1" role="tablist">
+    <div className="mt-3 rounded-xl border border-indigo-400/30 bg-slate-900/80 overflow-hidden">
+      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-white/10 bg-indigo-500/[0.06] min-w-0">
+        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar min-w-0 flex-1" role="tablist">
           {tabs.map((t) => (
             <button
               key={t.id}

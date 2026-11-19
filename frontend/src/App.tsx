@@ -30,17 +30,16 @@ function PresetSwitcher() {
   const preset = useWorkspaceStore((s) => s.preset);
   const { applyPreset, resetLayout } = useWorkspaceStore.getState();
   return (
-    <div className="flex items-center gap-1">
-      <div className="relative flex items-center rounded-[9px] bg-white/[0.07] p-[2px] shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.06)]">
+    <div className="flex h-7 shrink-0 items-center gap-1">
+      <div className="relative flex h-full items-center rounded-[9px] bg-white/[0.07] p-[2px] shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.06)]">
         {(Object.keys(PRESETS) as PresetId[]).map((id) => (
           <button
             key={id}
             type="button"
             onClick={() => applyPreset(id)}
             title={PRESETS[id].description}
-            className={`relative z-10 rounded-[7px] px-3.5 py-[3px] text-[12.5px] font-medium transition-colors ${
-              preset === id ? 'text-[var(--studio-text)]' : 'text-[var(--studio-text-muted)] hover:text-[var(--studio-text-secondary)]'
-            }`}
+            className={`relative z-10 flex h-full items-center rounded-[7px] px-3 text-[12px] font-medium leading-none transition-colors ${preset === id ? 'text-[var(--studio-text)]' : 'text-[var(--studio-text-muted)] hover:text-[var(--studio-text-secondary)]'
+              }`}
           >
             {preset === id && (
               <motion.span
@@ -56,17 +55,17 @@ function PresetSwitcher() {
       <button
         type="button"
         onClick={resetLayout}
-        className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--studio-text-muted)] transition-colors hover:bg-white/[0.08] hover:text-[var(--studio-text)]"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--studio-text-muted)] transition-colors hover:bg-white/[0.08] hover:text-[var(--studio-text)]"
         title="Reset this layout"
       >
-        <RotateCcw className="h-3.5 w-3.5" />
+        <RotateCcw className="h-4 w-4" />
       </button>
     </div>
   );
 }
 
 export const App: React.FC = () => {
-  const { 
+  const {
     activeTab,
     tabNonce,
     checkEnvConfig,
@@ -114,7 +113,9 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.remove('light');
+      document.documentElement.classList.add('dark');
     } else {
+      document.documentElement.classList.remove('dark');
       document.documentElement.classList.add('light');
     }
     try { localStorage.setItem('theme', isDarkMode ? 'dark' : 'light'); } catch { /* not persisted */ }
@@ -141,7 +142,7 @@ export const App: React.FC = () => {
     <div className="flex h-screen w-screen flex-col overflow-hidden font-sans text-[var(--studio-text)] transition-colors duration-300">
       {/* Top Navbar */}
       <header className="menu-bar z-30 flex h-11 shrink-0 items-center justify-between gap-3 px-4">
-        <div className="flex items-center gap-4">
+        <div className="flex min-w-0 items-center gap-3">
           {/* Logo */}
           <div className="flex items-center gap-2">
             <div className="flex h-6 w-6 items-center justify-center rounded-[7px] bg-gradient-to-br from-sky-300 via-sky-400 to-indigo-500 shadow-[0_2px_8px_-2px_rgba(45,212,255,0.6),inset_0_1px_0_rgba(255,255,255,0.4)]">
@@ -156,10 +157,10 @@ export const App: React.FC = () => {
           {/* Create Another Agent Button */}
           <button
             onClick={handleStartNewAgent}
-            className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-medium transition-colors bg-sky-400 text-[#05222E] shadow-[0_2px_10px_-3px_rgba(45,212,255,0.7)] hover:bg-sky-300"
+            className="flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-sky-400 px-3 text-[12px] font-medium leading-none text-[#05222E] shadow-[0_2px_10px_-3px_rgba(45,212,255,0.7)] transition-colors hover:bg-sky-300"
             title="Start fresh session to create another agent"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="h-3.5 w-3.5 shrink-0" />
             <span className="hidden md:inline">Create Another Agent</span>
           </button>
 
@@ -167,17 +168,17 @@ export const App: React.FC = () => {
           <div className="relative">
             <button
               onClick={() => setAgentDropdownOpen(!agentDropdownOpen)}
-              className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-medium transition-colors bg-white/[0.08] text-[var(--studio-text-secondary)] shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.08)] hover:bg-white/[0.13] hover:text-[var(--studio-text)]"
+              className="flex h-7 max-w-[240px] items-center gap-1.5 rounded-full bg-white/[0.08] px-3 text-[12px] font-medium leading-none text-[var(--studio-text-secondary)] shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.08)] transition-colors hover:bg-white/[0.13] hover:text-[var(--studio-text)]"
               title="Switch active agent in sandbox"
             >
-              <Layers className="w-3.5 h-3.5 text-indigo-400" />
-              <span className="max-w-[120px] truncate">
+              <Layers className="h-3.5 w-3.5 shrink-0 text-indigo-400" />
+              <span className="min-w-0 max-w-[120px] truncate">
                 {selectedAgent ? selectedAgent.name : 'Select Agent'}
               </span>
-              <span className="text-[10px] px-1.5 rounded-full bg-indigo-500/20 text-indigo-300">
+              <span className="inline-flex h-[18px] shrink-0 items-center rounded-full bg-indigo-500/20 px-1.5 text-[10px] leading-none text-indigo-300">
                 {createdAgents.length}
               </span>
-              <ChevronDown className="w-3 h-3 text-slate-400" />
+              <ChevronDown className="h-3 w-3 shrink-0 text-slate-400" />
             </button>
 
             {agentDropdownOpen && (
@@ -203,11 +204,10 @@ export const App: React.FC = () => {
                         setSelectedAgent(ag);
                         setAgentDropdownOpen(false);
                       }}
-                      className={`w-full text-left p-2 rounded-lg text-xs font-mono transition-colors flex items-center justify-between ${
-                        selectedAgent?.name === ag.name
-                          ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
-                          : 'hover:bg-white/5 text-slate-300'
-                      }`}
+                      className={`w-full text-left p-2 rounded-lg text-xs font-mono transition-colors flex items-center justify-between ${selectedAgent?.name === ag.name
+                        ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                        : 'hover:bg-white/5 text-slate-300'
+                        }`}
                     >
                       <span className="font-semibold">{ag.name}</span>
                       <span className="text-[10px] text-slate-500">{ag.files.length} files</span>
@@ -226,54 +226,54 @@ export const App: React.FC = () => {
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowEnvModal(true)}
-            className="hidden items-center gap-1.5 rounded-full bg-white/[0.06] px-3 py-1 text-[12px] font-medium text-[var(--studio-text-secondary)] transition-colors hover:bg-white/[0.1] hover:text-[var(--studio-text)] lg:flex"
+            className="hidden h-7 shrink-0 items-center gap-1.5 rounded-full bg-white/[0.06] px-3 text-[12px] font-medium leading-none text-[var(--studio-text-secondary)] transition-colors hover:bg-white/[0.1] hover:text-[var(--studio-text)] lg:flex"
             title="The model the Builder runs on (click to change it or add an API key)"
           >
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-            <span>Builder · {builderModelLabel}</span>
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+            <span className="truncate">Builder · {builderModelLabel}</span>
           </button>
 
           {/* Re-sync agents, files, sessions and history with the backend (the conversation is kept) */}
           <button
             onClick={() => refreshAllViews()}
             disabled={isRefreshing}
-            className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--studio-text-secondary)] transition-colors hover:bg-white/[0.1] hover:text-[var(--studio-text)] disabled:opacity-60"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--studio-text-secondary)] transition-colors hover:bg-white/[0.1] hover:text-[var(--studio-text)] disabled:opacity-60"
             title="Refresh all views: sandbox, Command Center, Blueprint, code, platform windows and history (keeps your conversations)"
           >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           </button>
 
           {/* Theme Toggle Button */}
           <button
             onClick={toggleTheme}
-            className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--studio-text-secondary)] transition-colors hover:bg-white/[0.1] hover:text-[var(--studio-text)]"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--studio-text-secondary)] transition-colors hover:bg-white/[0.1] hover:text-[var(--studio-text)]"
             title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
             {isDarkMode ? (
-              <Sun className="w-4 h-4" />
+              <Sun className="h-4 w-4" />
             ) : (
-              <Moon className="w-4 h-4" />
+              <Moon className="h-4 w-4" />
             )}
           </button>
 
           <button
             onClick={() => setShowEnvModal(true)}
-            className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--studio-text-secondary)] transition-colors hover:bg-white/[0.1] hover:text-[var(--studio-text)]"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--studio-text-secondary)] transition-colors hover:bg-white/[0.1] hover:text-[var(--studio-text)]"
             title="System & Google Gemini Environment Settings"
           >
-            <Settings className="w-4 h-4" />
+            <Settings className="h-4 w-4" />
           </button>
 
           {/* Signed-in user: agents, sessions and history shown here are theirs alone */}
           {signedIn && (
-            <div className="flex items-center gap-1 rounded-full bg-white/[0.06] pl-2.5 pr-1 py-0.5 text-[12px] text-[var(--studio-text-secondary)]">
-              <UserCircle2 className="h-3.5 w-3.5 text-sky-400" />
+            <div className="flex h-7 shrink-0 items-center gap-1 rounded-full bg-white/[0.06] pl-2.5 pr-1 text-[12px] leading-none text-[var(--studio-text-secondary)]">
+              <UserCircle2 className="h-3.5 w-3.5 shrink-0 text-sky-400" />
               <span className="max-w-[110px] truncate font-medium" title={signedIn.admin ? 'Admin' : undefined}>
                 {signedIn.username}
               </span>
               <button
                 onClick={signOut}
-                className="flex h-6 w-6 items-center justify-center rounded-full transition-colors hover:bg-white/[0.1] hover:text-[var(--studio-text)]"
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-white/[0.1] hover:text-[var(--studio-text)]"
                 title="Sign out"
               >
                 <LogOut className="h-3.5 w-3.5" />

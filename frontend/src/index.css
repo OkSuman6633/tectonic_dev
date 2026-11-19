@@ -163,6 +163,16 @@
 .light .border-studio-border { border-color: var(--studio-border); }
 .light .bg-white\/5 { background-color: rgba(0, 0, 0, 0.03); }
 .light .bg-white\/10 { background-color: rgba(0, 0, 0, 0.06); }
+.light .bg-white\/\[0\.02\] { background-color: rgba(0, 0, 0, 0.02); }
+.light .bg-white\/\[0\.03\] { background-color: rgba(0, 0, 0, 0.035); }
+.light .bg-white\/\[0\.04\] { background-color: rgba(0, 0, 0, 0.04); }
+.light .bg-white\/\[0\.07\] { background-color: rgba(0, 0, 0, 0.06); }
+.light .hover\:bg-white\/\[0\.07\]:hover { background-color: rgba(0, 0, 0, 0.06); }
+.light .bg-slate-900\/60 { background-color: rgba(255, 255, 255, 0.75); }
+.light .bg-slate-900\/70 { background-color: rgba(255, 255, 255, 0.82); }
+.light .bg-slate-900\/80 { background-color: rgba(255, 255, 255, 0.9); }
+.light .bg-slate-950\/80 { background-color: rgba(245, 247, 250, 0.95); }
+.light .bg-slate-800 { background-color: #e2e8f0; }
 .light .border-white\/5 { border-color: rgba(0, 0, 0, 0.05); }
 .light .border-white\/10 { border-color: rgba(0, 0, 0, 0.08); }
 .light .hover\:bg-white\/5:hover { background-color: rgba(0, 0, 0, 0.03); }
@@ -270,10 +280,11 @@
 }
 .workspace-grid .react-grid-item:hover > .react-resizable-handle::after { opacity: 1; border-color: var(--accent-cyan); }
 
-/* Maximized: the grid item itself goes full-screen (no remount, so canvases and scroll positions survive). */
+/* Maximized: the grid item itself goes full-screen (no remount, so canvases and scroll positions survive).
+   Insets are the menu bar (44px) and the dock (78px) plus an even 8px gutter on both sides. */
 .workspace-grid .react-grid-item.window-maximized {
   position: fixed !important;
-  inset: 52px 14px 84px 14px !important;
+  inset: 52px 14px 86px 14px !important;
   width: auto !important;
   height: auto !important;
   transform: none !important;
@@ -399,6 +410,23 @@
 .light .text-blue-300, .light .text-blue-400 { color: #1D4ED8; }
 .light .text-cyan-300 { color: #0E7490; }
 
+/* Light mode card hover states: ensure headings and text stay deep, rich, and high-contrast */
+.light .group:hover .group-hover\:text-indigo-200,
+.light .group:hover .group-hover\:text-indigo-300,
+.light .group:hover .group-hover\:text-indigo-100 {
+  color: #5B21B6 !important;
+}
+
+.light .group:hover .group-hover\:text-white {
+  color: #0E1116 !important;
+}
+
+.light .group:hover .group-hover\:text-sky-200,
+.light .group:hover .group-hover\:text-sky-300,
+.light .group:hover .group-hover\:text-sky-100 {
+  color: #0E7490 !important;
+}
+
 /* Light-mode counterparts for the white-alpha glass utilities used in the menu bar and controls. */
 .light .menu-bar .bg-white\/\[0\.07\], .light .menu-bar .bg-white\/\[0\.08\], .light .menu-bar .bg-white\/\[0\.06\] { background-color: rgba(14, 17, 22, 0.06); }
 .light .menu-bar .bg-white\/\[0\.16\] { background-color: #FFFFFF; }
@@ -415,3 +443,32 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 .office-tag { animation: office-tag-in 160ms ease-out; }
+
+/* ---- Alignment system --------------------------------------------------------------------------
+   Window/panel chrome snaps to one set of measurements so nothing drifts between modules:
+   --control-h = single-line controls (buttons, inputs, selects, pills)
+   --toolbar-h = panel/window header rows                                                     */
+:root {
+  --control-h: 28px;
+  --toolbar-h: 40px;
+}
+
+/* Every window-body header uses this row, so all panels start their content on the same line. */
+.studio-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--toolbar-h);
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--studio-border);
+  flex-shrink: 0;
+}
+
+/* Group that pushes the remaining controls to the right edge of a toolbar. */
+.studio-toolbar .toolbar-end {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}

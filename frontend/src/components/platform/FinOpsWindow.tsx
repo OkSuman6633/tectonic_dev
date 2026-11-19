@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { BarChart3, Bot, Coins, Cpu, Gauge, Lightbulb, Pencil, ShieldAlert, Wand2 } from 'lucide-react';
 import { invokeModule, useAction, useModuleData } from '../../services/platformApi';
-import { BackendGate, BarSeries, Button, Card, Chip, Empty, ErrorNote, HBarList, Input, Kpi, StatusPill, compact, usd } from './ui';
+import { BackendGate, BarSeries, Button, Card, Chip, Empty, ErrorNote, HBarList, Input, Kpi, Select, StatusPill, compact, usd } from './ui';
 
 interface Rate { model: string; input: number; output: number; estimate: boolean; note: string; source: string }
 interface TeamReport {
@@ -30,7 +30,7 @@ function BudgetRow({ t, onSaved }: { t: TeamReport; onSaved: () => void }) {
         <span className="ml-auto text-[11.5px] tabular-nums text-[var(--studio-text-secondary)]">
           {usd(t.total_cost)}{b ? ` of ${usd(b.limit)}` : ' · no budget'}
         </span>
-        <button type="button" onClick={() => setEditing((v) => !v)} title="Edit budget" className="rounded p-1 text-[var(--studio-text-muted)] hover:bg-white/10 hover:text-[var(--studio-text)]"><Pencil className="h-3.5 w-3.5" /></button>
+        <button type="button" onClick={() => setEditing((v) => !v)} title="Edit budget" className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--studio-text-muted)] hover:bg-white/10 hover:text-[var(--studio-text)]"><Pencil className="h-3.5 w-3.5" /></button>
       </div>
       {b && (
         <>
@@ -54,9 +54,9 @@ function BudgetRow({ t, onSaved }: { t: TeamReport; onSaved: () => void }) {
         }}>
           <span className="text-[11px] text-[var(--studio-text-muted)]">USD / month</span>
           <Input type="number" min="0.01" step="0.01" value={limit} onChange={(e) => setLimit(e.target.value)} className="max-w-[110px]" />
-          <select value={enforcement} onChange={(e) => setEnforcement(e.target.value)} className="h-7 rounded-lg border border-studio-border bg-black/20 px-2 text-[12px] text-[var(--studio-text)]">
+          <Select value={enforcement} onChange={(e) => setEnforcement(e.target.value)}>
             <option value="alert">alert</option><option value="block">block</option>
-          </select>
+          </Select>
           <Button type="submit" variant="primary" busy={busy === 'save'}>Save</Button>
           <ErrorNote error={error} />
         </form>
@@ -72,11 +72,11 @@ function RateCard({ onChange }: { onChange: () => void }) {
   return (
     <Card title="Rate card · USD per 1M tokens" icon={Coins}>
       <table className="w-full text-left text-[11.5px]">
-        <thead className="text-[10.5px] uppercase tracking-wider text-[var(--studio-text-muted)]"><tr><th className="py-1">Model</th><th className="text-right">Input</th><th className="text-right">Output</th><th>Source</th><th /></tr></thead>
+        <thead className="text-[10.5px] uppercase tracking-wider text-[var(--studio-text-muted)]"><tr><th className="py-1.5">Model</th><th className="text-right">Input</th><th className="text-right">Output</th><th>Source</th><th /></tr></thead>
         <tbody>
           {(rates.data?.rates ?? []).map((r) => edit?.model === r.model ? (
             <tr key={r.model} className="border-t border-white/[0.05]">
-              <td className="py-1 font-mono text-[var(--studio-text)]">{r.model}</td>
+              <td className="py-1.5 font-mono text-[var(--studio-text)]">{r.model}</td>
               <td><Input type="number" step="0.01" value={edit.input} onChange={(e) => setEdit({ ...edit, input: e.target.value })} /></td>
               <td><Input type="number" step="0.01" value={edit.output} onChange={(e) => setEdit({ ...edit, output: e.target.value })} /></td>
               <td colSpan={2} className="text-right">
@@ -88,12 +88,12 @@ function RateCard({ onChange }: { onChange: () => void }) {
             </tr>
           ) : (
             <tr key={r.model} className="border-t border-white/[0.05]">
-              <td className="py-1 font-mono text-[var(--studio-text)]">{r.model}</td>
+              <td className="py-1.5 font-mono text-[var(--studio-text)]">{r.model}</td>
               <td className="text-right tabular-nums text-[var(--studio-text-secondary)]">${r.input.toFixed(2)}</td>
               <td className="text-right tabular-nums text-[var(--studio-text-secondary)]">${r.output.toFixed(2)}</td>
               <td title={r.note}>{r.estimate ? <Chip tone="warn">estimate</Chip> : <Chip tone="good">confirmed</Chip>}</td>
               <td className="text-right"><button type="button" title="Set confirmed rate" onClick={() => setEdit({ model: r.model, input: String(r.input), output: String(r.output) })}
-                className="rounded p-1 text-[var(--studio-text-muted)] hover:bg-white/10 hover:text-[var(--studio-text)]"><Pencil className="h-3.5 w-3.5" /></button></td>
+                className="ml-auto flex h-6 w-6 items-center justify-center rounded text-[var(--studio-text-muted)] hover:bg-white/10 hover:text-[var(--studio-text)]"><Pencil className="h-3.5 w-3.5" /></button></td>
             </tr>
           ))}
         </tbody>
@@ -127,7 +127,7 @@ export function FinOpsWindow() {
             <ShieldAlert className="h-3.5 w-3.5 shrink-0" />Costs use estimated list prices for some models. Confirm your contracted rates in the rate card.
           </div>
         )}
-        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Kpi label={`Spend · ${r?.period ?? 'monthly'}`} value={usd(r?.total_cost ?? 0)} sub={`${r?.teams.length ?? 0} teams`} />
           <Kpi label="Forecast" value={usd(r?.forecast ?? 0)} sub="run-rate to period end" />
           <Kpi label="Input tokens" value={compact(tokensIn)} />
@@ -149,10 +149,10 @@ export function FinOpsWindow() {
         </Card>
         <div className="flex items-center gap-2">
           <span className="text-[11px] text-[var(--studio-text-muted)]">Breakdown for</span>
-          <select value={team} onChange={(e) => setTeam(e.target.value)} className="h-7 rounded-lg border border-studio-border bg-black/20 px-2 text-[12px] text-[var(--studio-text)]">
+          <Select value={team} onChange={(e) => setTeam(e.target.value)}>
             <option value="">all teams</option>
             {(r?.teams ?? []).map((t) => <option key={t.team} value={t.team}>{t.team}</option>)}
-          </select>
+          </Select>
         </div>
         <div className="grid gap-3 lg:grid-cols-2">
           <Card title="By agent" icon={Bot}><HBarList rows={agentRows} format={usd} /></Card>

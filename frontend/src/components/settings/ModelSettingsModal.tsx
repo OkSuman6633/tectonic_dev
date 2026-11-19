@@ -32,9 +32,9 @@ const KeyField: React.FC<{
           placeholder={locked ? 'Managed by your admin' : configured ? 'Leave blank to keep the saved key' : placeholder}
           autoComplete="off"
           spellCheck={false}
-          className="w-full rounded-lg border border-white/10 bg-studio-surface px-3 py-2 pr-9 font-mono text-xs text-slate-200 focus:border-sky-500 focus:outline-none disabled:opacity-50"
+          className="h-9 w-full rounded-lg border border-white/10 bg-studio-surface pl-3 pr-10 font-mono text-xs leading-none text-slate-200 focus:border-sky-500 focus:outline-none disabled:opacity-50"
         />
-        <button type="button" onClick={() => setShow(!show)} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300" title={show ? 'Hide' : 'Show'}>
+        <button type="button" onClick={() => setShow(!show)} className="absolute right-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded text-slate-500 hover:bg-white/5 hover:text-slate-300" title={show ? 'Hide' : 'Show'}>
           {show ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
         </button>
       </div>
@@ -111,7 +111,7 @@ export const ModelSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="max-h-[92vh] w-full max-w-xl space-y-4 overflow-y-auto rounded-2xl border border-studio-border bg-studio-card p-6 shadow-2xl">
+      <div className="max-h-[92vh] w-full max-w-xl space-y-4 overflow-y-auto rounded-xl border border-studio-border bg-studio-card p-5 shadow-2xl">
         <div className="flex items-center justify-between border-b border-white/10 pb-3">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-orange-500 via-sky-500 to-indigo-600 shadow-md">
@@ -124,7 +124,7 @@ export const ModelSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose 
               </span>
             </div>
           </div>
-          <button onClick={onClose} className="rounded p-1 text-slate-400 hover:text-white"><X className="h-4 w-4" /></button>
+          <button onClick={onClose} title="Close" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-white/5 hover:text-white"><X className="h-4 w-4" /></button>
         </div>
 
         <p className="text-xs leading-relaxed text-slate-300">
@@ -150,7 +150,7 @@ export const ModelSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose 
           {groups.map(({ provider, models }) => models.length > 0 && (
             <div key={provider}>
               <div className={`mb-1.5 text-[11px] font-semibold ${PROVIDERS[provider].accent}`}>{PROVIDERS[provider].title}</div>
-              <div className="grid grid-cols-2 gap-1.5">{models.map(card)}</div>
+              <div className="grid grid-cols-2 gap-2">{models.map(card)}</div>
             </div>
           ))}
 
@@ -162,7 +162,7 @@ export const ModelSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose 
               onChange={(e) => setModel(e.target.value)}
               placeholder="claude-opus-5-5 or gemini-2.5-pro"
               spellCheck={false}
-              className="w-full rounded-lg border border-white/10 bg-studio-surface px-3 py-2 font-mono text-xs text-slate-200 focus:border-sky-500 focus:outline-none"
+              className="h-9 w-full rounded-lg border border-white/10 bg-studio-surface px-3 font-mono text-xs leading-none text-slate-200 focus:border-sky-500 focus:outline-none"
             />
             {!known && model.trim() && (
               <p className="mt-1 text-[10px] text-slate-500">Custom model · provider: {claude ? 'Anthropic (Claude)' : 'Google (Gemini)'}</p>
@@ -200,18 +200,18 @@ export const ModelSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose 
           )}
 
           <div className="flex items-center justify-end gap-2 border-t border-white/10 pt-3">
-            <button type="button" onClick={onClose} className="rounded-lg bg-white/5 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:bg-white/10">
+            <button type="button" onClick={onClose} className="inline-flex h-9 items-center justify-center rounded-lg bg-white/5 px-3.5 text-xs font-medium leading-none text-slate-300 transition-colors hover:bg-white/10">
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving || !model.trim() || needsKey}
               title={needsKey ? `Add your ${claude ? 'Anthropic' : 'Google'} API key first` : undefined}
-              className={`flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-semibold text-white shadow-md transition-all disabled:opacity-50 ${saved ? 'bg-emerald-500' : 'bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-400 hover:to-indigo-400'}`}
+              className={`inline-flex h-9 max-w-full items-center justify-center gap-1.5 truncate rounded-lg px-4 text-xs font-semibold leading-none text-white shadow-md transition-all disabled:opacity-50 ${saved ? 'bg-emerald-500' : 'bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-400 hover:to-indigo-400'}`}
             >
               {saved ? <><Check className="h-3.5 w-3.5" />{saved}</>
                 : saving ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Checking & switching…</>
-                : <><Save className="h-3.5 w-3.5" />Save & use this model</>}
+                  : <><Save className="h-3.5 w-3.5" />Save & use this model</>}
             </button>
           </div>
         </form>
