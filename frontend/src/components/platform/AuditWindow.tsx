@@ -99,7 +99,7 @@ export function AuditWindow() {
           {asked && <div className="text-[11px] text-[var(--studio-text-muted)]">Filter: <span className="font-mono text-[var(--studio-text-secondary)]">{JSON.stringify(asked.filter)}</span> · {asked.note}</div>}
           {!asked && (
             <div className="flex flex-wrap items-center gap-2">
-              <Select value={filters.event_type} onChange={(e) => setFilters({ ...filters, event_type: e.target.value })}>
+              <Select value={filters.event_type} onChange={(e) => setFilters({ ...filters, event_type: e.target.value })} className="max-w-[200px]">
                 {TYPES.map((t) => <option key={t} value={t}>{t || 'all event types'}</option>)}
               </Select>
               <Input value={filters.agent_id} onChange={(e) => setFilters({ ...filters, agent_id: e.target.value })} placeholder="agent" className="max-w-[160px]" />

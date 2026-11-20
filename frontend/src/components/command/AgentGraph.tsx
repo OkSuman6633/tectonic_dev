@@ -48,54 +48,60 @@ function Toolbar({ onRelayout }: { onRelayout: () => void }) {
   const statusColor = status === 'open' ? '#10b981' : status === 'connecting' ? '#f59e0b' : '#64748b';
   const statusLabel = status === 'open' ? 'Live' : status === 'connecting' ? 'Connecting' : 'Offline';
 
-  const btn = 'flex h-7 items-center gap-1.5 rounded-md px-2 text-[11px] font-medium leading-none text-[var(--studio-text-secondary)] transition-colors hover:bg-white/5 hover:text-[var(--studio-text)] disabled:opacity-40';
+  const btn = 'flex h-7 items-center gap-1.5 whitespace-nowrap rounded-md px-2 text-[11px] font-medium leading-none text-[var(--studio-text-secondary)] transition-colors hover:bg-white/5 hover:text-[var(--studio-text)] disabled:opacity-40';
 
   return (
-    <div className="pointer-events-none absolute left-3 right-3 top-3 z-10 flex items-start justify-between gap-3">
-      <div className="pointer-events-auto flex h-8 items-center gap-3 rounded-lg border border-studio-border bg-studio-surface/85 px-3 shadow-lg backdrop-blur-md">
-        <div className="flex items-center gap-1.5 font-mono text-[10.5px]" title="Telemetry WebSocket: /ws/telemetry">
-          <span className="relative flex h-2 w-2">
+    <div className="pointer-events-none absolute left-3 right-3 top-3 z-10 flex items-center justify-between gap-2 overflow-hidden">
+      <div className="pointer-events-auto flex h-8 shrink-0 items-center gap-2.5 overflow-x-auto no-scrollbar rounded-lg border border-studio-border bg-studio-surface/85 px-2.5 shadow-lg backdrop-blur-md">
+        <div className="flex shrink-0 items-center gap-1.5 font-mono text-[10.5px] whitespace-nowrap" title="Telemetry WebSocket: /ws/telemetry">
+          <span className="relative flex h-2 w-2 shrink-0">
             {status === 'open' && <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ background: statusColor }} />}
             <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: statusColor }} />
           </span>
           <span style={{ color: statusColor }}>{statusLabel}</span>
         </div>
-        <span className="h-3.5 w-px bg-studio-border" />
+        <span className="h-3.5 w-px shrink-0 bg-studio-border" />
         <Metric label="agents" value={agentCount} />
         <Metric label="active" value={busy} accent={busy > 0 ? STATE_STYLES.thinking.color : undefined} />
         <Metric label="runs" value={activeRuns} />
         {moduleCount > 0 && (
           <>
-            <span className="h-3.5 w-px bg-studio-border" />
-            <Metric label={`of ${moduleCount} modules busy`} value={modulesBusy} accent={modulesBusy > 0 ? MODULE_STATE_STYLES.busy.color : undefined} />
+            <span className="h-3.5 w-px shrink-0 bg-studio-border" />
+            <div className="flex items-baseline gap-1 font-mono whitespace-nowrap shrink-0" title={`${modulesBusy} of ${moduleCount} shared modules currently busy`}>
+              <span className="text-[12px] font-semibold tabular-nums" style={{ color: modulesBusy > 0 ? MODULE_STATE_STYLES.busy.color : 'var(--studio-text)' }}>
+                {modulesBusy}
+                <span className="text-[10px] font-normal text-[var(--studio-text-muted)]">/{moduleCount}</span>
+              </span>
+              <span className="text-[9.5px] uppercase tracking-wider text-[var(--studio-text-muted)]">busy</span>
+            </div>
           </>
         )}
       </div>
 
-      <div className="pointer-events-auto flex h-8 items-center gap-0.5 rounded-lg border border-studio-border bg-studio-surface/85 p-0.5 shadow-lg backdrop-blur-md">
+      <div className="pointer-events-auto flex h-8 shrink-0 items-center gap-0.5 rounded-lg border border-studio-border bg-studio-surface/85 p-0.5 shadow-lg backdrop-blur-md">
         <button type="button" className={btn} onClick={onRelayout} title="Re-run auto layout and fit view">
-          <LayoutGrid className="h-3.5 w-3.5" /> Layout
+          <LayoutGrid className="h-3.5 w-3.5 shrink-0" /> Layout
         </button>
         {isSimulating ? (
           <button type="button" className={btn} onClick={cancelSimulation} title="Stop the simulated run">
-            <Square className="h-3.5 w-3.5" /> Stop
+            <Square className="h-3.5 w-3.5 shrink-0" /> Stop
           </button>
         ) : (
           <button type="button" className={btn} onClick={() => void startSimulation()} title={status === 'open' ? 'Run a live office shift on the real shared modules' : 'Replay a scripted run (no backend needed)'}>
-            <Play className="h-3.5 w-3.5" /> Simulate
+            <Play className="h-3.5 w-3.5 shrink-0" /> Simulate
           </button>
         )}
         <button type="button" className={btn} onClick={reset} disabled={isSimulating || agentCount === 0} title="Clear the floorplan">
-          <Eraser className="h-3.5 w-3.5" /> Clear
+          <Eraser className="h-3.5 w-3.5 shrink-0" /> Clear
         </button>
       </div>
     </div>
   );
 }
 
-function Metric({ label, value, accent }: { label: string; value: number; accent?: string }) {
+function Metric({ label, value, accent }: { label: string; value: number | string; accent?: string }) {
   return (
-    <div className="flex items-baseline gap-1 font-mono">
+    <div className="flex items-baseline gap-1 font-mono whitespace-nowrap shrink-0">
       <span className="text-[12px] font-semibold tabular-nums" style={{ color: accent ?? 'var(--studio-text)' }}>{value}</span>
       <span className="text-[9.5px] uppercase tracking-wider text-[var(--studio-text-muted)]">{label}</span>
     </div>

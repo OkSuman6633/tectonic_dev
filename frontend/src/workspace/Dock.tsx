@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react';
 import { AnimatePresence, motion, useMotionValue, useSpring, useTransform, type MotionValue } from 'framer-motion';
-import { LatestEvent } from '../components/command/EventTicker';
 import { WINDOWS } from './windows';
 import { ALL_WINDOWS, useWorkspaceStore, type WindowId } from './useWorkspaceStore';
 
@@ -89,14 +88,11 @@ function DockIcon({ id, mouseX }: { id: WindowId; mouseX: MotionValue<number> })
 }
 
 /** macOS-style floating dock: every window has an icon; open/minimized windows show a dot. */
-export function Dock({ onSelectAgent }: { onSelectAgent: (id: string) => void }) {
+export function Dock({ onSelectAgent: _onSelectAgent }: { onSelectAgent?: (id: string) => void }) {
   const mouseX = useMotionValue(Infinity);
 
   return (
-    <footer className="pointer-events-none relative z-30 flex h-[78px] shrink-0 items-end justify-center pb-2">
-      <div className="glass pointer-events-auto absolute bottom-3 left-3 hidden h-9 w-[min(34vw,440px)] items-center rounded-xl px-2 lg:flex">
-        <LatestEvent onSelectAgent={onSelectAgent} />
-      </div>
+    <footer className="pointer-events-none fixed bottom-2 left-1/2 z-30 -translate-x-1/2">
       <motion.nav
         onMouseMove={(e) => mouseX.set(e.clientX)}
         onMouseLeave={() => mouseX.set(Infinity)}

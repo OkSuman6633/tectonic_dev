@@ -191,7 +191,7 @@ function Hud({ onFit, showLabels, toggleLabels }: { onFit: () => void; showLabel
 
 function Stat({ value, of, label, color }: { value: number; of: number; label: string; color: string }) {
   return (
-    <span className="flex items-baseline gap-1 font-mono">
+    <span className="flex items-baseline gap-1 font-mono whitespace-nowrap shrink-0">
       <span className="text-[13px] font-semibold tabular-nums" style={{ color: value > 0 ? color : 'var(--studio-text)' }}>{value}</span>
       <span className="text-[10px] text-[var(--studio-text-muted)]">/ {of} {label}</span>
     </span>

@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400..700;1,400..700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -67,13 +69,33 @@
     background-color: var(--studio-bg);
     color: var(--studio-text);
     @apply font-sans antialiased overflow-hidden;
-    font-feature-settings: "ss01", "cv11";
+    font-family: "Playfair Display", Georgia, serif;
+    font-optical-sizing: auto;
+    font-style: normal;
     -webkit-font-smoothing: antialiased;
     margin: 0;
     padding: 0;
     height: 100vh;
     width: 100vw;
     transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  html, body, button, input, select, textarea, .font-sans, .font-mono {
+    font-family: "Playfair Display", Georgia, serif !important;
+    font-optical-sizing: auto;
+  }
+
+  .event-log-mono,
+  .event-log-mono * {
+    font-family: "JetBrains Mono", "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .playfair-display-platform {
+    font-family: "Playfair Display", serif;
+    font-optical-sizing: auto;
+    font-weight: 500;
+    font-style: normal;
   }
   /* Sonoma-style wallpaper: what the glass frosts. GPU-only animation (transform). */
   body::before {
@@ -106,6 +128,15 @@
   @media (prefers-reduced-motion: reduce) { body::before { animation: none; } }
   ::selection { background: rgba(45, 212, 255, 0.28); }
   .tabular-nums, .font-mono { font-variant-numeric: tabular-nums; }
+
+  select option {
+    background-color: #161822;
+    color: #F2F3F7;
+  }
+  .light select option {
+    background-color: #FFFFFF;
+    color: #0E1116;
+  }
 
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -173,6 +204,7 @@
 .light .bg-slate-900\/80 { background-color: rgba(255, 255, 255, 0.9); }
 .light .bg-slate-950\/80 { background-color: rgba(245, 247, 250, 0.95); }
 .light .bg-slate-800 { background-color: #e2e8f0; }
+.light select { background-color: rgba(255, 255, 255, 0.9); color: #0E1116; }
 .light .border-white\/5 { border-color: rgba(0, 0, 0, 0.05); }
 .light .border-white\/10 { border-color: rgba(0, 0, 0, 0.08); }
 .light .hover\:bg-white\/5:hover { background-color: rgba(0, 0, 0, 0.03); }

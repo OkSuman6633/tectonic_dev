@@ -1,13 +1,13 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Sparkles, 
-  CheckCircle2, 
-  HelpCircle, 
-  Send, 
-  Cpu, 
-  Database, 
-  Layers, 
+import {
+  Sparkles,
+  CheckCircle2,
+  HelpCircle,
+  Send,
+  Cpu,
+  Database,
+  Layers,
   FileText,
   Sliders,
   Edit3,
@@ -72,9 +72,8 @@ export const DecisionCardGroup: React.FC<DecisionCardGroupProps> = ({ decisionGr
       return `${idx + 1}. ${q.title}: ${chosenText}`;
     });
 
-    const display = `Selected Preferences:\n${summaryLines.join('\n')}${
-      activeGroup.extraNotes ? `\nAdditional Notes: ${activeGroup.extraNotes}` : ''
-    }`;
+    const display = `Selected Preferences:\n${summaryLines.join('\n')}${activeGroup.extraNotes ? `\nAdditional Notes: ${activeGroup.extraNotes}` : ''
+      }`;
     // Structured groups answer the Builder exactly (no text parsing on the other side).
     const answers = Object.fromEntries(activeGroup.questions.map((q) => [
       q.id,
@@ -124,15 +123,14 @@ export const DecisionCardGroup: React.FC<DecisionCardGroupProps> = ({ decisionGr
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: 'easeOut' }}
-      className={`mt-4 rounded-xl border p-4 shadow-sm backdrop-blur-md transition-all ${
-        isSubmitted
-          ? 'bg-slate-900/70 border-emerald-500/30'
-          : 'bg-slate-900/80 border-sky-500/30'
-      }`}
+      className={`mt-4 rounded-xl border p-4 shadow-sm backdrop-blur-md transition-all ${isSubmitted
+        ? 'bg-slate-900/70 border-emerald-500/30'
+        : 'bg-slate-900/80 border-sky-500/30'
+        }`}
     >
       {/* Header Bar */}
       <div className="flex items-start justify-between gap-2 border-b border-white/10 pb-3 mb-3 min-w-0">
@@ -162,9 +160,8 @@ export const DecisionCardGroup: React.FC<DecisionCardGroupProps> = ({ decisionGr
                   {Array.from({ length: activeGroup.step.total }, (_, i) => (
                     <span
                       key={i}
-                      className={`h-1 w-3.5 rounded-full ${
-                        i < activeGroup.step!.number - 1 ? 'bg-emerald-400/70' : i === activeGroup.step!.number - 1 ? 'bg-sky-400' : 'bg-white/10'
-                      }`}
+                      className={`h-1 w-3.5 rounded-full ${i < activeGroup.step!.number - 1 ? 'bg-emerald-400/70' : i === activeGroup.step!.number - 1 ? 'bg-sky-400' : 'bg-white/10'
+                        }`}
                     />
                   ))}
                 </div>
@@ -194,8 +191,8 @@ export const DecisionCardGroup: React.FC<DecisionCardGroupProps> = ({ decisionGr
       <div className="space-y-3">
         {activeGroup.questions.map((question, qIdx) => {
           return (
-            <div 
-              key={question.id} 
+            <div
+              key={question.id}
               className="rounded-lg bg-white/[0.03] border border-white/5 p-2.5 hover:border-white/10 transition-colors"
             >
               <div className="flex items-center justify-between mb-2 min-w-0 gap-2">
@@ -229,19 +226,17 @@ export const DecisionCardGroup: React.FC<DecisionCardGroupProps> = ({ decisionGr
                       type="button"
                       disabled={isSubmitted}
                       onClick={() => updateDecisionOption(question.id, option.id)}
-                      className={`relative flex items-start gap-2.5 p-2 rounded-lg text-left text-xs transition-all ${
-                        isSelected
-                          ? 'bg-sky-50 dark:bg-sky-500/20 border-sky-500/80 dark:border-sky-400/60 text-sky-900 dark:text-white shadow-sm'
-                          : 'bg-white dark:bg-white/[0.02] border-slate-200/90 dark:border-white/5 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.05]'
-                      } border disabled:opacity-60 disabled:cursor-not-allowed`}
+                      className={`relative flex items-start gap-2.5 p-2 rounded-lg text-left text-xs transition-all ${isSelected
+                        ? 'bg-sky-50 dark:bg-sky-500/20 border-sky-500/80 dark:border-sky-400/60 text-sky-900 dark:text-white shadow-sm'
+                        : 'bg-white dark:bg-white/[0.02] border-slate-200/90 dark:border-white/5 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.05]'
+                        } border disabled:opacity-60 disabled:cursor-not-allowed`}
                     >
                       {/* Checkbox Square */}
                       <div className="pt-0.5 shrink-0">
-                        <div className={`w-4 h-4 rounded-md border flex items-center justify-center transition-all ${
-                          isSelected 
-                            ? 'border-sky-500 bg-sky-500 text-white shadow-sm shadow-sky-500/50' 
-                            : 'border-slate-300 dark:border-slate-500/80 bg-white dark:bg-slate-800/40 text-transparent hover:border-slate-400'
-                        }`}>
+                        <div className={`w-4 h-4 rounded-md border flex items-center justify-center transition-all ${isSelected
+                          ? 'border-sky-500 bg-sky-500 text-white shadow-sm shadow-sky-500/50'
+                          : 'border-slate-300 dark:border-slate-500/80 bg-white dark:bg-slate-800/40 text-transparent hover:border-slate-400'
+                          }`}>
                           <Check className={`w-3 h-3 stroke-[3] transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0'}`} />
                         </div>
                       </div>
@@ -271,18 +266,16 @@ export const DecisionCardGroup: React.FC<DecisionCardGroupProps> = ({ decisionGr
                   type="button"
                   disabled={isSubmitted}
                   onClick={() => toggleCustomDecision(question.id, !question.isCustom)}
-                  className={`relative flex items-center gap-2.5 p-2 rounded-lg text-left text-xs transition-all ${
-                    question.isCustom
-                      ? 'bg-purple-50 dark:bg-purple-500/20 border-purple-500/80 dark:border-purple-400/60 text-purple-900 dark:text-white shadow-sm'
-                      : 'bg-white dark:bg-white/[0.02] border-slate-200/90 dark:border-white/5 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.05]'
-                  } border disabled:opacity-60 disabled:cursor-not-allowed`}
+                  className={`relative flex items-center gap-2.5 p-2 rounded-lg text-left text-xs transition-all ${question.isCustom
+                    ? 'bg-purple-50 dark:bg-purple-500/20 border-purple-500/80 dark:border-purple-400/60 text-purple-900 dark:text-white shadow-sm'
+                    : 'bg-white dark:bg-white/[0.02] border-slate-200/90 dark:border-white/5 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.05]'
+                    } border disabled:opacity-60 disabled:cursor-not-allowed`}
                 >
                   {/* Custom Checkbox Square */}
-                  <div className={`w-4 h-4 rounded-md border flex items-center justify-center transition-all ${
-                    question.isCustom 
-                      ? 'border-purple-500 bg-purple-500 text-white shadow-sm shadow-purple-500/50' 
-                      : 'border-slate-300 dark:border-slate-500/80 bg-white dark:bg-slate-800/40 text-transparent hover:border-slate-400'
-                  }`}>
+                  <div className={`w-4 h-4 rounded-md border flex items-center justify-center transition-all ${question.isCustom
+                    ? 'border-purple-500 bg-purple-500 text-white shadow-sm shadow-purple-500/50'
+                    : 'border-slate-300 dark:border-slate-500/80 bg-white dark:bg-slate-800/40 text-transparent hover:border-slate-400'
+                    }`}>
                     <Check className={`w-3 h-3 stroke-[3] transition-opacity ${question.isCustom ? 'opacity-100' : 'opacity-0'}`} />
                   </div>
                   <div className="flex items-center gap-1.5">

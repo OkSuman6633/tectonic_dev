@@ -1,6 +1,6 @@
-import { useState, type ReactNode } from 'react';
+import { Children, isValidElement, useEffect, useRef, useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, CheckCircle2, Loader2, OctagonX, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, Check, CheckCircle2, ChevronDown, Loader2, OctagonX, type LucideIcon } from 'lucide-react';
 import { useTelemetryStore } from '../../store/useTelemetryStore';
 
 export function Tabs<T extends string>({ tabs, value, onChange, id }: { tabs: { id: T; label: string; icon?: LucideIcon }[]; value: T; onChange: (t: T) => void; id: string }) {
@@ -67,9 +67,100 @@ export function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
   return <textarea {...props} className={`${field} resize-y py-1.5 font-mono text-[11.5px] leading-relaxed ${props.className ?? ''}`} />;
 }
 
-/** Native `<select>` styled to the exact same box as `Input`, so rows line up. */
-export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...props} className={`${field} ${CONTROL_H} cursor-pointer pr-1.5 ${props.className ?? ''}`} />;
+/** Custom themed dropdown styled to match `Input` with proper dark/light popover menu and padding. */
+export function Select({
+  value,
+  onChange,
+  children,
+  className = '',
+  disabled,
+  title,
+}: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  const options: { value: string; label: ReactNode }[] = [];
+  Children.forEach(children, (child) => {
+    if (isValidElement<{ value?: string; children?: ReactNode }>(child) && child.type === 'option') {
+      const val = child.props.value !== undefined ? String(child.props.value) : String(child.props.children ?? '');
+      options.push({ value: val, label: child.props.children });
+    }
+  });
+
+  const currentVal = value !== undefined ? String(value) : (options[0]?.value ?? '');
+  const selected = options.find((o) => o.value === currentVal) ?? options[0];
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    window.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
+
+  const selectValue = (nextVal: string) => {
+    setOpen(false);
+    if (onChange) {
+      const syntheticEvent = {
+        target: { value: nextVal },
+        currentTarget: { value: nextVal },
+      } as React.ChangeEvent<HTMLSelectElement>;
+      onChange(syntheticEvent);
+    }
+  };
+
+  return (
+    <div ref={rootRef} className={`relative min-w-[130px] ${className}`}>
+      <button
+        type="button"
+        disabled={disabled}
+        title={title}
+        onClick={() => setOpen((o) => !o)}
+        className={`${field} ${CONTROL_H} flex w-full cursor-pointer items-center justify-between gap-2 px-3 text-left leading-none transition-colors hover:border-white/20 disabled:opacity-50`}
+      >
+        <span className="truncate">{selected?.label ?? currentVal}</span>
+        <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-[var(--studio-text-muted)] transition-transform duration-150 ${open ? 'rotate-180 text-sky-400' : ''}`} />
+      </button>
+
+      {open && (
+        <div
+          role="listbox"
+          className="absolute left-0 top-full z-50 mt-1.5 max-h-60 min-w-full overflow-y-auto rounded-xl border border-studio-border bg-studio-card p-1.5 shadow-2xl backdrop-blur-2xl"
+        >
+          {options.map((opt) => {
+            const active = opt.value === currentVal;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                role="option"
+                aria-selected={active}
+                onClick={() => selectValue(opt.value)}
+                className={`flex w-full items-center justify-between gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[12px] transition-colors ${
+                  active
+                    ? 'bg-sky-400/15 font-medium text-sky-300'
+                    : 'text-[var(--studio-text-secondary)] hover:bg-white/[0.06] hover:text-[var(--studio-text)]'
+                }`}
+              >
+                <span className="truncate">{opt.label}</span>
+                {active && <Check className="h-3.5 w-3.5 shrink-0 text-sky-400" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function Chip({ children, tone = 'neutral', title }: { children: ReactNode; tone?: 'neutral' | 'cyan' | 'violet' | 'good' | 'warn' | 'bad'; title?: string }) {
@@ -96,10 +187,16 @@ export function StatusPill({ status, label }: { status: 'good' | 'warn' | 'bad';
 
 export function Kpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="flex min-w-0 flex-col justify-between rounded-xl border border-studio-border bg-studio-card px-3 py-2.5">
-      <div className="truncate text-[10.5px] font-medium uppercase leading-[14px] tracking-[0.08em] text-[var(--studio-text-muted)]">{label}</div>
-      <div className="mt-1 text-[20px] font-semibold leading-none tabular-nums tracking-tight text-[var(--studio-text)]">{value}</div>
-      {sub && <div className="mt-1 truncate text-[11px] leading-[14px] text-[var(--studio-text-secondary)]">{sub}</div>}
+    <div className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-studio-border bg-studio-card px-3.5 py-2.5">
+      <div className="truncate text-[10px] font-semibold uppercase leading-[14px] tracking-[0.06em] text-[var(--studio-text-muted)]" title={label}>
+        {label}
+      </div>
+      <div className="mt-1.5 truncate font-mono text-[18px] font-semibold leading-tight tabular-nums tracking-tight text-[var(--studio-text)]" title={value}>
+        {value}
+      </div>
+      <div className="mt-1 min-h-[14px] truncate text-[11px] leading-[14px] text-[var(--studio-text-secondary)]" title={sub}>
+        {sub ?? '\u00A0'}
+      </div>
     </div>
   );
 }
@@ -125,27 +222,63 @@ export function BackendGate({ error, loading, children }: { error: string | null
   return <>{children}</>;
 }
 
-/** Single-series vertical bars: thin, 4px rounded tops on the baseline, 2px gaps, hover tooltip. */
-export function BarSeries({ points, color = 'var(--chart-a)', format, height = 88 }: { points: { label: string; value: number }[]; color?: string; format: (v: number) => string; height?: number }) {
+/** Single-series vertical bars: structured column tracks with baseline ticks and hover tooltip. */
+export function BarSeries({ points, color = 'var(--chart-a)', format, height = 76 }: { points: { label: string; value: number }[]; color?: string; format: (v: number) => string; height?: number }) {
   const [hover, setHover] = useState<number | null>(null);
-  const max = Math.max(...points.map((p) => p.value), 0) || 1;
+  const rawMax = Math.max(...points.map((p) => p.value), 0);
+  const max = rawMax || 1;
+  const midIdx = points.length > 2 ? Math.floor((points.length - 1) / 2) : -1;
+
   return (
-    <div className="relative">
-      <div className="flex items-end gap-[2px] border-b border-white/10" style={{ height }} onMouseLeave={() => setHover(null)}>
-        {points.map((p, i) => (
-          <div key={p.label} className="flex h-full flex-1 cursor-default items-end" onMouseEnter={() => setHover(i)}>
-            <div className="mx-auto w-full max-w-[18px] rounded-t-[4px] transition-[height,opacity] duration-300"
-              style={{ height: `${Math.max(p.value > 0 ? 3 : 0, (p.value / max) * 100)}%`, background: color, opacity: hover === null || hover === i ? 1 : 0.45 }} />
-          </div>
-        ))}
+    <div className="relative pt-1">
+      <div
+        className="relative flex items-end gap-1.5 border-b border-white/10 px-0.5"
+        style={{ height }}
+        onMouseLeave={() => setHover(null)}
+      >
+        {/* Subtle horizontal reference lines */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 border-t border-dashed border-white/[0.05]" />
+        <div className="pointer-events-none absolute inset-x-0 top-1/2 border-t border-dashed border-white/[0.04]" />
+
+        {points.map((p, i) => {
+          const active = p.value > 0;
+          const pct = active ? Math.max(8, (p.value / max) * 100) : 0;
+          const isHovered = hover === i;
+          return (
+            <div
+              key={p.label}
+              className="group relative flex h-full flex-1 cursor-default items-end"
+              onMouseEnter={() => setHover(i)}
+            >
+              {/* Background slot track so each day column reads clearly even at $0 */}
+              <div className="relative flex h-full w-full items-end justify-center rounded-t-[4px] bg-white/[0.02] transition-colors group-hover:bg-white/[0.05]">
+                <div
+                  className="w-full max-w-[18px] rounded-t-[3px] transition-[height,opacity] duration-300"
+                  style={{
+                    height: active ? `${pct}%` : '2px',
+                    background: active ? color : 'rgba(255,255,255,0.12)',
+                    opacity: hover === null || isHovered ? 1 : 0.45,
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })}
       </div>
-      <div className="mt-1 flex justify-between text-[10px] text-[var(--studio-text-muted)]">
-        <span>{points[0]?.label}</span><span>{points[points.length - 1]?.label}</span>
+      <div className="mt-1.5 flex items-center justify-between font-mono text-[10px] tabular-nums text-[var(--studio-text-muted)]">
+        <span>{points[0]?.label}</span>
+        {midIdx > 0 && <span>{points[midIdx]?.label}</span>}
+        <span>{points[points.length - 1]?.label}</span>
       </div>
       {hover !== null && points[hover] && (
-        <div className="glass pointer-events-none absolute -top-2 z-10 -translate-y-full rounded-md px-2 py-1 text-[11px] text-[var(--studio-text)]"
-          style={{ left: `${((hover + 0.5) / points.length) * 100}%`, transform: 'translate(-50%, -100%)' }}>
-          <div className="text-[var(--studio-text-muted)]">{points[hover].label}</div>
+        <div
+          className="glass pointer-events-none absolute -top-1 z-10 rounded-md px-2 py-1 font-mono text-[10.5px] text-[var(--studio-text)] shadow-lg"
+          style={{
+            left: `${Math.min(88, Math.max(12, ((hover + 0.5) / points.length) * 100))}%`,
+            transform: 'translate(-50%, -100%)',
+          }}
+        >
+          <div className="text-[9.5px] text-[var(--studio-text-muted)]">{points[hover].label}</div>
           <div className="font-semibold tabular-nums">{format(points[hover].value)}</div>
         </div>
       )}
@@ -174,5 +307,11 @@ export function HBarList({ rows, format, color = 'var(--chart-a)' }: { rows: { k
   );
 }
 
-export const usd = (v: number) => (v >= 100 ? `$${v.toFixed(0)}` : v >= 1 ? `$${v.toFixed(2)}` : v >= 0.01 ? `$${v.toFixed(3)}` : `$${v.toFixed(5)}`);
+export const usd = (v: number) => {
+  if (!v || Math.abs(v) < 1e-9) return '$0.00';
+  if (v >= 100) return `$${v.toFixed(0)}`;
+  if (v >= 1) return `$${v.toFixed(2)}`;
+  if (v >= 0.01) return `$${v.toFixed(3)}`;
+  return `$${v.toFixed(4)}`;
+};
 export const compact = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : `${Math.round(n)}`);

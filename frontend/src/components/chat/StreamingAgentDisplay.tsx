@@ -140,8 +140,7 @@ export const StreamingAgentDisplay: React.FC<Props> = ({ isActive, onPhaseChange
           const status = statuses[i];
           return (
             <React.Fragment key={stage.id}>
-              <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-all ${
-                status === 'active' ? 'bg-sky-500/20 border border-sky-500/50' :
+              <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-all ${status === 'active' ? 'bg-sky-500/20 border border-sky-500/50' :
                 status === 'done' ? 'bg-emerald-500/10' : 'bg-white/5'}`}>
                 <Icon className={`w-3 h-3 ${status === 'active' ? 'text-sky-400 animate-pulse' : status === 'done' ? 'text-emerald-400' : 'text-slate-600'}`} />
                 <span className={`text-[9px] font-medium whitespace-nowrap ${status === 'active' ? 'text-sky-300' : status === 'done' ? 'text-emerald-300' : 'text-slate-600'}`}>{stage.name}</span>

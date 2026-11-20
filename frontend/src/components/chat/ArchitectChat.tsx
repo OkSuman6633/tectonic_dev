@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import {
-  Bot,
   User,
   Send,
   ChevronDown,
@@ -54,6 +53,50 @@ const readAutopilot = (): boolean => {
     return true;
   }
 };
+
+/** 3D glossy blue robot chatbot avatar matching the uploaded reference design. */
+export const ChatbotAvatar: React.FC<{ className?: string }> = ({ className = 'w-8 h-8' }) => (
+  <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className={`${className} shrink-0 select-none drop-shadow-[0_3px_8px_rgba(14,165,233,0.35)]`}>
+    <defs>
+      <radialGradient id="bot-head-grad" cx="35%" cy="22%" r="75%">
+        <stop offset="0%" stopColor="#67E8F9" />
+        <stop offset="45%" stopColor="#00B4FF" />
+        <stop offset="100%" stopColor="#0277BD" />
+      </radialGradient>
+      <radialGradient id="bot-ball-grad" cx="35%" cy="30%" r="70%">
+        <stop offset="0%" stopColor="#7DD3FC" />
+        <stop offset="50%" stopColor="#00B4FF" />
+        <stop offset="100%" stopColor="#0284C7" />
+      </radialGradient>
+      <linearGradient id="bot-ear-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#38BDF8" />
+        <stop offset="100%" stopColor="#0369A1" />
+      </linearGradient>
+      <linearGradient id="bot-screen-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stopColor="#1E293B" />
+        <stop offset="100%" stopColor="#0F172A" />
+      </linearGradient>
+    </defs>
+    {/* Antenna stem & 3D sphere */}
+    <rect x="46" y="20" width="8" height="8" rx="3" fill="url(#bot-ear-grad)" />
+    <circle cx="50" cy="14" r="9" fill="url(#bot-ball-grad)" />
+    <ellipse cx="47" cy="11" rx="3" ry="2" fill="white" fillOpacity="0.45" />
+    {/* Left & Right 3D Ears */}
+    <rect x="7" y="42" width="11" height="26" rx="5.5" fill="url(#bot-ear-grad)" />
+    <rect x="82" y="42" width="11" height="26" rx="5.5" fill="url(#bot-ear-grad)" />
+    {/* Main 3D Rounded Head */}
+    <rect x="14" y="25" width="72" height="60" rx="24" fill="url(#bot-head-grad)" />
+    {/* Top glossy highlight */}
+    <path d="M 28 30 Q 50 26 72 30" stroke="white" strokeOpacity="0.4" strokeWidth="2.5" strokeLinecap="round" />
+    {/* Inner dark face screen */}
+    <rect x="23" y="34" width="54" height="42" rx="15" fill="url(#bot-screen-grad)" stroke="#0369A1" strokeWidth="1.5" />
+    {/* Eyes */}
+    <ellipse cx="39" cy="52" rx="5" ry="6.5" fill="#F8FAFC" />
+    <ellipse cx="61" cy="52" rx="5" ry="6.5" fill="#F8FAFC" />
+    {/* Friendly smile */}
+    <path d="M 42.5 63.5 Q 50 69.5 57.5 63.5" stroke="#F8FAFC" strokeWidth="3.8" strokeLinecap="round" fill="none" />
+  </svg>
+);
 
 /** Copies a message's text; shows a tick for a moment. */
 const CopyButton: React.FC<{ text: string }> = ({ text }) => {
@@ -327,9 +370,7 @@ export const ArchitectChat: React.FC = () => {
               className={`group flex gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
             >
               {!isUser && (
-                <div className={`w-7 h-7 rounded-lg bg-gradient-to-tr ${direct ? 'from-emerald-500 to-teal-600 shadow-emerald-500/20' : 'from-sky-500 to-indigo-600 shadow-sky-500/20'} flex items-center justify-center shadow-sm shrink-0 mt-0.5`}>
-                  <Bot className="w-3.5 h-3.5 text-white" />
-                </div>
+                <ChatbotAvatar className="w-8 h-8 mt-0.5" />
               )}
 
               <div className={`max-w-[85%] min-w-0 flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
@@ -446,9 +487,7 @@ export const ArchitectChat: React.FC = () => {
                       title={b.prompt}
                       className="w-full text-left p-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 hover:border-indigo-500/40 shadow-sm transition-all group flex items-start gap-2.5 active:scale-[0.99]"
                     >
-                      <div className="w-6 h-6 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
-                        <Bot className="w-3.5 h-3.5" />
-                      </div>
+                      <ChatbotAvatar className="w-7 h-7 mt-0.5 group-hover:scale-105 transition-transform" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 mb-0.5">
                           <span className="font-semibold text-xs text-indigo-600 dark:text-indigo-300 group-hover:text-indigo-800 dark:group-hover:text-indigo-200 transition-colors">

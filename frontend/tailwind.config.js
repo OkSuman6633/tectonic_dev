@@ -42,9 +42,9 @@ export default {
         },
       },
       fontFamily: {
-        // SF Pro on Apple devices (the native macOS/iOS feel), Geist elsewhere.
-        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', 'Geist', 'Inter', 'system-ui', 'sans-serif'],
-        mono: ['"Geist Mono"', '"JetBrains Mono"', 'ui-monospace', 'monospace'],
+        sans: ['"Playfair Display"', 'Georgia', 'serif'],
+        serif: ['"Playfair Display"', 'Georgia', 'serif'],
+        mono: ['"Playfair Display"', 'Georgia', 'serif'],
       },
       fontSize: {
         '2xs': ['11px', { lineHeight: '16px' }],
