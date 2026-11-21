@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import {
-  FileCode,
-  Copy,
-  Check,
-  Save,
-  Cpu,
-  ShieldCheck,
+import { 
+  FileCode, 
+  Copy, 
+  Check, 
+  Save, 
+  Cpu, 
+  ShieldCheck, 
   ChevronDown,
   Edit3,
   Eye,
@@ -14,11 +14,11 @@ import {
 import { useAgentStudioStore } from '../../store/useAgentStudioStore';
 
 export const CodeInspector: React.FC = () => {
-  const {
-    createdAgents,
-    selectedAgent,
-    setSelectedAgent,
-    currentAgentFiles,
+  const { 
+    createdAgents, 
+    selectedAgent, 
+    setSelectedAgent, 
+    currentAgentFiles, 
     loadAgentFiles,
     saveAgentFile,
   } = useAgentStudioStore();
@@ -81,22 +81,22 @@ export const CodeInspector: React.FC = () => {
   return (
     <div className="flex flex-col h-full bg-studio-surface/50 backdrop-blur-xl">
       {/* Top File Tab Selector & Agent Picker */}
-      <div className="studio-toolbar z-20 bg-slate-100/90 dark:bg-white/[0.03] border-b border-slate-200 dark:border-white/10">
-        <div className="flex min-w-0 items-center gap-2 overflow-x-auto no-scrollbar">
+      <div className="border-b border-studio-border bg-studio-card/80 p-2.5 flex items-center justify-between gap-3 z-20">
+        <div className="flex items-center gap-2 overflow-x-auto">
           {/* Agent Selector */}
           <div className="relative shrink-0">
             <button
               onClick={() => setAgentDropdownOpen(!agentDropdownOpen)}
-              className="flex h-7 max-w-[200px] shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-white/5 px-2.5 text-[12px] font-semibold leading-none text-indigo-600 dark:text-indigo-300 transition-all hover:border-indigo-500/40 shadow-sm dark:shadow-none"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-studio-surface border border-white/10 hover:border-indigo-500/40 text-xs font-mono text-indigo-300 font-semibold transition-all"
             >
-              <Cpu className="h-3.5 w-3.5 shrink-0 text-indigo-500 dark:text-indigo-400" />
-              <span className="truncate">{agentDisplayName}</span>
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+              <Cpu className="w-3.5 h-3.5 text-indigo-400" />
+              <span>{agentDisplayName}</span>
+              <ChevronDown className="w-3 h-3 text-slate-400" />
             </button>
 
             {agentDropdownOpen && (
-              <div className="absolute top-full left-0 mt-1 w-56 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 shadow-2xl p-1.5 space-y-1 z-50 animate-in fade-in zoom-in-95 duration-150">
-                <div className="px-2 py-1 text-[12px] uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-white/5">
+              <div className="absolute top-full left-0 mt-1 w-56 rounded-xl bg-studio-card border border-white/10 shadow-2xl p-1.5 space-y-1 z-50 animate-in fade-in zoom-in-95 duration-150">
+                <div className="px-2 py-1 text-[10px] font-mono uppercase text-slate-400 border-b border-white/5">
                   Select Agent to Inspect
                 </div>
                 {createdAgents.map((ag) => (
@@ -106,32 +106,34 @@ export const CodeInspector: React.FC = () => {
                       setSelectedAgent(ag);
                       setAgentDropdownOpen(false);
                     }}
-                    className={`w-full text-left p-2 rounded-lg transition-colors flex items-center justify-between ${selectedAgent?.name === ag.name
-                        ? 'bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30'
-                        : 'hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300'
-                      }`}
+                    className={`w-full text-left p-2 rounded-lg text-xs font-mono transition-colors flex items-center justify-between ${
+                      selectedAgent?.name === ag.name
+                        ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                        : 'hover:bg-white/5 text-slate-300'
+                    }`}
                   >
-                    <span className="typo-agent-name truncate">{ag.name}</span>
-                    <span className="font-mono text-[12px] text-slate-400 dark:text-slate-500 shrink-0">{ag.files.length} files</span>
+                    <span>{ag.name}</span>
+                    <span className="text-[10px] text-slate-500">{ag.files.length} files</span>
                   </button>
                 ))}
               </div>
             )}
           </div>
 
-          <div className="h-4 w-px shrink-0 bg-slate-200 dark:bg-white/10" />
+          <div className="h-4 w-[1px] bg-white/10 shrink-0" />
 
           {/* File Tabs */}
           {fileKeys.map((name) => (
             <button
               key={name}
               onClick={() => setActiveFile(name)}
-              className={`flex h-7 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 font-mono text-[12px] leading-none transition-all ${activeFile === name
-                  ? 'bg-sky-50 dark:bg-sky-500/20 text-sky-700 dark:text-sky-300 border-sky-300 dark:border-sky-500/40 shadow-sm'
-                  : 'bg-white/80 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10'
-                }`}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono shrink-0 transition-all ${
+                activeFile === name
+                  ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-sm'
+                  : 'bg-white/5 text-slate-400 hover:text-white border border-white/5'
+              }`}
             >
-              <FileCode className="h-3.5 w-3.5 shrink-0 text-sky-500 dark:text-sky-400" />
+              <FileCode className="w-3.5 h-3.5 text-sky-400" />
               <span>{name.split('/').pop()}</span>
             </button>
           ))}
@@ -141,25 +143,25 @@ export const CodeInspector: React.FC = () => {
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setIsEditing(!isEditing)}
-            className="flex h-7 items-center gap-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-white/80 dark:bg-white/5 px-2.5 text-[12px] font-medium leading-none text-slate-700 dark:text-slate-300 transition-colors hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white shadow-sm dark:shadow-none"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 text-xs transition-colors"
             title="Toggle Edit / Read-Only View"
           >
-            {isEditing ? <Eye className="h-3.5 w-3.5 text-sky-500 dark:text-sky-400" /> : <Edit3 className="h-3.5 w-3.5 text-sky-500 dark:text-sky-400" />}
+            {isEditing ? <Eye className="w-3.5 h-3.5 text-sky-400" /> : <Edit3 className="w-3.5 h-3.5 text-sky-400" />}
             <span>{isEditing ? 'View Mode' : 'Edit Mode'}</span>
           </button>
 
           <button
             onClick={handleCopy}
-            className="flex h-7 items-center gap-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-white/80 dark:bg-white/5 px-2.5 text-[12px] font-medium leading-none text-slate-700 dark:text-slate-300 transition-colors hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white shadow-sm dark:shadow-none"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 text-xs transition-colors"
           >
             {copied ? (
               <>
-                <Check className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" />
-                <span className="text-emerald-600 dark:text-emerald-400 font-medium">Copied</span>
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="text-emerald-400">Copied</span>
               </>
             ) : (
               <>
-                <Copy className="h-3.5 w-3.5 text-slate-400" />
+                <Copy className="w-3.5 h-3.5 text-slate-400" />
                 <span>Copy</span>
               </>
             )}
@@ -168,20 +170,21 @@ export const CodeInspector: React.FC = () => {
           <button
             onClick={handleSave}
             disabled={isSaving || !activeFile}
-            className={`flex h-7 items-center gap-1.5 rounded-lg px-3 text-[12px] font-semibold leading-none shadow-md transition-all ${saveSuccess
-                ? 'bg-emerald-600 dark:bg-emerald-500 text-white shadow-emerald-500/20'
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-md transition-all ${
+              saveSuccess
+                ? 'bg-emerald-500 text-white shadow-emerald-500/20'
                 : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/20 disabled:opacity-40'
-              }`}
+            }`}
             title="Save file changes directly to disk and update agent"
           >
             {saveSuccess ? (
               <>
-                <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-white" />
                 <span>Saved & Updated!</span>
               </>
             ) : (
               <>
-                <Save className="h-3.5 w-3.5" />
+                <Save className="w-3.5 h-3.5" />
                 <span>{isSaving ? 'Saving...' : 'Save & Update'}</span>
               </>
             )}
@@ -192,53 +195,53 @@ export const CodeInspector: React.FC = () => {
       {/* Main Content: Split Code Editor & Agent Info Card */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 overflow-hidden">
         {/* Code Content Editor View */}
-        <div className="flex flex-col overflow-y-auto border-r border-slate-200 dark:border-white/10 bg-slate-50/80 dark:bg-slate-950/90 p-3 lg:col-span-2 transition-colors">
-          <div className="mb-2.5 flex items-center justify-between gap-2 border-b border-slate-200 dark:border-white/5 pb-2 text-[12px] leading-none text-slate-500 dark:text-slate-400">
-            <span>File: <strong className="font-mono text-slate-800 dark:text-slate-300 font-semibold">{activeFile || 'None'}</strong></span>
-            <span className="typo-status text-emerald-600 dark:text-emerald-400">Direct disk binding enabled</span>
+        <div className="lg:col-span-2 border-r border-studio-border p-3 overflow-y-auto font-mono text-xs bg-slate-950/90 flex flex-col">
+          <div className="text-[11px] text-slate-500 pb-2 flex items-center justify-between border-b border-white/5 mb-2">
+            <span>File: <strong className="text-slate-300">{activeFile || 'None'}</strong></span>
+            <span className="text-[10px] text-emerald-400">Direct disk binding enabled</span>
           </div>
           {isEditing ? (
             <textarea
               value={fileContent}
               onChange={(e) => setFileContent(e.target.value)}
-              className="typo-code flex-1 w-full bg-white dark:bg-transparent text-slate-900 dark:text-slate-200 resize-none focus:outline-none p-3 border border-slate-200/90 dark:border-white/5 rounded-xl focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 shadow-sm dark:shadow-none placeholder-slate-400 dark:placeholder-slate-500 transition-all selection:bg-indigo-500/20"
+              className="flex-1 w-full bg-transparent text-slate-200 font-mono text-xs leading-relaxed resize-none focus:outline-none p-1 border border-white/5 rounded-lg focus:border-indigo-500/50"
               spellCheck={false}
               placeholder="Select a file to inspect or edit..."
             />
           ) : (
-            <pre className="typo-code text-slate-800 dark:text-slate-300 overflow-x-auto whitespace-pre flex-1 p-3 bg-white dark:bg-transparent rounded-xl border border-slate-200/90 dark:border-white/5 shadow-sm dark:shadow-none">
+            <pre className="text-slate-300 leading-relaxed overflow-x-auto whitespace-pre flex-1">
               <code>{fileContent}</code>
             </pre>
           )}
         </div>
 
         {/* Right Info Cards: Agent Manifest & Architecture */}
-        <div className="space-y-3 overflow-y-auto bg-slate-50/70 dark:bg-transparent p-3">
+        <div className="p-4 space-y-4 overflow-y-auto bg-studio-card/40">
           <div>
-            <h4 className="typo-panel-heading text-slate-700 dark:text-slate-200 mb-2 flex items-center gap-1.5">
-              <Cpu className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
+            <h4 className="text-xs font-semibold text-slate-200 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <Cpu className="w-3.5 h-3.5 text-indigo-400" />
               Agent Manifest Details
             </h4>
-            <div className="p-3 rounded-xl bg-white dark:bg-white/[0.04] border border-slate-200/90 dark:border-white/10 space-y-2.5 shadow-sm dark:shadow-none">
+            <div className="p-3 rounded-xl bg-studio-surface/80 border border-white/10 text-xs space-y-2">
               <div>
-                <span className="typo-metadata text-slate-500 dark:text-slate-400 block uppercase">Agent Name</span>
-                <span className="typo-agent-name text-indigo-600 dark:text-indigo-300">{agentDisplayName}</span>
+                <span className="text-slate-400 block text-[10px]">AGENT NAME</span>
+                <span className="font-mono text-indigo-300 font-semibold">{agentDisplayName}</span>
               </div>
               <div>
-                <span className="typo-metadata text-slate-500 dark:text-slate-400 block uppercase">ADK App Module</span>
-                <span className="typo-code text-sky-600 dark:text-sky-300 break-all">
+                <span className="text-slate-400 block text-[10px]">ADK APP MODULE</span>
+                <span className="font-mono text-sky-300 text-[11px] break-all">
                   {selectedAgent?.appName || 'agent_builder'}
                 </span>
               </div>
               <div>
-                <span className="typo-metadata text-slate-500 dark:text-slate-400 block uppercase">Disk Path</span>
-                <span className="typo-code text-slate-600 dark:text-slate-400 break-all">
+                <span className="text-slate-400 block text-[10px]">DISK PATH</span>
+                <span className="font-mono text-slate-400 text-[10px] break-all">
                   {selectedAgent?.path || 'generated_agents/'}
                 </span>
               </div>
               <div>
-                <span className="typo-metadata text-slate-500 dark:text-slate-400 block uppercase">Last Modified</span>
-                <span className="typo-code text-slate-700 dark:text-slate-300">
+                <span className="text-slate-400 block text-[10px]">LAST MODIFIED</span>
+                <span className="font-mono text-slate-300 text-[11px]">
                   {selectedAgent?.lastModified ? new Date(selectedAgent.lastModified).toLocaleString() : 'Recent'}
                 </span>
               </div>
@@ -246,8 +249,8 @@ export const CodeInspector: React.FC = () => {
           </div>
 
           <div>
-            <h4 className="typo-panel-heading text-slate-700 dark:text-slate-200 mb-2 flex items-center gap-1.5">
-              <FileCode className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
+            <h4 className="text-xs font-semibold text-slate-200 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <FileCode className="w-3.5 h-3.5 text-sky-400" />
               Project Files ({fileKeys.length})
             </h4>
             <div className="space-y-1 max-h-56 overflow-y-auto">
@@ -255,13 +258,14 @@ export const CodeInspector: React.FC = () => {
                 <button
                   key={f}
                   onClick={() => setActiveFile(f)}
-                  className={`typo-code w-full text-left p-1.5 rounded-lg transition-colors flex items-center justify-between ${activeFile === f
-                      ? 'bg-sky-50 dark:bg-sky-500/20 text-sky-700 dark:text-sky-300 border border-sky-300 dark:border-sky-500/30 font-medium'
-                      : 'hover:bg-slate-100 dark:hover:bg-white/5 text-slate-600 dark:text-slate-400 border border-transparent'
-                    }`}
+                  className={`w-full text-left p-1.5 rounded-lg text-xs font-mono transition-colors flex items-center justify-between ${
+                    activeFile === f
+                      ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
+                      : 'hover:bg-white/5 text-slate-400'
+                  }`}
                 >
                   <span className="truncate">{f}</span>
-                  <span className="text-[12px] text-slate-400 dark:text-slate-500">
+                  <span className="text-[10px] text-slate-500">
                     {currentAgentFiles[f]?.length || 0}B
                   </span>
                 </button>
@@ -270,11 +274,11 @@ export const CodeInspector: React.FC = () => {
           </div>
 
           <div>
-            <h4 className="typo-panel-heading text-slate-700 dark:text-slate-200 mb-2 flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
+            <h4 className="text-xs font-semibold text-slate-200 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
               Update Instructions
             </h4>
-            <div className="typo-secondary p-3 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-500/20 text-emerald-800 dark:text-emerald-300 space-y-1 shadow-sm dark:shadow-none">
+            <div className="p-3 rounded-xl bg-emerald-950/20 border border-emerald-500/20 text-xs text-emerald-300 space-y-1 text-[11px] leading-relaxed">
               <p>1. Edit code or prompts in the editor pane.</p>
               <p>2. Click <strong>"Save & Update"</strong> to overwrite the file on disk.</p>
               <p>3. Switch to <strong>Live Sandbox</strong> to immediately execute the updated code with Google Gemini!</p>

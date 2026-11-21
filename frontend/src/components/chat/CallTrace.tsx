@@ -22,7 +22,7 @@ export const CallTrace: React.FC<{ steps: TraceStep[] }> = ({ steps }) => {
   const toolCount = steps.filter((s) => s.type === 'tool').length;
 
   return (
-    <div className="mt-2.5 rounded-lg border border-white/5 bg-black/10 text-[12px]">
+    <div className="mt-2.5 rounded-lg border border-white/5 bg-black/10 text-[11px]">
       <button
         type="button"
         onClick={() => setOpen(!open)}
@@ -30,23 +30,23 @@ export const CallTrace: React.FC<{ steps: TraceStep[] }> = ({ steps }) => {
         className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-left text-slate-400 hover:text-slate-200"
       >
         {open ? <ChevronDown className="w-3 h-3 shrink-0" /> : <ChevronRight className="w-3 h-3 shrink-0" />}
-        <span className="typo-status shrink-0">Call trace</span>
-        <span className="typo-code truncate text-sky-300/80">{route.join(' → ')}</span>
-        <span className="typo-metadata ml-auto shrink-0 text-slate-500">{toolCount} call{toolCount === 1 ? '' : 's'}</span>
+        <span className="font-medium shrink-0">Call trace</span>
+        <span className="truncate font-mono text-sky-300/80">{route.join(' → ')}</span>
+        <span className="ml-auto shrink-0 text-slate-500">{toolCount} call{toolCount === 1 ? '' : 's'}</span>
       </button>
       {open && (
-        <ol className="typo-code px-2.5 pb-2 space-y-1 max-h-64 overflow-auto">
+        <ol className="px-2.5 pb-2 space-y-1 max-h-64 overflow-auto">
           {steps.map((s, i) => (
             <li key={i} className={`flex items-start gap-1.5 ${s.nested ? 'pl-4 border-l border-sky-500/20 ml-1' : ''}`}>
               {s.type === 'agent' || (s.name && AGENT_TOOLS.has(s.name)) ? (
-                <Bot className="w-3 h-3 mt-1 shrink-0 text-indigo-300" />
+                <Bot className="w-3 h-3 mt-0.5 shrink-0 text-indigo-300" />
               ) : (
-                <Wrench className="w-3 h-3 mt-1 shrink-0 text-slate-500" />
+                <Wrench className="w-3 h-3 mt-0.5 shrink-0 text-slate-500" />
               )}
               {s.type === 'agent' ? (
                 <span className="text-slate-200">
                   <span className="font-mono text-indigo-200">{s.agent}</span>
-                  {s.detail && <span className="font-sans text-slate-500"> · {s.detail}</span>}
+                  {s.detail && <span className="text-slate-500"> · {s.detail}</span>}
                 </span>
               ) : (
                 <span className="min-w-0 flex-1">

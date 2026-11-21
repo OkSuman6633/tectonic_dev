@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { BarChart3, Bot, Coins, Cpu, Gauge, Lightbulb, Pencil, ShieldAlert, Wand2 } from 'lucide-react';
 import { invokeModule, useAction, useModuleData } from '../../services/platformApi';
-import { BackendGate, BarSeries, Button, Card, Chip, Empty, ErrorNote, HBarList, Input, Kpi, Select, StatusPill, compact, usd } from './ui';
+import { BackendGate, BarSeries, Button, Card, Chip, Empty, ErrorNote, HBarList, Input, Kpi, StatusPill, compact, usd } from './ui';
 
 interface Rate { model: string; input: number; output: number; estimate: boolean; note: string; source: string }
 interface TeamReport {
@@ -23,59 +23,40 @@ function BudgetRow({ t, onSaved }: { t: TeamReport; onSaved: () => void }) {
   const util = b ? Math.min(1, b.utilisation) : 0;
   const status = !b ? null : b.blocked ? { s: 'bad' as const, l: 'Blocked' } : b.alert ? { s: 'warn' as const, l: 'Over alert threshold' } : { s: 'good' as const, l: 'Within budget' };
   return (
-    <div className="rounded-lg border border-studio-border bg-black/15 px-3 py-2.5">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="typo-agent-name truncate text-[var(--studio-text)]">{t.team}</span>
-          {b && <Chip tone={b.enforcement === 'block' ? 'bad' : 'neutral'}>{b.enforcement}</Chip>}
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <span className="typo-code text-[var(--studio-text-secondary)]">
-            {usd(t.total_cost)}
-            <span className="text-[var(--studio-text-muted)]">{b ? ` / ${usd(b.limit)}` : ' · no limit'}</span>
-          </span>
-          <button
-            type="button"
-            onClick={() => setEditing((v) => !v)}
-            title="Edit budget"
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[var(--studio-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--studio-text)]"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
-        </div>
+    <div className="rounded-lg border border-studio-border bg-black/15 p-2.5">
+      <div className="flex items-center gap-2">
+        <span className="font-mono text-[12px] font-medium text-[var(--studio-text)]">{t.team}</span>
+        {b && <Chip tone={b.enforcement === 'block' ? 'bad' : 'neutral'}>{b.enforcement}</Chip>}
+        <span className="ml-auto text-[11.5px] tabular-nums text-[var(--studio-text-secondary)]">
+          {usd(t.total_cost)}{b ? ` of ${usd(b.limit)}` : ' · no budget'}
+        </span>
+        <button type="button" onClick={() => setEditing((v) => !v)} title="Edit budget" className="rounded p-1 text-[var(--studio-text-muted)] hover:bg-white/10 hover:text-[var(--studio-text)]"><Pencil className="h-3.5 w-3.5" /></button>
       </div>
       {b && (
         <>
-          <div className="relative mt-2 h-[7px] rounded-full bg-white/[0.06]" title={`${(b.utilisation * 100).toFixed(1)}% used`}>
+          <div className="relative mt-2 h-[8px] rounded-full bg-white/[0.06]" title={`${(b.utilisation * 100).toFixed(1)}% used`}>
             <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${util * 100}%`, background: status ? `var(--status-${status.s})` : 'var(--chart-a)' }} />
-            <div className="absolute -top-1 h-[15px] w-px bg-[var(--studio-text-secondary)]" style={{ left: `${b.alert_threshold * 100}%` }} title={`alert at ${(b.alert_threshold * 100).toFixed(0)}%`} />
+            <div className="absolute -top-1 h-[16px] w-px bg-[var(--studio-text-secondary)]" style={{ left: `${b.alert_threshold * 100}%` }} title={`alert at ${(b.alert_threshold * 100).toFixed(0)}%`} />
           </div>
-          <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+          <div className="mt-1.5 flex items-center justify-between text-[11px]">
             {status && <StatusPill status={status.s} label={status.l} />}
-            <span className="font-mono text-[10.5px] tabular-nums text-[var(--studio-text-muted)]">
-              forecast {t.forecast != null ? usd(t.forecast) : '—'} · alert {(b.alert_threshold * 100).toFixed(0)}%
-            </span>
+            <span className="text-[var(--studio-text-muted)]">forecast {t.forecast != null ? usd(t.forecast) : '—'} · alert at {(b.alert_threshold * 100).toFixed(0)}%</span>
           </div>
         </>
       )}
       {editing && (
-        <form
-          className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-2.5"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void run('save', async () => {
-              await invokeModule('finops', 'set_budget', { team: t.team, limit_usd: Number(limit), enforcement });
-              setEditing(false);
-              onSaved();
-            });
-          }}
-        >
-          <span className="text-[11px] text-[var(--studio-text-muted)]">USD / mo</span>
-          <Input type="number" min="0.01" step="0.01" value={limit} onChange={(e) => setLimit(e.target.value)} className="w-24" />
-          <Select value={enforcement} onChange={(e) => setEnforcement(e.target.value)} className="w-24">
-            <option value="alert">alert</option>
-            <option value="block">block</option>
-          </Select>
+        <form className="mt-2 flex items-center gap-2" onSubmit={(e) => {
+          e.preventDefault();
+          void run('save', async () => {
+            await invokeModule('finops', 'set_budget', { team: t.team, limit_usd: Number(limit), enforcement });
+            setEditing(false); onSaved();
+          });
+        }}>
+          <span className="text-[11px] text-[var(--studio-text-muted)]">USD / month</span>
+          <Input type="number" min="0.01" step="0.01" value={limit} onChange={(e) => setLimit(e.target.value)} className="max-w-[110px]" />
+          <select value={enforcement} onChange={(e) => setEnforcement(e.target.value)} className="h-7 rounded-lg border border-studio-border bg-black/20 px-2 text-[12px] text-[var(--studio-text)]">
+            <option value="alert">alert</option><option value="block">block</option>
+          </select>
           <Button type="submit" variant="primary" busy={busy === 'save'}>Save</Button>
           <ErrorNote error={error} />
         </form>
@@ -90,51 +71,33 @@ function RateCard({ onChange }: { onChange: () => void }) {
   const { busy, error, run } = useAction();
   return (
     <Card title="Rate card · USD per 1M tokens" icon={Coins}>
-      <div className="-mx-1 overflow-x-auto px-1">
-        <table className="w-full text-left text-[11.5px]">
-          <thead className="text-[10px] font-semibold uppercase tracking-wider text-[var(--studio-text-muted)]">
-            <tr>
-              <th className="py-1.5 pr-2">Model</th>
-              <th className="px-2 py-1.5 text-right">Input</th>
-              <th className="px-2 py-1.5 text-right">Output</th>
-              <th className="px-2 py-1.5">Source</th>
-              <th className="w-7 py-1.5" />
+      <table className="w-full text-left text-[11.5px]">
+        <thead className="text-[10.5px] uppercase tracking-wider text-[var(--studio-text-muted)]"><tr><th className="py-1">Model</th><th className="text-right">Input</th><th className="text-right">Output</th><th>Source</th><th /></tr></thead>
+        <tbody>
+          {(rates.data?.rates ?? []).map((r) => edit?.model === r.model ? (
+            <tr key={r.model} className="border-t border-white/[0.05]">
+              <td className="py-1 font-mono text-[var(--studio-text)]">{r.model}</td>
+              <td><Input type="number" step="0.01" value={edit.input} onChange={(e) => setEdit({ ...edit, input: e.target.value })} /></td>
+              <td><Input type="number" step="0.01" value={edit.output} onChange={(e) => setEdit({ ...edit, output: e.target.value })} /></td>
+              <td colSpan={2} className="text-right">
+                <Button variant="primary" busy={busy === 'rate'} onClick={() => void run('rate', async () => {
+                  await invokeModule('finops', 'set_rate', { model: r.model, input_per_mtok: Number(edit.input), output_per_mtok: Number(edit.output) });
+                  setEdit(null); rates.refresh(); onChange();
+                })}>Confirm</Button>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {(rates.data?.rates ?? []).map((r) => edit?.model === r.model ? (
-              <tr key={r.model} className="border-t border-white/[0.05]">
-                <td className="py-1.5 pr-2 font-mono text-[var(--studio-text)]">{r.model}</td>
-                <td className="px-1 py-1"><Input type="number" step="0.01" value={edit.input} onChange={(e) => setEdit({ ...edit, input: e.target.value })} className="w-20 text-right" /></td>
-                <td className="px-1 py-1"><Input type="number" step="0.01" value={edit.output} onChange={(e) => setEdit({ ...edit, output: e.target.value })} className="w-20 text-right" /></td>
-                <td colSpan={2} className="py-1 pl-2 text-right">
-                  <Button variant="primary" busy={busy === 'rate'} onClick={() => void run('rate', async () => {
-                    await invokeModule('finops', 'set_rate', { model: r.model, input_per_mtok: Number(edit.input), output_per_mtok: Number(edit.output) });
-                    setEdit(null); rates.refresh(); onChange();
-                  })}>Confirm</Button>
-                </td>
-              </tr>
-            ) : (
-              <tr key={r.model} className="border-t border-white/[0.05]">
-                <td className="truncate py-1.5 pr-2 font-mono text-[var(--studio-text)]">{r.model}</td>
-                <td className="px-2 py-1.5 text-right font-mono tabular-nums text-[var(--studio-text-secondary)]">${r.input.toFixed(2)}</td>
-                <td className="px-2 py-1.5 text-right font-mono tabular-nums text-[var(--studio-text-secondary)]">${r.output.toFixed(2)}</td>
-                <td className="px-2 py-1.5" title={r.note}>{r.estimate ? <Chip tone="warn">estimate</Chip> : <Chip tone="good">confirmed</Chip>}</td>
-                <td className="py-1.5 text-right">
-                  <button
-                    type="button"
-                    title="Set confirmed rate"
-                    onClick={() => setEdit({ model: r.model, input: String(r.input), output: String(r.output) })}
-                    className="ml-auto flex h-6 w-6 items-center justify-center rounded-md text-[var(--studio-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--studio-text)]"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ) : (
+            <tr key={r.model} className="border-t border-white/[0.05]">
+              <td className="py-1 font-mono text-[var(--studio-text)]">{r.model}</td>
+              <td className="text-right tabular-nums text-[var(--studio-text-secondary)]">${r.input.toFixed(2)}</td>
+              <td className="text-right tabular-nums text-[var(--studio-text-secondary)]">${r.output.toFixed(2)}</td>
+              <td title={r.note}>{r.estimate ? <Chip tone="warn">estimate</Chip> : <Chip tone="good">confirmed</Chip>}</td>
+              <td className="text-right"><button type="button" title="Set confirmed rate" onClick={() => setEdit({ model: r.model, input: String(r.input), output: String(r.output) })}
+                className="rounded p-1 text-[var(--studio-text-muted)] hover:bg-white/10 hover:text-[var(--studio-text)]"><Pencil className="h-3.5 w-3.5" /></button></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
       <ErrorNote error={error} />
     </Card>
   );
@@ -156,8 +119,6 @@ export function FinOpsWindow() {
   const tokensIn = (r?.teams ?? []).reduce((s, t) => s + t.tokens.input, 0);
   const tokensOut = (r?.teams ?? []).reduce((s, t) => s + t.tokens.output, 0);
 
-  const teamCount = r?.teams.length ?? 0;
-
   return (
     <BackendGate error={report.error} loading={report.loading && !r}>
       <div className="h-full space-y-3 overflow-y-auto p-3">
@@ -166,25 +127,13 @@ export function FinOpsWindow() {
             <ShieldAlert className="h-3.5 w-3.5 shrink-0" />Costs use estimated list prices for some models. Confirm your contracted rates in the rate card.
           </div>
         )}
-        <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(136px, 1fr))' }}>
-          <Kpi
-            label={`Spend · ${r?.period ?? 'monthly'}`}
-            value={usd(r?.total_cost ?? 0)}
-            sub={`${teamCount} ${teamCount === 1 ? 'team' : 'teams'} tracked`}
-          />
-          <Kpi label="Forecast" value={usd(r?.forecast ?? 0)} sub="projected period end" />
-          <Kpi label="Input tokens" value={compact(tokensIn)} sub="prompt & context" />
-          <Kpi label="Output tokens" value={compact(tokensOut)} sub="completions" />
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+          <Kpi label={`Spend · ${r?.period ?? 'monthly'}`} value={usd(r?.total_cost ?? 0)} sub={`${r?.teams.length ?? 0} teams`} />
+          <Kpi label="Forecast" value={usd(r?.forecast ?? 0)} sub="run-rate to period end" />
+          <Kpi label="Input tokens" value={compact(tokensIn)} />
+          <Kpi label="Output tokens" value={compact(tokensOut)} />
         </div>
-        <Card
-          title="Daily spend · last 14 days"
-          icon={BarChart3}
-          actions={
-            <span className="font-mono text-[10.5px] tabular-nums text-[var(--studio-text-muted)]">
-              total {usd(r?.total_cost ?? 0)}
-            </span>
-          }
-        >
+        <Card title="Daily spend · last 14 days" icon={BarChart3}>
           <BarSeries points={(r?.timeseries ?? []).map((p) => ({ label: p.day.slice(5), value: p.cost }))} format={usd} />
         </Card>
         <Card title="Budgets & guardrails" icon={Gauge} actions={
@@ -198,14 +147,14 @@ export function FinOpsWindow() {
           </div>
           <ErrorNote error={error} />
         </Card>
-        <div className="flex items-center justify-between gap-2 pt-0.5">
-          <span className="text-[11px] font-medium uppercase tracking-wider text-[var(--studio-text-muted)]">Cost breakdown</span>
-          <Select value={team} onChange={(e) => setTeam(e.target.value)} className="w-auto min-w-[140px]">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-[var(--studio-text-muted)]">Breakdown for</span>
+          <select value={team} onChange={(e) => setTeam(e.target.value)} className="h-7 rounded-lg border border-studio-border bg-black/20 px-2 text-[12px] text-[var(--studio-text)]">
             <option value="">all teams</option>
             {(r?.teams ?? []).map((t) => <option key={t.team} value={t.team}>{t.team}</option>)}
-          </Select>
+          </select>
         </div>
-        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+        <div className="grid gap-3 lg:grid-cols-2">
           <Card title="By agent" icon={Bot}><HBarList rows={agentRows} format={usd} /></Card>
           <Card title="By model" icon={Cpu}>
             <HBarList rows={[...modelMap.entries()].sort((a, b) => b[1].cost - a[1].cost).map(([m, v]) => ({ key: m, label: m, value: v.cost, sub: `${compact(v.tin)} in / ${compact(v.tout)} out` }))} format={usd} />

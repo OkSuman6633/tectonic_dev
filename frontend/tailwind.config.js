@@ -42,20 +42,12 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['"Geist"', '"Geist Sans"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
-        mono: ['"Geist Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+        // SF Pro on Apple devices (the native macOS/iOS feel), Geist elsewhere.
+        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', 'Geist', 'Inter', 'system-ui', 'sans-serif'],
+        mono: ['"Geist Mono"', '"JetBrains Mono"', 'ui-monospace', 'monospace'],
       },
       fontSize: {
-        'page-heading': ['var(--text-page-heading)', { lineHeight: 'var(--leading-heading)', fontWeight: 'var(--font-weight-page-heading)' }],
-        'section-heading': ['var(--text-section-heading)', { lineHeight: 'var(--leading-heading)', fontWeight: 'var(--font-weight-section-heading)' }],
-        'panel-heading': ['var(--text-panel-heading)', { lineHeight: 'var(--leading-heading)', fontWeight: 'var(--font-weight-panel-heading)' }],
-        'agent-name': ['var(--text-agent-name)', { lineHeight: 'var(--leading-heading)', fontWeight: 'var(--font-weight-agent-name)' }],
-        body: ['var(--text-body)', { lineHeight: 'var(--leading-body)', fontWeight: 'var(--font-weight-body)' }],
-        secondary: ['var(--text-secondary)', { lineHeight: 'var(--leading-body)', fontWeight: 'var(--font-weight-secondary)' }],
-        metadata: ['var(--text-metadata)', { lineHeight: 'var(--leading-metadata)', fontWeight: 'var(--font-weight-metadata)' }],
-        status: ['var(--text-status)', { lineHeight: 'var(--leading-metadata)', fontWeight: 'var(--font-weight-status)' }],
-        code: ['var(--text-code)', { lineHeight: 'var(--leading-code)', fontWeight: 'var(--font-weight-code)' }],
-        '2xs': ['12px', { lineHeight: '1.45' }],
+        '2xs': ['11px', { lineHeight: '16px' }],
       },
       boxShadow: {
         glow: '0 0 24px -6px rgba(45, 212, 255, 0.35)',

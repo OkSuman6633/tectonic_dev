@@ -137,9 +137,11 @@ def _make_module_events() -> list[str]:
     now = _time.time()
     out = []
     for i, (mod, label, cat, desc) in enumerate(_MODULE_DEFS):
+        seq_reg   = 1 + i * 2       # 1, 3, 5, 7, ... 19
+        seq_state = 2 + i * 2       # 2, 4, 6, 8, ... 20
         out.append(json.dumps({
             "type": "MODULE_REGISTERED",
-            "seq": 0,
+            "seq": seq_reg,
             "timestamp": now,
             "module": mod,
             "label": label,
@@ -149,7 +151,7 @@ def _make_module_events() -> list[str]:
         }))
         out.append(json.dumps({
             "type": "MODULE_STATE",
-            "seq": 0,
+            "seq": seq_state,
             "timestamp": now,
             "module": mod,
             "state": "idle",
@@ -222,24 +224,15 @@ async def websocket_telemetry(websocket: WebSocket):
 # ── 4. Optional tectonic_runtime ──────────────────────────────────────────────
 _runtime = None
 _is_running_fn = lambda: False
-
-_run_simulation_fn = None
-_background_tasks: set = set()
+_run_simulation = None
+_background: set = set()
 try:
-    import asyncio as _asyncio
-    from tectonic_runtime import bus as _module_bus, get_runtime
+    from tectonic_runtime import bus as _module_bus
+    from tectonic_runtime import get_runtime
     from tectonic_runtime.simulation import is_running, run_office_simulation
-    if hub is not None:
-        _module_bus.subscribe(lambda ev: hub.emit(ev["type"], **{k: v for k, v in ev.items() if k not in ("type", "timestamp")}))
-
     _runtime = get_runtime()
-    if hub is not None and "auditability" in _runtime.modules:
-        _audit_mod = _runtime.module("auditability")
-        hub.add_listener(lambda ev: None if ev.get("type", "").startswith("MODULE_") else _audit_mod.observe(ev))
     _is_running_fn = is_running
-
-    _run_simulation_fn = run_office_simulation
-
+    _run_simulation = run_office_simulation
     RUNTIME_AVAILABLE = True
     print("[STARTUP] tectonic_runtime loaded: %d modules" % len(_runtime.modules))
 except Exception as exc:
@@ -309,17 +302,14 @@ async def list_modules():
 
 @app.post("/modules/simulate")
 async def simulate_office():
-    if not RUNTIME_AVAILABLE or _run_simulation_fn is None:
+    if not RUNTIME_AVAILABLE:
         return {"status": "runtime_unavailable"}
     if _is_running_fn():
         return {"status": "already_running"}
     import asyncio
-    task = _asyncio.create_task(_run_simulation_fn(_runtime, agent_events=hub.emit if hub is not None else None))
-    _background_tasks.add(task)
-    task.add_done_callback(_background_tasks.discard)
-
-    
-
+    task = asyncio.create_task(_run_simulation(_runtime, agent_events=hub.emit if hub is not None else None))
+    _background.add(task)
+    task.add_done_callback(_background.discard)
     return {"status": "started"}
 
 @app.post("/modules/{module}/{operation}")

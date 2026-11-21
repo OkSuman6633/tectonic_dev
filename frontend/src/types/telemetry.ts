@@ -222,7 +222,6 @@ export interface ModuleCallRecord {
 export type LogLevel = 'spawn' | 'state' | 'tool' | 'a2a' | 'error' | 'run' | 'module';
 
 export interface LogEntry {
-  id?: number;
   seq: number;
   timestamp: number;
   level: LogLevel;

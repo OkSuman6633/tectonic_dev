@@ -99,11 +99,11 @@ function PromptDetail({ name, onChange }: { name: string; onChange: () => void }
           {versions.map((v) => (
             <li key={v.version_id}>
               <button type="button" onClick={() => setSelected(v.version_id)}
-                className={`flex min-h-[30px] w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[12px] leading-none transition-colors ${sel?.version_id === v.version_id ? 'bg-sky-400/10' : 'hover:bg-white/[0.04]'}`}>
-                <span className="w-24 shrink-0 truncate font-mono text-[var(--studio-text)]">{v.version}</span>
+                className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[12px] transition-colors ${sel?.version_id === v.version_id ? 'bg-sky-400/10' : 'hover:bg-white/[0.04]'}`}>
+                <span className="w-24 truncate font-mono text-[var(--studio-text)]">{v.version}</span>
                 <Chip tone={STATUS_TONE[v.status] ?? 'neutral'}>{v.status}</Chip>
-                <span className="ml-auto truncate tabular-nums text-[var(--studio-text-secondary)]">{v.pass_rate != null ? `${(v.pass_rate * 100).toFixed(0)}% pass` : 'no outcomes'} · n={v.samples}</span>
-                <span className="w-32 shrink-0 text-right tabular-nums text-[10.5px] text-[var(--studio-text-muted)]">{new Date(v.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                <span className="ml-auto tabular-nums text-[var(--studio-text-secondary)]">{v.pass_rate != null ? `${(v.pass_rate * 100).toFixed(0)}% pass` : 'no outcomes'} · n={v.samples}</span>
+                <span className="w-32 text-right text-[10.5px] text-[var(--studio-text-muted)]">{new Date(v.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
               </button>
             </li>
           ))}
@@ -139,7 +139,7 @@ function PromptDetail({ name, onChange }: { name: string; onChange: () => void }
           })}><Sparkles className="h-3.5 w-3.5" />Improve</Button>
         </>}>
           {diff ? (
-            <pre className="typo-code max-h-80 overflow-auto rounded-lg bg-black/25 p-2">
+            <pre className="max-h-80 overflow-auto rounded-lg bg-black/25 p-2 font-mono text-[11px] leading-relaxed">
               {diff.map((l, i) => (
                 <div key={i} className={l.kind === '+' ? 'bg-emerald-500/10 text-emerald-300' : l.kind === '-' ? 'bg-rose-500/10 text-rose-300 line-through decoration-rose-400/40' : 'text-[var(--studio-text-secondary)]'}>
                   {l.kind} {l.text || ' '}
@@ -147,10 +147,10 @@ function PromptDetail({ name, onChange }: { name: string; onChange: () => void }
               ))}
             </pre>
           ) : (
-            <pre className="typo-code max-h-80 overflow-auto whitespace-pre-wrap rounded-lg bg-black/25 p-2 text-[var(--studio-text-secondary)]">{template}</pre>
+            <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-lg bg-black/25 p-2 font-mono text-[11px] leading-relaxed text-[var(--studio-text-secondary)]">{template}</pre>
           )}
           {diff && <div className="mt-1 text-[10.5px] text-[var(--studio-text-muted)]">Diff against the active version ({active?.version}).</div>}
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-[11.5px] text-[var(--studio-text-muted)]">
+          <div className="mt-2 flex items-center gap-2 text-[11.5px] text-[var(--studio-text-muted)]">
             Record an outcome for {sel.version}:
             <Button onClick={() => void run('up', async () => { await invokeModule('promptops', 'record_outcome', { prompt_name: name, passed: true, version_id: sel.version_id }); refresh(); })}><ThumbsUp className="h-3.5 w-3.5" />Pass</Button>
             <Button onClick={() => void run('down', async () => { await invokeModule('promptops', 'record_outcome', { prompt_name: name, passed: false, version_id: sel.version_id }); refresh(); })}><ThumbsDown className="h-3.5 w-3.5" />Fail</Button>
@@ -175,7 +175,7 @@ export function PromptOpsWindow() {
       <div className="flex h-full min-h-0">
         <aside className="flex w-56 shrink-0 flex-col border-r border-studio-border">
           <div className="p-2">
-            <form className="flex items-center gap-2" onSubmit={(e) => {
+            <form className="flex gap-1" onSubmit={(e) => {
               e.preventDefault();
               if (!newName.trim()) return;
               void run('new', async () => {
@@ -194,7 +194,7 @@ export function PromptOpsWindow() {
                 <button type="button" onClick={() => setSelected(p.prompt_name)}
                   className={`w-full rounded-lg px-2 py-1.5 text-left transition-colors ${current === p.prompt_name ? 'bg-sky-400/10' : 'hover:bg-white/[0.04]'}`}>
                   <div className="truncate font-mono text-[12px] text-[var(--studio-text)]">{p.prompt_name}</div>
-                  <div className="mt-1 flex items-center gap-1.5">
+                  <div className="mt-0.5 flex items-center gap-1">
                     <Chip tone="good">{p.active_version ?? 'no active'}</Chip>
                     <span className="text-[10.5px] text-[var(--studio-text-muted)]">{p.versions} versions</span>
                     {p.ab_test_id && <Chip tone="warn">A/B</Chip>}
