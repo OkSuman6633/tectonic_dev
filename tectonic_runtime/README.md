@@ -1,6 +1,6 @@
 # tectonic_runtime: shared core modules
 
-The Builder Agent and every worker agent it generates share one runtime. It runs eleven core
+The Builder Agent and every worker agent it generates share one runtime. It runs twelve core
 functional modules from `modules/` in-process, behind one standardized API, and streams their
 activity to the Command Center's Agent Office view.
 
@@ -17,6 +17,7 @@ activity to the Command Center's Agent Office view.
 | `promptops` | `resolve`, `record_outcome`, `list_prompts`, `versions`, `get_version`, `ab_status`, `register`*, `promote`*, `rollback`*, `start_ab_test`*, `conclude_ab_test`*, `check_drift`*, `propose_improvement`* | `modules/promptops` registry, A/B (z-test), drift, reflection |
 | `auditability` | `query`, `ask`, `verify`, `stats`, `export`* | `modules/auditability` SHA-256 hash chain, NL query, audit packs |
 | `external_connectors` | `catalog`, `connections`, `fetch_data`, `execute_action`, `request_credentials`, `disconnect` | `connectors/` — Meta Ads + Google Analytics 4 (see below) |
+| `image_generation` | `generate`, `recent`, `status` | `services/image_generation_service.py` — Gemini image models / Imagen, and Claude vector drawings (see below) |
 
 `*` = admin-only (`@operation(..., permission="admin")`).
 
@@ -100,6 +101,29 @@ LlmAgent(..., instruction=MY_PROMPT + CORE_MODULE_INSTRUCTIONS, tools=[*my_tools
 `POST /modules/simulate` runs a real shift: the Builder spins up four workers who use every module
 concurrently, including retries on a flaky tool and a blocked jailbreak. `GET /modules` lists the
 registry.
+
+## Image generation
+
+`core_generate_image` (Builder and every worker; gate it per project with `image_generation` in `ENABLED_MODULES`)
+creates images from a prompt, edits the images attached to the user's message (`use_attached_images=true`) or
+changes an image generated earlier (`edit_image_ids`). The chat shows the images inside the agent's message: the
+Builder chat, `@agent` chats and the Live Sandbox all read them from the tool result.
+
+- **Photos and raster art (Google):** via `google-genai`. `TECTONIC_IMAGE_MODEL` picks the model: Gemini image
+  models (default `gemini-2.5-flash-image`, can edit) or Imagen (`imagen-4.0-*`, prompt only, up to 4 per call). The
+  key is `TECTONIC_IMAGE_API_KEY`, else `GOOGLE_API_KEY`; `GOOGLE_GENAI_USE_VERTEXAI=true` switches to Vertex AI.
+- **Vector drawings (Claude):** with `ANTHROPIC_API_KEY`, Claude writes SVG: logos, icons, diagrams, infographics,
+  flat illustrations (`TECTONIC_SVG_MODEL`, default `claude-opus-5-5`). Claude cannot output pixels, so it never
+  makes photographs. Agents pick `style`: `photo` (Google only), `vector` (Claude first), `auto` (Google; if Google
+  cannot serve at all, such as a missing or rejected key or an outage, Claude draws a vector version and the result
+  says so). A safety refusal never switches provider. Every SVG, generated or uploaded, is sanitized when stored (no
+  scripts, event handlers, foreignObject or external references) and served under a no-script CSP.
+- **Never faked:** no key, offline mode, a rejected key, quota, a safety block or a provider error fail with the
+  reason, which the agent passes on to the user.
+- **Governed like everything else:** prompts pass Guardrails first, usage is metered into FinOps (per image token),
+  and calls show in the Agent Office and audit trail with ids only, never image bytes.
+- **Storage and access:** images live in `generated_agents/_platform/media/images/` (`TECTONIC_MEDIA_PATH`),
+  served by `GET /media/images/<id>` to their owner only (other accounts get 404).
 
 ## External connectors (clients' own data)
 

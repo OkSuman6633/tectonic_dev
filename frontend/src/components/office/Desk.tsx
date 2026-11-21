@@ -146,18 +146,18 @@ function DeskImpl({ id, position, palette, showLabel }: { id: string; position: 
       {(showLabel || ACTIVE.has(state) || hovered || selected) && (
         <Html position={[0, 2.18, -0.24]} center distanceFactor={9} zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
           <div
-            className={`office-tag flex flex-col items-center whitespace-nowrap rounded-lg border px-2 py-1 backdrop-blur-md transition-colors ${
+            className={`office-tag flex flex-col items-center whitespace-nowrap rounded-lg border px-2.5 py-1 backdrop-blur-md transition-colors ${
               selected ? 'border-sky-400/70 bg-sky-950/70' : 'border-white/10 bg-black/55'
             }`}
           >
             <div className="flex items-center gap-1.5">
-              <span className="font-mono text-[11px] font-medium text-white">{agent.role}</span>
-              <span className={`rounded border px-1 font-mono text-[8px] uppercase tracking-wider ${ROLE_STYLES[role].chip}`}>{ROLE_STYLES[role].label}</span>
+              <span className="typo-agent-name text-white">{agent.role}</span>
+              <span className={`rounded border px-1 font-mono text-[10px] uppercase tracking-wider ${ROLE_STYLES[role].chip}`}>{ROLE_STYLES[role].label}</span>
             </div>
-            <div className="mt-0.5 flex items-center gap-1 font-mono text-[9.5px]" style={{ color }}>
+            <div className="typo-status mt-0.5 flex items-center gap-1" style={{ color }}>
               <span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />
               {STATE_STYLES[state].label}
-              {state === 'tool_execution' && agent.stateDetail && <span className="max-w-[120px] truncate text-white/60">· {agent.stateDetail}</span>}
+              {state === 'tool_execution' && agent.stateDetail && <span className="max-w-[140px] truncate font-mono text-white/60">· {agent.stateDetail}</span>}
             </div>
           </div>
         </Html>

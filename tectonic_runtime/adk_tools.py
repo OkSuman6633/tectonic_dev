@@ -225,6 +225,69 @@ async def core_audit_trail(question: str = "", limit: int = 20, tool_context: To
     return await _call("auditability", "query", {"limit": limit}, tool_context)
 
 
+def _attached_image_ids(tool_context: Optional[ToolContext], ctx: CallContext) -> list[str]:
+    """Store the images attached to the user's current message as reference images; returns their ids."""
+    from .media import MediaError, get_media_store
+
+    content = getattr(tool_context, "user_content", None)
+    ids: list[str] = []
+    for part in getattr(content, "parts", None) or []:
+        blob = getattr(part, "inline_data", None)
+        if blob is None or not (blob.mime_type or "").startswith("image/") or not blob.data:
+            continue
+        try:
+            ids.append(get_media_store().save(blob.data, owner=ctx.tenant_id, mime_type=blob.mime_type, kind="reference",
+                                              team=ctx.team, agent_id=ctx.agent_id, session_id=ctx.session_id).id)
+        except MediaError:
+            continue  # an unreadable attachment is skipped; the others are still used
+    return ids
+
+
+async def core_generate_image(prompt: str, aspect_ratio: str = "1:1", number_of_images: int = 1,
+                              use_attached_images: bool = False, edit_image_ids: str = "", style: str = "auto",
+                              tool_context: ToolContext = None) -> dict:
+    """Create images (text-to-image) or edit images, and show them to the user in the chat.
+
+    Use it whenever the user asks you to draw, generate, design, illustrate, render or edit a picture, photo,
+    logo, icon, poster, banner, diagram-like illustration or any other image. Write a rich, specific prompt
+    (subject, style, composition, lighting, colours, any text that must appear in the image).
+
+    Args:
+        prompt: What the image should show (for edits: the change to make, e.g. "make the sky a sunset").
+        aspect_ratio: "1:1", "3:4", "4:3", "9:16", "16:9" (Gemini models also accept "2:3", "3:2", "4:5", "5:4", "21:9").
+        number_of_images: 1 to 4 variations.
+        use_attached_images: True to edit / combine the images the user attached to their current message.
+        edit_image_ids: Comma-separated ids of images generated earlier in this conversation to edit
+            (from a previous result's images[].id), e.g. when the user says "make it brighter".
+        style: "photo" for photographs and photorealistic or painterly raster images (Google); "vector" for logos,
+            icons, diagrams, flowcharts, infographics and flat illustrations (drawn by Claude as SVG, crisp at any
+            size, cannot be photorealistic); "auto" (default) uses Google and, only if Google is unavailable,
+            has Claude draw a vector version (the result's notes then say so: tell the user).
+
+    Returns:
+        dict with status; on success images [{id, url}] (already displayed in the chat: do not paste URLs or
+        markdown images into your reply), on error the reason to tell the user.
+    """
+    ctx = _ctx(tool_context)
+    refs = [i.strip() for i in (edit_image_ids or "").split(",") if i.strip()]
+    if use_attached_images:
+        attached = _attached_image_ids(tool_context, ctx)
+        if not attached and not refs:
+            return {"status": "error", "error": "No image is attached to the user's message; ask them to attach one."}
+        refs += attached
+    result = await get_runtime().invoke("image_generation", "generate",
+                                        {"prompt": prompt, "aspect_ratio": aspect_ratio, "count": number_of_images,
+                                         "reference_image_ids": refs, "style": style}, ctx)
+    if not result.ok:
+        reason = (result.error or "image generation failed").removeprefix("ImageGenerationError: ")
+        return {"status": "error", "error": f"Image generation failed: {reason}"}
+    data = result.data
+    return {"status": "success", "images": [{"id": i["id"], "url": i["url"], "mime_type": i["mime_type"]} for i in data["images"]],
+            "count": data["count"], "model": data["model"], "vector": data["vector"], "edited": data["edited"],
+            "notes": data["notes"],
+            "model_text": data["model_text"], "display": data["display"]}
+
+
 # --- Builder-only administration (admin permission enforced by the modules) --------------------
 async def core_provision_team(project: str, monthly_budget_usd: float = 5.0, enforcement: str = "alert",
                               tool_context: ToolContext = None) -> dict:
@@ -328,6 +391,9 @@ You can use these shared platform tools:
 - core_audit_trail: read the audit trail of your team's actions when asked what happened.
 """
 
+IMAGE_INSTRUCTIONS = """- core_generate_image: when the user asks for a picture, photo, logo, icon, poster, illustration or any other image (or to edit one they attached: use_attached_images=true; or one you generated earlier: edit_image_ids), generate it; style="vector" for logos, icons, diagrams and flat illustrations, style="photo" for photographs. The images appear in the chat automatically: reply with one or two lines about what you made, never paste the URLs or markdown images. If its notes say it was drawn as a vector illustration instead of a photo, say so. If it fails, tell the user the reason it gives.
+"""
+
 
 # Which platform module each worker tool belongs to (None: always available).
 _TOOL_MODULE = {
@@ -337,7 +403,9 @@ _TOOL_MODULE = {
     "core_list_tools": "tool_orchestration", "core_call_tool": "tool_orchestration",
     "core_knowledge_search": ("agentic_rag", "vector_db"), "core_ask_knowledge": "agentic_rag", "core_add_knowledge": "agentic_rag",
     "core_spend_status": "finops", "core_prompt_feedback": "promptops", "core_audit_trail": "auditability",
+    "core_generate_image": "image_generation",
 }
+IMAGE_MODULE = "image_generation"
 
 
 CONNECTORS_MODULE = "external_connectors"
@@ -351,7 +419,8 @@ def module_instructions(modules: list[str] | tuple[str, ...] | None = None) -> s
     """CORE_MODULE_INSTRUCTIONS plus the rules of the optional modules a project enabled."""
     from .connectors.tools import CONNECTOR_INSTRUCTIONS
 
-    return CORE_MODULE_INSTRUCTIONS + (CONNECTOR_INSTRUCTIONS if _connectors_enabled(modules) else "")
+    images = IMAGE_INSTRUCTIONS if modules is None or IMAGE_MODULE in modules else ""
+    return CORE_MODULE_INSTRUCTIONS + images + (CONNECTOR_INSTRUCTIONS if _connectors_enabled(modules) else "")
 
 
 def worker_tools(team: str = "default", modules: list[str] | tuple[str, ...] | None = None,
@@ -368,7 +437,7 @@ def worker_tools(team: str = "default", modules: list[str] | tuple[str, ...] | N
     tools: list[Any] = [core_guardrails_check, core_classify_intent, core_define_intents, core_memory_note,
                         core_memory_context, core_remember, *_team_tools(team), core_list_tools, core_call_tool,
                         core_knowledge_search, core_ask_knowledge, core_add_knowledge, core_spend_status,
-                        core_prompt_feedback, core_audit_trail]
+                        core_prompt_feedback, core_audit_trail, core_generate_image]
     if modules is not None:
         enabled = set(modules)
 
@@ -400,6 +469,11 @@ def builder_tools(team: str = "default") -> list[Callable[..., Any]]:
         """
         return await _call("long_term_memory", "share", {"content": content, "team": project}, tool_context)
 
+    from .connectors.tools import connector_tools
+
     recall, _share = _team_tools(team)
+    # The connected data sources (Meta Ads, GA4, ...) answer the user's own data questions straight from the
+    # Builder chat: a question about their ads or traffic is never a reason to build an agent.
     return [core_remember, recall, core_share_with_project, core_provision_team, core_ingest_knowledge,
-            core_knowledge_search, core_platform_spend, core_publish_prompt, core_verify_audit]
+            core_knowledge_search, core_platform_spend, core_publish_prompt, core_verify_audit, core_generate_image,
+            *connector_tools()]

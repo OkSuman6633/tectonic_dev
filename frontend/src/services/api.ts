@@ -17,7 +17,8 @@ import type {
   ChatAttachment,
   DesignIdeas,
   DesignReview,
-  AutopilotRun
+  AutopilotRun,
+  GeneratedImage
 } from '../types/agent';
 
 /** The ADK session a request was sent to no longer exists (server data reset, stale id): open a new one. */
@@ -63,7 +64,48 @@ export interface ChatResponse {
   designReview?: DesignReview;
   codeReview?: DesignReview;
   autopilot?: AutopilotRun;
+  /** Images generated in this turn (core_generate_image, also by an agent reached with ask_agent). */
+  images?: GeneratedImage[];
 }
+
+const IMAGE_URL = /^\/media\/images\/[0-9a-f]{32}$/;
+
+/** Images in one tool result: core_generate_image's own, or those an agent produced behind ask_agent. */
+export const imagesFromResult = (name: string, resp: any): GeneratedImage[] => {
+  if (!resp || resp.status !== 'success' || !Array.isArray(resp.images)) return [];
+  if (!name.endsWith('generate_image') && name !== 'ask_agent') return [];
+  return resp.images
+    .filter((i: any) => i && typeof i.id === 'string' && typeof i.url === 'string' && IMAGE_URL.test(i.url))
+    .map((i: any) => ({ id: i.id, url: i.url, mimeType: String(i.mime_type ?? i.mimeType ?? 'image/png') }));
+};
+
+/** Every image generated across a turn's events, in order, without duplicates. */
+export const imagesFromEvents = (events: any[]): GeneratedImage[] => {
+  const seen = new Set<string>();
+  const out: GeneratedImage[] = [];
+  for (const event of events) {
+    for (const part of event?.content?.parts ?? []) {
+      const fr = part.functionResponse;
+      if (!fr) continue;
+      for (const img of imagesFromResult(String(fr.name ?? ''), fr.response)) {
+        if (!seen.has(img.id)) {
+          seen.add(img.id);
+          out.push(img);
+        }
+      }
+    }
+  }
+  return out;
+};
+
+/** The chat shows generated images itself: drop markdown images / links to them that a model pasted anyway. */
+export const withoutImageLinks = (text: string, images: GeneratedImage[]): string => {
+  if (!images.length) return text;
+  return text
+    .replace(/!?\[[^\]]*\]\(\s*\/media\/images\/[0-9a-f]{32}[^)]*\)/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+};
 
 const asStrings = (v: any): string[] => (Array.isArray(v) ? v.map((x) => String(x)).filter(Boolean) : []);
 
@@ -109,6 +151,7 @@ export interface AgentChatResult {
   reply: string;
   trace: TraceStep[];
   duration_ms: number;
+  images?: GeneratedImage[];
 }
 
 export interface AgentDeleteResult {
@@ -151,6 +194,7 @@ export interface RuntimeChatResponse {
     action: 'blocked' | 'sanitized' | 'warned';
   };
   cardPayload?: any;
+  images?: GeneratedImage[];
 }
 
 // Fallback Spec for demo
@@ -426,7 +470,9 @@ class ApiService {
       }
     }
 
-    if (!replyText) {
+    const images = imagesFromEvents(events);
+    replyText = withoutImageLinks(replyText, images);
+    if (!replyText && !images.length) {
       replyText = 'Agent builder processed your request.';
     }
 
@@ -481,6 +527,7 @@ class ApiService {
       codeReview,
       // Only the turn that built the agent and got its answer shows the autopilot card.
       autopilot: autopilot?.answered ? autopilot : undefined,
+      images: images.length ? images : undefined,
       ...this.extractTrace(events),
     };
   }
@@ -549,7 +596,8 @@ class ApiService {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.detail || `Agent call failed (${res.status})`);
-    return data as AgentChatResult;
+    const images = imagesFromResult('ask_agent', { status: 'success', images: data.images });
+    return { ...data, reply: withoutImageLinks(String(data.reply ?? ''), images), images } as AgentChatResult;
   }
 
   // --- Sessions after a page refresh ---
@@ -935,14 +983,17 @@ class ApiService {
       }
     }
 
-    if (!reply) {
+    const images = imagesFromEvents(events);
+    reply = withoutImageLinks(reply, images);
+    if (!reply && !images.length) {
       reply = `Agent completed execution.`;
     }
 
     return {
       reply,
       toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-      guardrailTriggered
+      guardrailTriggered,
+      images: images.length ? images : undefined,
     };
   }
 

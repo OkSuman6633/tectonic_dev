@@ -33,8 +33,11 @@ def auth_enabled() -> bool:
 def install(app) -> None:
     from . import model_settings  # noqa: F401  (registers each user's own Builder model)
     from .connectors_api import router as connectors_router
+    from .media_api import router as media_router
 
     app.include_router(router)
+    # Images generated in the chat, served to their owner only.
+    app.include_router(media_router)
     # The chat's secure "connect a data source" form (credentials never pass through the agents).
     app.include_router(connectors_router)
     if auth_enabled():

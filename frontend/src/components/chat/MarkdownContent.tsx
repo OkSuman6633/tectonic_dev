@@ -1,6 +1,9 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { GeneratedImages } from './GeneratedImages';
+
+const MEDIA_IMAGE = /^\/media\/images\/([0-9a-f]{32})$/;
 
 interface MarkdownContentProps {
   content: string;
@@ -14,34 +17,37 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({
   isUser = false 
 }) => {
   return (
-    <div className={`markdown-content text-xs leading-relaxed space-y-2 ${isUser ? 'text-white' : 'text-slate-200'} ${className}`}>
+    <div className={`markdown-content typo-body min-w-0 max-w-full break-words [overflow-wrap:anywhere] space-y-2 ${isUser ? 'text-white' : 'text-slate-200'} ${className}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
           h1: ({ children }) => (
-            <h1 className="text-sm font-bold text-sky-300 mt-2.5 mb-1.5 flex items-center gap-1.5 border-b border-white/10 pb-1">
+            <h1 className="typo-section-heading text-sky-300 mt-2.5 mb-1.5 flex items-center gap-1.5 border-b border-white/10 pb-1">
               {children}
             </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="text-xs font-bold text-sky-400 mt-2 mb-1 flex items-center gap-1.5">
+            <h2 className="typo-panel-heading text-sky-400 mt-2 mb-1 flex items-center gap-1.5">
               {children}
             </h2>
           ),
           h3: ({ children }) => (
-            <h3 className="text-xs font-semibold text-indigo-300 mt-2 mb-1">
+            <h3 className="typo-agent-name text-indigo-300 mt-2 mb-1">
               {children}
             </h3>
           ),
           h4: ({ children }) => (
-            <h4 className="text-[11px] font-semibold text-sky-300 uppercase tracking-wider mt-2 mb-1">
+            <h4 className="text-[12px] font-semibold text-sky-300 uppercase tracking-wider mt-2 mb-1">
               {children}
             </h4>
           ),
+          // A div, not a <p>: a paragraph may hold a generated image, whose tile is block content.
           p: ({ children }) => (
-            <p className="my-1 leading-relaxed">
+
+            <p className="my-1 leading-[var(--leading-body)] break-words [overflow-wrap:anywhere]">
+
               {children}
-            </p>
+            </div>
           ),
           ul: ({ children }) => (
             <ul className="list-disc pl-4 space-y-1 my-1.5 marker:text-sky-400">
@@ -54,12 +60,12 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({
             </ol>
           ),
           li: ({ children }) => (
-            <li className="leading-relaxed">
+            <li className="leading-[var(--leading-body)] break-words [overflow-wrap:anywhere]">
               {children}
             </li>
           ),
           strong: ({ children }) => (
-            <strong className={`font-semibold ${isUser ? 'text-white font-bold' : 'text-slate-100'}`}>
+            <strong className={`font-semibold ${isUser ? 'text-white' : 'text-slate-100'}`}>
               {children}
             </strong>
           ),
@@ -67,7 +73,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({
             if (inline) {
               return (
                 <code
-                  className={`font-mono px-1.5 py-0.5 rounded text-[11px] ${
+                  className={`typo-code px-1.5 py-0.5 rounded break-all ${
                     isUser
                       ? 'bg-sky-700/80 text-white border border-sky-400/30'
                       : 'bg-slate-900/90 text-sky-300 border border-white/10'
@@ -79,19 +85,19 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({
               );
             }
             return (
-              <pre className="font-mono p-2.5 rounded-xl bg-slate-950/90 border border-white/10 text-xs text-sky-300 overflow-x-auto my-2">
+              <pre className="typo-code max-w-full p-2.5 rounded-xl bg-slate-950/90 border border-white/10 text-sky-300 overflow-x-auto my-2">
                 <code {...props}>{children}</code>
               </pre>
             );
           },
           blockquote: ({ children }) => (
-            <blockquote className="border-l-2 border-sky-400 pl-3 py-0.5 my-2 italic text-slate-300 bg-sky-500/5 rounded-r">
+            <blockquote className="typo-secondary border-l-2 border-sky-400 pl-3 py-0.5 my-2 italic text-slate-300 bg-sky-500/5 rounded-r">
               {children}
             </blockquote>
           ),
           table: ({ children }) => (
             <div className="overflow-x-auto my-2.5 rounded-lg border border-white/10 shadow-sm">
-              <table className="min-w-full divide-y divide-white/10 text-left text-xs">
+              <table className="min-w-full divide-y divide-white/10 text-left text-[13px]">
                 {children}
               </table>
             </div>
@@ -112,7 +118,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({
             </tr>
           ),
           th: ({ children }) => (
-            <th className="px-3 py-2 text-[11px] font-mono uppercase text-sky-300">
+            <th className="px-3 py-2 text-[12px] font-semibold uppercase tracking-wider text-sky-300">
               {children}
             </th>
           ),
@@ -131,6 +137,12 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({
               {children}
             </a>
           ),
+          // Generated images need the sign-in token, which a plain <img src> cannot send.
+          img: ({ src, alt }) => {
+            const id = typeof src === 'string' ? MEDIA_IMAGE.exec(src)?.[1] : undefined;
+            if (id) return <GeneratedImages images={[{ id, url: `/media/images/${id}`, mimeType: 'image/png' }]} />;
+            return <img src={src} alt={alt ?? ''} className="max-w-full rounded-lg my-2" />;
+          },
           hr: () => (
             <hr className="border-t border-white/10 my-2.5" />
           ),

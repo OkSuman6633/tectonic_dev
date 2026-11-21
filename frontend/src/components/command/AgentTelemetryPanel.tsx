@@ -18,7 +18,7 @@ function Code({ code, language }: { code: string; language: Language }) {
   return (
     <Highlight code={code.replace(/\n$/, '')} language={language} theme={themes.vsDark}>
       {({ tokens, getLineProps, getTokenProps }) => (
-        <pre className="my-1 overflow-x-auto rounded-md border border-white/5 bg-black/30 px-2.5 py-2 text-[11px] leading-[1.55]">
+        <pre className="typo-code my-1 overflow-x-auto rounded-md border border-white/5 bg-black/30 px-2.5 py-2">
           {tokens.map((line, i) => (
             <div key={i} {...getLineProps({ line })}>
               {line.map((token, k) => <span key={k} {...getTokenProps({ token })} />)}
@@ -97,7 +97,7 @@ function TraceViewer({ agentId, live }: { agentId: string; live: boolean }) {
         const el = e.currentTarget;
         pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
       }}
-      className="h-full overflow-y-auto bg-black/45 px-3.5 py-3 font-mono text-[11.5px] leading-relaxed"
+      className="typo-code h-full overflow-y-auto bg-black/45 px-3.5 py-3"
     >
       {trace.length === 0 ? (
         <div className="text-slate-600">$ awaiting output from {agentId}…</div>
@@ -115,15 +115,15 @@ function ToolCallRow({ call }: { call: ToolCallRecord }) {
   const [open, setOpen] = useState(false);
   const icon =
     call.status === 'running' ? <Loader2 className="h-3.5 w-3.5 animate-spin text-sky-400" />
-    : call.status === 'error' ? <XCircle className="h-3.5 w-3.5 text-rose-400" />
-    : <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />;
+      : call.status === 'error' ? <XCircle className="h-3.5 w-3.5 text-rose-400" />
+        : <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />;
   return (
     <div className="rounded-lg border border-studio-border bg-studio-surface/60">
       <button type="button" onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-2 px-2.5 py-2 text-left">
         <ChevronRight className={`h-3.5 w-3.5 text-slate-500 transition-transform ${open ? 'rotate-90' : ''}`} />
         {icon}
-        <span className="flex-1 truncate font-mono text-[11.5px] text-[var(--studio-text)]">{call.toolName}</span>
-        <span className="font-mono text-[10px] text-[var(--studio-text-muted)]">
+        <span className="typo-code flex-1 truncate text-[var(--studio-text)]">{call.toolName}</span>
+        <span className="typo-code text-[var(--studio-text-muted)]">
           {call.durationMs != null ? `${call.durationMs}ms` : formatClock(call.startedAt)}
         </span>
       </button>
@@ -135,13 +135,13 @@ function ToolCallRow({ call }: { call: ToolCallRecord }) {
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="space-y-2 border-t border-studio-border px-3 py-2 font-mono text-[11px]">
+            <div className="typo-code space-y-2 border-t border-studio-border px-3 py-2">
               <div>
-                <div className="mb-0.5 text-[9.5px] uppercase tracking-wider text-[var(--studio-text-muted)]">Input payload</div>
+                <div className="mb-0.5 font-sans text-[12px] font-medium uppercase tracking-wider text-[var(--studio-text-muted)]">Input payload</div>
                 <JsonTree value={call.payload} defaultExpandDepth={2} />
               </div>
               <div>
-                <div className="mb-0.5 text-[9.5px] uppercase tracking-wider text-[var(--studio-text-muted)]">Output</div>
+                <div className="mb-0.5 font-sans text-[12px] font-medium uppercase tracking-wider text-[var(--studio-text-muted)]">Output</div>
                 {call.status === 'running' ? <span className="text-slate-500">pending…</span> : <JsonTree value={call.result} defaultExpandDepth={2} />}
               </div>
             </div>
@@ -171,9 +171,9 @@ function Section({ title, icon, children, defaultOpen = true }: { title: string;
       <button type="button" onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-2 px-2.5 py-2 text-left">
         <ChevronRight className={`h-3.5 w-3.5 text-slate-500 transition-transform ${open ? 'rotate-90' : ''}`} />
         <span className="text-[var(--studio-text-muted)]">{icon}</span>
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--studio-text-secondary)]">{title}</span>
+        <span className="text-[12px] font-semibold uppercase tracking-wider text-[var(--studio-text-secondary)]">{title}</span>
       </button>
-      {open && <div className="border-t border-studio-border px-3 py-2 font-mono text-[11px]">{children}</div>}
+      {open && <div className="typo-code border-t border-studio-border px-3 py-2">{children}</div>}
     </div>
   );
 }
@@ -263,36 +263,36 @@ export function AgentTelemetryPanel({ host = 'graph' }: { host?: SelectionOrigin
           transition={{ type: 'spring', stiffness: 320, damping: 34 }}
           className="absolute right-0 top-0 bottom-0 z-20 flex w-[min(480px,92%)] flex-col border-l border-studio-border bg-[var(--popover-bg)] shadow-2xl backdrop-blur-2xl backdrop-saturate-150"
         >
-          <header className="border-b border-studio-border px-4 py-3">
+          <header className="border-b border-studio-border px-3 py-2.5">
             <div className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full" style={{ background: STATE_STYLES[agent.state].color, boxShadow: `0 0 8px ${STATE_STYLES[agent.state].color}` }} />
-              <h2 className="flex-1 truncate font-mono text-sm font-semibold text-[var(--studio-text)]">{agent.role}</h2>
-              <button type="button" onClick={() => selectAgent(null)} className="rounded p-1 text-slate-400 hover:bg-white/5 hover:text-white" title="Close (Esc)">
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: STATE_STYLES[agent.state].color, boxShadow: `0 0 8px ${STATE_STYLES[agent.state].color}` }} />
+              <h2 className="typo-panel-heading min-w-0 flex-1 truncate text-[var(--studio-text)]">{agent.role}</h2>
+              <button type="button" onClick={() => selectAgent(null)} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-white/5 hover:text-white" title="Close (Esc)">
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 font-mono text-[10px] text-[var(--studio-text-muted)]">
-              <span className={STATE_STYLES[agent.state].text}>{STATE_STYLES[agent.state].label}{agent.stateDetail ? ` · ${agent.stateDetail}` : ''}</span>
-              {agent.model && <span>{agent.model}</span>}
-              <span>{formatCount(agent.tokens.prompt)} in / {formatCount(agent.tokens.completion)} out</span>
-              {agent.parentId && <span>parent: {agent.parentId}</span>}
+            <div className="typo-metadata mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[var(--studio-text-muted)]">
+              <span className={`font-medium ${STATE_STYLES[agent.state].text}`}>{STATE_STYLES[agent.state].label}{agent.stateDetail ? ` · ${agent.stateDetail}` : ''}</span>
+              {agent.model && <span className="font-mono">{agent.model}</span>}
+              <span className="font-mono">{formatCount(agent.tokens.prompt)} in / {formatCount(agent.tokens.completion)} out</span>
+              {agent.parentId && <span className="font-mono">parent: {agent.parentId}</span>}
             </div>
-            {agent.description && <p className="mt-1.5 line-clamp-2 text-[11px] text-[var(--studio-text-secondary)]">{agent.description}</p>}
+            {agent.description && <p className="typo-secondary mt-1.5 line-clamp-2 text-[var(--studio-text-secondary)]">{agent.description}</p>}
           </header>
 
-          <nav className="flex gap-1 border-b border-studio-border px-2 pt-1.5">
+          {/* Same geometry as the shared Tabs primitive so drawers and window bodies read alike. */}
+          <nav className="relative flex h-9 shrink-0 items-stretch gap-0.5 border-b border-studio-border px-2">
             {tabs.map((t) => (
               <button
                 key={t.id}
                 type="button"
                 onClick={() => setTab(t.id)}
-                className={`relative flex items-center gap-1.5 px-2.5 pb-2 pt-1 text-[11px] font-medium transition-colors ${
-                  tab === t.id ? 'text-[var(--studio-text)]' : 'text-[var(--studio-text-muted)] hover:text-[var(--studio-text-secondary)]'
-                }`}
+                className={`relative flex items-center gap-1.5 px-2.5 text-[12px] font-medium transition-colors ${tab === t.id ? 'text-[var(--studio-text)]' : 'text-[var(--studio-text-muted)] hover:text-[var(--studio-text-secondary)]'
+                  }`}
               >
                 {t.icon}
                 {t.label}
-                {tab === t.id && <motion.span layoutId="cubicle-tab" className="absolute inset-x-1 -bottom-px h-[2px] rounded-full bg-sky-400" />}
+                {tab === t.id && <motion.span layoutId="cubicle-tab" className="absolute inset-x-1 bottom-0 h-[2px] rounded-full bg-sky-400" />}
               </button>
             ))}
           </nav>

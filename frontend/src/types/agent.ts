@@ -134,6 +134,13 @@ export interface ExtractedAgentSpec {
 
 /** An image or document sent with a chat message (images and PDFs go to the model as-is; Office and
  *  text files are read as text by the server). `data` (base64) is only kept until the message is sent. */
+/** An image an agent generated (core_generate_image), served from /media/images/<id> to its owner. */
+export interface GeneratedImage {
+  id: string;
+  url: string;
+  mimeType: string;
+}
+
 export interface ChatAttachment {
   name: string;
   mimeType: string;
@@ -182,6 +189,8 @@ export interface ChatMessage {
   recovered?: boolean;
   /** Files the user attached (names and types only). */
   attachments?: ChatAttachment[];
+  /** Images generated in this turn (by the Builder or the agent it reached). */
+  images?: GeneratedImage[];
   designIdeas?: DesignIdeas;
   designReview?: DesignReview;
   codeReview?: DesignReview;
@@ -286,6 +295,8 @@ export interface SandboxChatMessage {
   rerun?: boolean;
   /** Files the user attached (names and types only). */
   attachments?: ChatAttachment[];
+  /** Images the agent generated in this turn. */
+  images?: GeneratedImage[];
   /** The reply was recovered from the server session after a page refresh. */
   recovered?: boolean;
   toolCalls?: {
