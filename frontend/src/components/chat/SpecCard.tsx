@@ -39,7 +39,7 @@ export const SpecCard: React.FC<{ spec: ArchitectureSpec }> = ({ spec }) => {
               role="tab"
               aria-selected={tab === t.id}
               onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded-md transition-colors ${
+              className={`flex items-center gap-1 text-[12px] font-medium px-2 py-1 rounded-md transition-colors ${
                 tab === t.id ? 'bg-indigo-500/20 text-indigo-200' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
               }`}
             >
@@ -51,7 +51,7 @@ export const SpecCard: React.FC<{ spec: ArchitectureSpec }> = ({ spec }) => {
         <button
           type="button"
           onClick={copy}
-          className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-md text-slate-400 hover:text-white hover:bg-white/5"
+          className="flex items-center gap-1 text-[12px] font-medium px-2 py-1 rounded-md text-slate-400 hover:text-white hover:bg-white/5"
           title="Copy"
         >
           {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
@@ -61,7 +61,7 @@ export const SpecCard: React.FC<{ spec: ArchitectureSpec }> = ({ spec }) => {
       {spec.enabledModules.length > 0 && (
         <div className="flex flex-wrap gap-1 px-3 pt-2">
           {spec.enabledModules.map((m) => (
-            <span key={m} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-300 border border-sky-500/20">
+            <span key={m} className="typo-code px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-300 border border-sky-500/20">
               {m}
             </span>
           ))}
@@ -69,8 +69,8 @@ export const SpecCard: React.FC<{ spec: ArchitectureSpec }> = ({ spec }) => {
       )}
       <div className="p-3 max-h-[420px] overflow-auto">
         {tab === 'spec' && <MarkdownContent content={spec.markdown} />}
-        {tab === 'prompt' && <pre className="text-[11px] leading-relaxed whitespace-pre-wrap text-slate-200 font-mono">{spec.leadSystemPrompt}</pre>}
-        {tab === 'json' && <pre className="text-[11px] leading-relaxed text-slate-200 font-mono">{json}</pre>}
+        {tab === 'prompt' && <pre className="typo-code whitespace-pre-wrap text-slate-200">{spec.leadSystemPrompt}</pre>}
+        {tab === 'json' && <pre className="typo-code text-slate-200">{json}</pre>}
       </div>
     </div>
   );

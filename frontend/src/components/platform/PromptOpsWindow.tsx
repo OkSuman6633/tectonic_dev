@@ -139,7 +139,7 @@ function PromptDetail({ name, onChange }: { name: string; onChange: () => void }
           })}><Sparkles className="h-3.5 w-3.5" />Improve</Button>
         </>}>
           {diff ? (
-            <pre className="max-h-80 overflow-auto rounded-lg bg-black/25 p-2 font-mono text-[11px] leading-relaxed">
+            <pre className="typo-code max-h-80 overflow-auto rounded-lg bg-black/25 p-2">
               {diff.map((l, i) => (
                 <div key={i} className={l.kind === '+' ? 'bg-emerald-500/10 text-emerald-300' : l.kind === '-' ? 'bg-rose-500/10 text-rose-300 line-through decoration-rose-400/40' : 'text-[var(--studio-text-secondary)]'}>
                   {l.kind} {l.text || ' '}
@@ -147,7 +147,7 @@ function PromptDetail({ name, onChange }: { name: string; onChange: () => void }
               ))}
             </pre>
           ) : (
-            <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-lg bg-black/25 p-2 font-mono text-[11px] leading-relaxed text-[var(--studio-text-secondary)]">{template}</pre>
+            <pre className="typo-code max-h-80 overflow-auto whitespace-pre-wrap rounded-lg bg-black/25 p-2 text-[var(--studio-text-secondary)]">{template}</pre>
           )}
           {diff && <div className="mt-1 text-[10.5px] text-[var(--studio-text-muted)]">Diff against the active version ({active?.version}).</div>}
           <div className="mt-2 flex flex-wrap items-center gap-2 text-[11.5px] text-[var(--studio-text-muted)]">

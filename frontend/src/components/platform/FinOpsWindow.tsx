@@ -26,11 +26,11 @@ function BudgetRow({ t, onSaved }: { t: TeamReport; onSaved: () => void }) {
     <div className="rounded-lg border border-studio-border bg-black/15 px-3 py-2.5">
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="truncate font-mono text-[12px] font-medium text-[var(--studio-text)]">{t.team}</span>
+          <span className="typo-agent-name truncate text-[var(--studio-text)]">{t.team}</span>
           {b && <Chip tone={b.enforcement === 'block' ? 'bad' : 'neutral'}>{b.enforcement}</Chip>}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="font-mono text-[11.5px] tabular-nums text-[var(--studio-text-secondary)]">
+          <span className="typo-code text-[var(--studio-text-secondary)]">
             {usd(t.total_cost)}
             <span className="text-[var(--studio-text-muted)]">{b ? ` / ${usd(b.limit)}` : ' · no limit'}</span>
           </span>

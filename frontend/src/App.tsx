@@ -149,8 +149,8 @@ export const App: React.FC = () => {
               <Box className="h-3.5 w-3.5 text-white" strokeWidth={2.4} />
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-[14px] font-semibold tracking-tight text-[var(--studio-text)]">Tectonic</span>
-              <span className="hidden text-[12px] font-medium text-[var(--studio-text-muted)] sm:inline">Agent Studio</span>
+              <span className="typo-panel-heading text-[var(--studio-text)]">Tectonic</span>
+              <span className="hidden text-[12px] font-normal text-[var(--studio-text-muted)] sm:inline">Agent Studio</span>
             </div>
           </div>
 
@@ -175,7 +175,7 @@ export const App: React.FC = () => {
               <span className="min-w-0 max-w-[120px] truncate">
                 {selectedAgent ? selectedAgent.name : 'Select Agent'}
               </span>
-              <span className="inline-flex h-[18px] shrink-0 items-center rounded-full bg-indigo-500/20 px-1.5 text-[10px] leading-none text-indigo-300">
+              <span className="inline-flex h-[18px] shrink-0 items-center rounded-full bg-indigo-500/20 px-1.5 font-mono text-[12px] leading-none text-indigo-300">
                 {createdAgents.length}
               </span>
               <ChevronDown className="h-3 w-3 shrink-0 text-slate-400" />
@@ -183,18 +183,18 @@ export const App: React.FC = () => {
 
             {agentDropdownOpen && (
               <div className="absolute top-full left-0 mt-1 w-60 rounded-xl bg-studio-card border border-white/10 shadow-2xl p-1.5 space-y-1 z-50 animate-in fade-in zoom-in-95 duration-150">
-                <div className="px-2 py-1 text-[10px] font-mono uppercase text-slate-400 border-b border-white/5 flex items-center justify-between">
+                <div className="px-2 py-1 text-[12px] uppercase tracking-wider text-slate-400 border-b border-white/5 flex items-center justify-between">
                   <span>Created Agents</span>
                   <button
                     onClick={() => refreshCreatedAgents()}
-                    className="text-[9px] text-sky-400 hover:underline"
+                    className="text-[12px] font-medium normal-case text-sky-400 hover:underline"
                   >
                     Refresh
                   </button>
                 </div>
                 {createdAgents.length === 0 ? (
-                  <div className="p-2 text-xs text-slate-400">
-                    No agents found in generated_agents/
+                  <div className="p-2 text-[12px] text-slate-400">
+                    No agents found in <code className="font-mono">generated_agents/</code>
                   </div>
                 ) : (
                   createdAgents.map((ag) => (
@@ -204,13 +204,13 @@ export const App: React.FC = () => {
                         setSelectedAgent(ag);
                         setAgentDropdownOpen(false);
                       }}
-                      className={`w-full text-left p-2 rounded-lg text-xs font-mono transition-colors flex items-center justify-between ${selectedAgent?.name === ag.name
+                      className={`w-full text-left p-2 rounded-lg transition-colors flex items-center justify-between ${selectedAgent?.name === ag.name
                         ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
                         : 'hover:bg-white/5 text-slate-300'
                         }`}
                     >
-                      <span className="font-semibold">{ag.name}</span>
-                      <span className="text-[10px] text-slate-500">{ag.files.length} files</span>
+                      <span className="typo-agent-name truncate">{ag.name}</span>
+                      <span className="font-mono text-[12px] text-slate-500 shrink-0">{ag.files.length} files</span>
                     </button>
                   ))
                 )}

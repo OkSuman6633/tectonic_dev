@@ -22,9 +22,9 @@ export function Card({ title, icon: Icon, actions, children, className = '' }: {
   return (
     <section className={`rounded-xl border border-studio-border bg-studio-card p-3 ${className}`}>
       {(title || actions) && (
-        <header className="mb-2.5 flex min-h-[18px] items-center gap-2">
+        <header className="mb-2.5 flex min-h-[20px] items-center gap-2">
           {Icon && <Icon className="h-3.5 w-3.5 shrink-0 text-[var(--studio-text-muted)]" />}
-          {title && <h3 className="min-w-0 truncate text-[11px] font-semibold uppercase leading-[18px] tracking-[0.08em] text-[var(--studio-text-secondary)]">{title}</h3>}
+          {title && <h3 className="typo-panel-heading min-w-0 truncate text-[var(--studio-text)]">{title}</h3>}
           <div className="ml-auto flex shrink-0 items-center gap-1.5">{actions}</div>
         </header>
       )}
@@ -55,7 +55,7 @@ export function Button({ children, onClick, busy, variant = 'default', disabled,
  * always share a common baseline. Text areas opt out and grow vertically.
  */
 export const CONTROL_H = 'h-7';
-export const controlClass = 'inline-flex items-center rounded-lg border border-studio-border bg-black/20 px-2.5 text-[12.5px] text-[var(--studio-text)] focus:border-sky-400/60 focus:outline-none';
+export const controlClass = 'inline-flex items-center rounded-lg border border-studio-border bg-black/20 px-2.5 text-[13px] text-[var(--studio-text)] focus:border-sky-400/60 focus:outline-none';
 
 const field = `w-full ${controlClass} placeholder:text-[var(--studio-text-muted)]`;
 
@@ -64,7 +64,7 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
 }
 
 export function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...props} className={`${field} resize-y py-1.5 font-mono text-[11.5px] leading-relaxed ${props.className ?? ''}`} />;
+  return <textarea {...props} className={`${field} typo-code resize-y py-1.5 ${props.className ?? ''}`} />;
 }
 
 /** Custom themed dropdown styled to match `Input` with proper dark/light popover menu and padding. */
@@ -172,14 +172,14 @@ export function Chip({ children, tone = 'neutral', title }: { children: ReactNod
     warn: 'border-amber-400/30 bg-amber-400/10 text-amber-300',
     bad: 'border-rose-400/30 bg-rose-400/10 text-rose-300',
   }[tone];
-  return <span title={title} className={`inline-flex h-[18px] items-center gap-1 rounded-md border px-1.5 font-mono text-[10px] font-medium leading-none ${tones}`}>{children}</span>;
+  return <span title={title} className={`inline-flex h-[20px] items-center gap-1 rounded-md border px-1.5 font-mono text-[12px] font-normal leading-none ${tones}`}>{children}</span>;
 }
 
 /** Status is never color alone: icon + label + color. */
 export function StatusPill({ status, label }: { status: 'good' | 'warn' | 'bad'; label: string }) {
   const Icon = status === 'good' ? CheckCircle2 : status === 'warn' ? AlertTriangle : OctagonX;
   return (
-    <span className="inline-flex items-center gap-1 text-[11.5px] font-medium leading-none" style={{ color: `var(--status-${status})` }}>
+    <span className="typo-status inline-flex items-center gap-1" style={{ color: `var(--status-${status})` }}>
       <Icon className="h-3.5 w-3.5 shrink-0" /> {label}
     </span>
   );
@@ -188,13 +188,13 @@ export function StatusPill({ status, label }: { status: 'good' | 'warn' | 'bad';
 export function Kpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-studio-border bg-studio-card px-3.5 py-2.5">
-      <div className="truncate text-[10px] font-semibold uppercase leading-[14px] tracking-[0.06em] text-[var(--studio-text-muted)]" title={label}>
+      <div className="typo-metadata truncate uppercase tracking-[0.04em] text-[var(--studio-text-muted)]" title={label}>
         {label}
       </div>
-      <div className="mt-1.5 truncate font-mono text-[18px] font-semibold leading-tight tabular-nums tracking-tight text-[var(--studio-text)]" title={value}>
+      <div className="typo-section-heading mt-1 truncate font-mono tabular-nums text-[var(--studio-text)]" title={value}>
         {value}
       </div>
-      <div className="mt-1 min-h-[14px] truncate text-[11px] leading-[14px] text-[var(--studio-text-secondary)]" title={sub}>
+      <div className="typo-metadata mt-1 min-h-[18px] truncate text-[var(--studio-text-secondary)]" title={sub}>
         {sub ?? '\u00A0'}
       </div>
     </div>
@@ -203,11 +203,11 @@ export function Kpi({ label, value, sub }: { label: string; value: string; sub?:
 
 export function ErrorNote({ error }: { error: string | null }) {
   if (!error) return null;
-  return <div className="rounded-lg border border-rose-400/30 bg-rose-500/10 px-2.5 py-1.5 text-[11.5px] text-rose-300">{error}</div>;
+  return <div className="typo-metadata rounded-lg border border-rose-400/30 bg-rose-500/10 px-2.5 py-1.5 text-rose-300">{error}</div>;
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <div className="py-6 text-center text-[12px] text-[var(--studio-text-muted)]">{children}</div>;
+  return <div className="typo-secondary py-6 text-center text-[var(--studio-text-muted)]">{children}</div>;
 }
 
 /** Platform windows need the backend; show one clear state instead of a wall of errors. */
@@ -215,8 +215,8 @@ export function BackendGate({ error, loading, children }: { error: string | null
   const live = useTelemetryStore((s) => s.status === 'open');
   if (loading) return <div className="flex h-full items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-[var(--studio-text-muted)]" /></div>;
   if (error && !live) {
-    return <div className="flex h-full items-center justify-center p-6 text-center text-[12.5px] text-[var(--studio-text-secondary)]">
-      Backend offline. Start it with <code className="mx-1 rounded bg-white/10 px-1 font-mono">python server.py</code> to use this module.
+    return <div className="typo-secondary flex h-full items-center justify-center p-6 text-center text-[var(--studio-text-secondary)]">
+      Backend offline. Start it with <code className="typo-code mx-1 rounded bg-white/10 px-1.5 py-0.5">python server.py</code> to use this module.
     </div>;
   }
   return <>{children}</>;

@@ -204,10 +204,10 @@ export const LiveAgentRunner: React.FC = () => {
               className="flex h-7 max-w-[200px] shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-white/5 px-2.5 text-left transition-all hover:border-emerald-500/40 shadow-sm dark:shadow-none"
               title={agentAppFullName}
             >
-              <span className="truncate font-mono text-[11.5px] font-semibold leading-none text-slate-900 dark:text-slate-100">
+              <span className="truncate text-[12px] font-semibold leading-none text-slate-900 dark:text-slate-100">
                 {agentDisplayName}
               </span>
-              <span className="hidden truncate font-mono text-[10px] leading-none text-slate-400 dark:text-slate-500 xl:inline">
+              <span className="hidden truncate font-mono text-[12px] leading-none text-slate-400 dark:text-slate-500 xl:inline">
                 {agentAppFullName}
               </span>
               <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
@@ -215,11 +215,11 @@ export const LiveAgentRunner: React.FC = () => {
 
             {agentDropdownOpen && (
               <div className="absolute top-full left-0 mt-1 w-64 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 shadow-2xl p-1.5 space-y-1 z-50 animate-in fade-in zoom-in-95 duration-150">
-                <div className="px-2 py-1 text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-white/5">
+                <div className="px-2 py-1 text-[12px] uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-white/5">
                   Select Created Agent to Run ({createdAgents.length})
                 </div>
                 {createdAgents.length === 0 ? (
-                  <div className="p-2 text-xs text-slate-500 dark:text-slate-400">
+                  <div className="p-2 text-[12px] text-slate-500 dark:text-slate-400">
                     No generated agents yet. Create one in the Architect Chat!
                   </div>
                 ) : (
@@ -230,14 +230,14 @@ export const LiveAgentRunner: React.FC = () => {
                         setSelectedAgent(ag);
                         setAgentDropdownOpen(false);
                       }}
-                      className={`w-full text-left p-2 rounded-lg text-xs font-mono transition-colors flex items-center justify-between ${selectedAgent?.name === ag.name
+                      className={`w-full text-left p-2 rounded-lg transition-colors flex items-center justify-between ${selectedAgent?.name === ag.name
                         ? 'bg-emerald-50 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30 font-medium'
                         : 'hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300'
                         }`}
                     >
                       <div>
-                        <span className="font-semibold block">{ag.name}</span>
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500">{ag.files.length} files</span>
+                        <span className="typo-agent-name block">{ag.name}</span>
+                        <span className="font-mono text-[12px] text-slate-400 dark:text-slate-500">{ag.files.length} files</span>
                       </div>
                       {selectedAgent?.name === ag.name && (
                         <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400" />
@@ -253,7 +253,7 @@ export const LiveAgentRunner: React.FC = () => {
           {selectedAgent && (
             <button
               onClick={() => setShowAgentEnvModal(true)}
-              className={`inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 font-mono text-[11.5px] leading-none transition-all ${selectedAgentEnv?.hasKey
+              className={`typo-status inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 leading-none transition-all ${selectedAgentEnv?.hasKey
                 ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-500/30 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 shadow-sm dark:shadow-none'
                 : 'bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-500/40 hover:bg-amber-100 dark:hover:bg-amber-500/25 animate-pulse shadow-sm dark:shadow-none'
                 }`}
@@ -268,7 +268,7 @@ export const LiveAgentRunner: React.FC = () => {
           {selectedAgent && (
             <button
               onClick={() => setShowAgentEnvModal(true)}
-              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg border border-sky-300 dark:border-sky-500/30 bg-sky-50 dark:bg-sky-500/10 px-2.5 font-mono text-[11.5px] leading-none text-sky-700 dark:text-sky-300 shadow-sm dark:shadow-none transition-all hover:bg-sky-100 dark:hover:bg-sky-500/20"
+              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg border border-sky-300 dark:border-sky-500/30 bg-sky-50 dark:bg-sky-500/10 px-2.5 font-mono text-[12px] leading-none text-sky-700 dark:text-sky-300 shadow-sm dark:shadow-none transition-all hover:bg-sky-100 dark:hover:bg-sky-500/20"
               title={`Active Model: ${selectedAgentEnv?.model || 'gemini-3.6-flash'} (Click to change)`}
             >
               <Cpu className="h-3.5 w-3.5 shrink-0 text-sky-500 dark:text-sky-400" />
@@ -278,7 +278,7 @@ export const LiveAgentRunner: React.FC = () => {
 
           {/* Session ID badge - visible only on larger displays to prevent toolbar crowding */}
           {sandboxSessionId && (
-            <span className="hidden h-[22px] shrink-0 items-center rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 font-mono text-[10px] leading-none text-emerald-600 dark:text-emerald-400 xl:inline-flex">
+            <span className="hidden h-[22px] shrink-0 items-center rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 font-mono text-[12px] leading-none text-emerald-600 dark:text-emerald-400 xl:inline-flex">
               sess:{sandboxSessionId.slice(0, 8)}
             </span>
           )}
@@ -288,7 +288,7 @@ export const LiveAgentRunner: React.FC = () => {
         <div className="toolbar-end ml-auto flex shrink-0 items-center gap-2">
           {/* Active Tool Trace Indicator */}
           {activeToolTrace && (
-            <div className="flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-rose-500/30 bg-rose-500/20 px-2 font-mono text-[11.5px] leading-none text-rose-300 animate-pulse">
+            <div className="flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-rose-500/30 bg-rose-500/20 px-2 font-mono text-[12px] leading-none text-rose-300 animate-pulse">
               <Wrench className="h-3.5 w-3.5 shrink-0 text-rose-400" />
               <span className="truncate">Tool: {activeToolTrace}()</span>
             </div>
@@ -296,7 +296,7 @@ export const LiveAgentRunner: React.FC = () => {
 
           {/* Active Guardrail Trace */}
           {activeGuardrailTrace && (
-            <div className="flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/20 px-2 font-mono text-[11.5px] leading-none text-amber-300 animate-bounce">
+            <div className="flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/20 px-2 font-mono text-[12px] leading-none text-amber-300 animate-bounce">
               <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-amber-400" />
               <span className="truncate">{activeGuardrailTrace}</span>
             </div>
@@ -304,7 +304,7 @@ export const LiveAgentRunner: React.FC = () => {
 
           <button
             onClick={() => setShowRawJson(!showRawJson)}
-            className={`flex h-7 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-[11.5px] leading-none transition-colors ${showRawJson
+            className={`flex h-7 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-[12px] font-medium leading-none transition-colors ${showRawJson
               ? 'bg-sky-50 dark:bg-sky-500/20 border-sky-300 dark:border-sky-400 text-sky-700 dark:text-sky-300'
               : 'bg-white/80 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white shadow-sm dark:shadow-none'
               }`}
@@ -315,7 +315,7 @@ export const LiveAgentRunner: React.FC = () => {
 
           <button
             onClick={() => startNewSandboxSession()}
-            className="flex h-7 shrink-0 items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/15 px-2.5 text-[11.5px] font-medium leading-none text-emerald-700 dark:text-emerald-300 transition-colors hover:bg-emerald-500/25 shadow-sm dark:shadow-none"
+            className="flex h-7 shrink-0 items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/15 px-2.5 text-[12px] font-medium leading-none text-emerald-700 dark:text-emerald-300 transition-colors hover:bg-emerald-500/25 shadow-sm dark:shadow-none"
             title="Start fresh sandbox session for this agent"
           >
             <Plus className="h-3.5 w-3.5 shrink-0" />
@@ -343,7 +343,7 @@ export const LiveAgentRunner: React.FC = () => {
       )}
 
       {/* Messages Stream */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4">
         {sandboxMessages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center p-6 text-slate-400 space-y-3">
             <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
@@ -364,7 +364,7 @@ export const LiveAgentRunner: React.FC = () => {
             if (msg.kind === 'notice') {
               return (
                 <div key={msg.id} className="flex justify-center">
-                  <div className="max-w-[90%] text-[11px] text-slate-300 bg-white/[0.04] border border-white/10 rounded-full px-3 py-1">
+                  <div className="max-w-[90%] min-w-0 text-[12px] text-slate-300 bg-white/[0.04] border border-white/10 rounded-full px-3 py-1 break-words [overflow-wrap:anywhere]">
                     <MarkdownContent content={msg.content} />
                   </div>
                 </div>
@@ -372,14 +372,14 @@ export const LiveAgentRunner: React.FC = () => {
             }
             if (msg.kind === 'edit' && msg.edit) {
               return (
-                <div key={msg.id} className="flex gap-3 justify-start">
+                <div key={msg.id} className="flex min-w-0 gap-3 justify-start">
                   <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-600 flex items-center justify-center shadow-md shadow-amber-500/20 shrink-0">
                     <Pencil className="w-4 h-4 text-white" />
                   </div>
-                  <div className="max-w-[85%] flex-1">
+                  <div className="max-w-[85%] min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-semibold text-slate-300">Agent Editor</span>
-                      <span className="text-[10px] text-slate-500">{msg.timestamp}</span>
+                      <span className="typo-agent-name text-slate-300">Agent Editor</span>
+                      <span className="typo-metadata font-mono text-slate-500">{msg.timestamp}</span>
                     </div>
                     <EditResultCard
                       edit={msg.edit}
@@ -394,14 +394,14 @@ export const LiveAgentRunner: React.FC = () => {
             }
             if (msg.kind === 'edit-request') {
               return (
-                <div key={msg.id} className="flex gap-3 justify-end">
-                  <div className="max-w-[85%] items-end">
-                    <div className="flex items-center justify-end gap-2 mb-1">
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">✏️ change request</span>
-                      <span className="text-xs font-semibold text-slate-300">You</span>
-                      <span className="text-[10px] text-slate-500">{msg.timestamp}</span>
+                <div key={msg.id} className="flex min-w-0 gap-3 justify-end">
+                  <div className="max-w-[85%] min-w-0 flex flex-col items-end">
+                    <div className="flex items-center justify-end gap-2 mb-1 flex-wrap">
+                      <span className="typo-status px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">✏️ change request</span>
+                      <span className="typo-agent-name text-slate-300">You</span>
+                      <span className="typo-metadata font-mono text-slate-500">{msg.timestamp}</span>
                     </div>
-                    <div className="p-3.5 rounded-2xl rounded-tr-none text-xs leading-relaxed bg-amber-600/90 text-white">
+                    <div className="typo-body max-w-full min-w-0 p-3.5 rounded-2xl rounded-tr-none break-words [overflow-wrap:anywhere] overflow-hidden bg-amber-600/90 text-white">
                       <MarkdownContent content={msg.content} isUser />
                     </div>
                   </div>
@@ -414,25 +414,25 @@ export const LiveAgentRunner: React.FC = () => {
             return (
               <div
                 key={msg.id}
-                className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}
+                className={`flex min-w-0 gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}
               >
                 {!isUser && (
                   <ChatbotAvatar className="w-8 h-8" />
                 )}
 
-                <div className={`max-w-[85%] ${isUser ? 'items-end' : 'items-start'}`}>
+                <div className={`max-w-[85%] min-w-0 flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-semibold text-slate-300">
+                    <span className="typo-agent-name text-slate-300">
                       {isUser ? 'You' : agentDisplayName}
                     </span>
-                    <span className="text-[10px] text-slate-500">{msg.timestamp}</span>
+                    <span className="typo-metadata font-mono text-slate-500">{msg.timestamp}</span>
                     {msg.rerun && (
-                      <span className="flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20" title="Re-sent automatically to the updated agent">
+                      <span className="typo-status flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20" title="Re-sent automatically to the updated agent">
                         <RotateCw className="w-2.5 h-2.5" /> re-run
                       </span>
                     )}
                     {msg.recovered && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20" title="Finished while the page was being refreshed and was recovered from the server">
+                      <span className="typo-status px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20" title="Finished while the page was being refreshed and was recovered from the server">
                         recovered after refresh
                       </span>
                     )}
@@ -440,16 +440,16 @@ export const LiveAgentRunner: React.FC = () => {
 
                   {/* Guardrail Triggered Banner */}
                   {msg.guardrailTriggered && (
-                    <div className="mb-2 p-3 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs flex items-start gap-2.5">
+                    <div className="mb-2 p-3 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-[13px] flex items-start gap-2.5">
                       <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                       <div>
                         <div className="font-semibold text-amber-300 flex items-center gap-1.5">
                           <span>Guardrail Filter: {msg.guardrailTriggered.rule}</span>
-                          <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-amber-500/20 font-mono">
+                          <span className="typo-code uppercase px-1.5 py-0.5 rounded bg-amber-500/20">
                             {msg.guardrailTriggered.action}
                           </span>
                         </div>
-                        <p className="text-[11px] text-amber-300/80 mt-0.5">
+                        <p className="typo-metadata text-amber-300/80 mt-0.5">
                           {msg.guardrailTriggered.reason}
                         </p>
                       </div>
@@ -462,18 +462,18 @@ export const LiveAgentRunner: React.FC = () => {
                       {msg.toolCalls.map((tc, idx) => (
                         <div
                           key={idx}
-                          className="p-2 rounded-lg bg-slate-900/80 border border-sky-500/20 text-[11px] font-mono text-slate-300 flex items-center justify-between"
+                          className="typo-code p-2 rounded-lg bg-slate-900/80 border border-sky-500/20 text-slate-300 flex items-center justify-between"
                         >
                           <div className="flex items-center gap-1.5">
                             <Wrench className="w-3.5 h-3.5 text-sky-400" />
-                            <span className="text-sky-300 font-semibold">{tc.toolName}</span>
+                            <span className="text-sky-300 font-medium">{tc.toolName}</span>
                             {Object.keys(tc.params).length > 0 && (
                               <span className="text-slate-500">
                                 ({Object.keys(tc.params).join(', ')})
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                          <div className="flex items-center gap-1 text-[12px] text-slate-400">
                             <Clock className="w-3 h-3 text-emerald-400" />
                             <span>{tc.durationMs}ms</span>
                           </div>
@@ -484,7 +484,7 @@ export const LiveAgentRunner: React.FC = () => {
 
                   {/* Message Content */}
                   <div
-                    className={`p-3.5 rounded-2xl text-xs leading-relaxed ${isUser
+                    className={`typo-body max-w-full min-w-0 p-3.5 rounded-2xl break-words [overflow-wrap:anywhere] overflow-hidden ${isUser
                       ? 'bg-sky-600 text-white rounded-tr-none'
                       : 'bg-white dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/5 text-slate-800 dark:text-slate-200 rounded-tl-none shadow-sm dark:shadow-none'
                       }`}
@@ -495,10 +495,10 @@ export const LiveAgentRunner: React.FC = () => {
                     {/* Raw JSON Payload Inspector */}
                     {showRawJson && (msg.toolCalls || msg.cardPayload) && (
                       <div className="mt-3 pt-2 border-t border-slate-200/60 dark:border-white/10">
-                        <span className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 block mb-1">
+                        <span className="typo-metadata uppercase text-slate-500 dark:text-slate-400 block mb-1">
                           Tool & Event Payload:
                         </span>
-                        <pre className="p-2 rounded bg-slate-950 font-mono text-[10px] text-sky-300 overflow-x-auto max-h-48">
+                        <pre className="typo-code p-2 rounded bg-slate-950 text-sky-300 overflow-x-auto max-h-48">
                           {JSON.stringify({ toolCalls: msg.toolCalls, cardPayload: msg.cardPayload }, null, 2)}
                         </pre>
                       </div>
@@ -550,12 +550,12 @@ export const LiveAgentRunner: React.FC = () => {
       <div className="flex items-center gap-2 overflow-x-auto border-t border-slate-200 dark:border-white/5 bg-slate-50/90 dark:bg-white/[0.02] px-3 py-1.5 no-scrollbar">
         {editing ? (
           <>
-            <span className="shrink-0 font-mono text-[10px] uppercase leading-none text-slate-500 dark:text-slate-400 font-semibold tracking-wider">Try a change:</span>
+            <span className="typo-metadata shrink-0 uppercase leading-none text-slate-500 dark:text-slate-400 font-medium tracking-wider">Try a change:</span>
             {EDIT_SUGGESTIONS.map((suggestion) => (
               <button
                 key={suggestion}
                 onClick={() => setInputVal(suggestion)}
-                className="inline-flex h-6 shrink-0 items-center whitespace-nowrap rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 text-[11px] leading-none text-amber-700 dark:text-amber-300 transition-colors hover:bg-amber-500/20"
+                className="inline-flex h-6 shrink-0 items-center whitespace-nowrap rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 text-[12px] leading-none text-amber-700 dark:text-amber-300 transition-colors hover:bg-amber-500/20"
               >
                 {suggestion}
               </button>
@@ -563,13 +563,13 @@ export const LiveAgentRunner: React.FC = () => {
           </>
         ) : (
           <>
-            <span className="shrink-0 font-mono text-[10px] uppercase leading-none text-slate-500 dark:text-slate-400 font-semibold tracking-wider">Test Cases:</span>
+            <span className="typo-metadata shrink-0 uppercase leading-none text-slate-500 dark:text-slate-400 font-medium tracking-wider">Test Cases:</span>
             {getQuickTests().map((qt, idx) => (
               <button
                 key={idx}
                 onClick={() => handleQuickTest(qt.prompt)}
                 disabled={busy}
-                className="inline-flex h-6 shrink-0 items-center whitespace-nowrap rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 text-[11px] leading-none text-emerald-700 dark:text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:opacity-40 shadow-sm dark:shadow-none"
+                className="inline-flex h-6 shrink-0 items-center whitespace-nowrap rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 text-[12px] leading-none text-emerald-700 dark:text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:opacity-40 shadow-sm dark:shadow-none"
               >
                 {qt.label}
               </button>
@@ -584,7 +584,7 @@ export const LiveAgentRunner: React.FC = () => {
         {!editing && (attach.files.length > 0 || attach.error) && (
           <div className="mb-2 space-y-1">
             <AttachmentChips files={attach.files} onRemove={attach.remove} />
-            {attach.error && <div className="text-[11px] text-amber-600 dark:text-amber-300">{attach.error}</div>}
+            {attach.error && <div className="typo-status text-amber-600 dark:text-amber-300">{attach.error}</div>}
           </div>
         )}
         <div className="flex items-center gap-2">
@@ -593,7 +593,7 @@ export const LiveAgentRunner: React.FC = () => {
             <button
               type="button"
               onClick={() => setMode('run')}
-              className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11.5px] font-medium leading-none transition-colors ${!editing ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'}`}
+              className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-medium leading-none transition-colors ${!editing ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'}`}
               title="Send test messages to the agent"
             >
               <Play className="h-3.5 w-3.5 shrink-0" /> Run
@@ -602,7 +602,7 @@ export const LiveAgentRunner: React.FC = () => {
               type="button"
               onClick={() => setMode('edit')}
               disabled={!selectedAgent}
-              className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11.5px] font-medium leading-none transition-colors disabled:opacity-40 ${editing ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'}`}
+              className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-medium leading-none transition-colors disabled:opacity-40 ${editing ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'}`}
               title={selectedAgent ? `Describe a change to ${selectedAgent.name}; it is applied, verified and re-run` : 'Select a generated agent to edit'}
             >
               <Pencil className="h-3.5 w-3.5 shrink-0" /> Edit agent
@@ -619,7 +619,7 @@ export const LiveAgentRunner: React.FC = () => {
               placeholder={editing
                 ? `Describe a change to ${agentDisplayName} (e.g. “reply in bullet points”)…`
                 : `Send query to ${agentDisplayName} in local sandbox...`}
-              className={`h-9 w-full rounded-xl border bg-white dark:bg-white/[0.04] text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 transition-colors focus:outline-none font-sans ${editing ? 'pl-3.5' : 'pl-9'} pr-11 ${editing ? 'border-amber-500/30 focus:border-amber-500/60' : 'border-slate-200 dark:border-white/10 focus:border-emerald-500/50 shadow-sm dark:shadow-none'}`}
+              className={`h-9 w-full rounded-xl border bg-white dark:bg-white/[0.04] text-[14px] text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 transition-colors focus:outline-none font-sans ${editing ? 'pl-3.5' : 'pl-9'} pr-11 ${editing ? 'border-amber-500/30 focus:border-amber-500/60' : 'border-slate-200 dark:border-white/10 focus:border-emerald-500/50 shadow-sm dark:shadow-none'}`}
             />
             <button
               type="submit"

@@ -139,23 +139,23 @@ export const DecisionCardGroup: React.FC<DecisionCardGroupProps> = ({ decisionGr
             <Sparkles className="w-4 h-4 text-sky-400 animate-pulse" />
           </div>
           <div className="min-w-0 flex-1">
-            <h4 className="text-xs sm:text-sm font-semibold text-slate-100 flex items-center gap-2 flex-wrap">
+            <h4 className="typo-panel-heading text-slate-100 flex items-center gap-2 flex-wrap">
               <span className="truncate">{activeGroup.title}</span>
               {isSubmitted && (
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 shrink-0">
+                <span className="typo-status px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 shrink-0">
                   <Check className="w-3 h-3" />
                   Choices Submitted
                 </span>
               )}
             </h4>
             {activeGroup.step?.key === 'plan' && (
-              <p className="text-[11px] text-sky-300/80 mt-1 leading-snug">
+              <p className="typo-secondary text-sky-300/80 mt-1">
                 Tick the steps you want to decide yourself. The AI decides the rest and keeps going without stopping.
               </p>
             )}
             {activeGroup.step && activeGroup.step.key !== 'plan' && (
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-sky-300/80 shrink-0">{activeGroup.step.phase}</span>
+                <span className="typo-status uppercase tracking-wider text-sky-300/80 shrink-0">{activeGroup.step.phase}</span>
                 <div className="flex gap-0.5" aria-label={`Step ${activeGroup.step.number} of ${activeGroup.step.total}`}>
                   {Array.from({ length: activeGroup.step.total }, (_, i) => (
                     <span
@@ -168,7 +168,7 @@ export const DecisionCardGroup: React.FC<DecisionCardGroupProps> = ({ decisionGr
               </div>
             )}
             {activeGroup.description && (
-              <p className="text-xs text-slate-400 mt-0.5 leading-snug">{activeGroup.description}</p>
+              <p className="typo-secondary text-slate-400 mt-0.5">{activeGroup.description}</p>
             )}
           </div>
         </div>
@@ -200,17 +200,17 @@ export const DecisionCardGroup: React.FC<DecisionCardGroupProps> = ({ decisionGr
                   <div className="p-1 rounded bg-white/5 shrink-0">
                     {getQuestionIcon(question.id)}
                   </div>
-                  <span className="text-xs font-semibold text-slate-200 truncate">
+                  <span className="typo-agent-name text-slate-200 truncate">
                     <span className="text-sky-400 font-mono mr-1.5">{qIdx + 1}.</span>
                     {question.title}
                   </span>
                 </div>
                 {question.multiSelect && (
-                  <span className="text-[10px] font-mono text-slate-400 shrink-0">choose any</span>
+                  <span className="typo-metadata text-slate-400 shrink-0">choose any</span>
                 )}
               </div>
               {question.description && (
-                <p className="-mt-1 mb-2 text-[11px] leading-relaxed text-slate-400">{question.description}</p>
+                <p className="typo-secondary -mt-1 mb-2 text-slate-400">{question.description}</p>
               )}
 
               {/* Checkbox Options List */}
@@ -226,7 +226,7 @@ export const DecisionCardGroup: React.FC<DecisionCardGroupProps> = ({ decisionGr
                       type="button"
                       disabled={isSubmitted}
                       onClick={() => updateDecisionOption(question.id, option.id)}
-                      className={`relative flex items-start gap-2.5 p-2 rounded-lg text-left text-xs transition-all ${isSelected
+                      className={`relative flex items-start gap-2.5 p-2 rounded-lg text-left text-[13px] transition-all ${isSelected
                         ? 'bg-sky-50 dark:bg-sky-500/20 border-sky-500/80 dark:border-sky-400/60 text-sky-900 dark:text-white shadow-sm'
                         : 'bg-white dark:bg-white/[0.02] border-slate-200/90 dark:border-white/5 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.05]'
                         } border disabled:opacity-60 disabled:cursor-not-allowed`}
@@ -247,14 +247,14 @@ export const DecisionCardGroup: React.FC<DecisionCardGroupProps> = ({ decisionGr
                             {option.label}
                           </span>
                           {option.isRecommended && (
-                            <span className="inline-flex items-center gap-0.5 text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/30 shrink-0 font-semibold">
+                            <span className="inline-flex items-center gap-0.5 text-[11px] font-medium px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/30 shrink-0">
                               <Sparkles className="w-2.5 h-2.5" />
                               AI Recommended
                             </span>
                           )}
                         </div>
                         {option.description && (
-                          <div className="mt-0.5 text-[11px] leading-snug text-slate-500 dark:text-slate-400">{option.description}</div>
+                          <div className="mt-0.5 typo-metadata text-slate-500 dark:text-slate-400">{option.description}</div>
                         )}
                       </div>
                     </button>

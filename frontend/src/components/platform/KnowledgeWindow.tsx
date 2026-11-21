@@ -22,9 +22,9 @@ function Answer({ text }: { text: string }) {
   // Render [n] citation markers as chips.
   const parts = text.split(/(\[\d+\])/g);
   return (
-    <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-[var(--studio-text)]">
+    <p className="typo-body whitespace-pre-wrap text-[var(--studio-text)]">
       {parts.map((p, i) => /^\[\d+\]$/.test(p)
-        ? <span key={i} className="mx-0.5 rounded bg-sky-400/15 px-1 font-mono text-[10.5px] text-sky-300">{p.slice(1, -1)}</span>
+        ? <span key={i} className="mx-0.5 rounded bg-sky-400/15 px-1 font-mono text-[12px] text-sky-300">{p.slice(1, -1)}</span>
         : <span key={i}>{p}</span>)}
     </p>
   );

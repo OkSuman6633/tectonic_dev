@@ -22,11 +22,11 @@ const Line = memo(function Line({ entry, onSelect }: { entry: LogEntry; onSelect
       type="button"
       title={entry.text}
       onClick={() => entry.agentId && onSelect(entry.agentId)}
-      className="flex w-full min-w-0 items-baseline gap-2 truncate px-3 py-[3px] text-left text-[11px] transition-colors hover:bg-white/[0.03]"
+      className="typo-code flex w-full min-w-0 items-baseline gap-2 truncate px-3 py-[3px] text-left transition-colors hover:bg-white/[0.03]"
     >
-      <span className="event-log-mono shrink-0 tabular-nums text-[var(--studio-text-muted)]">{formatClock(entry.timestamp)}</span>
-      <span className={`event-log-mono w-12 shrink-0 text-[9.5px] font-semibold tracking-wider ${style.className}`}>{style.tag}</span>
-      <span className="playfair-display-platform truncate text-[var(--studio-text-secondary)]">{entry.text}</span>
+      <span className="shrink-0 tabular-nums text-[var(--studio-text-muted)]">{formatClock(entry.timestamp)}</span>
+      <span className={`w-14 shrink-0 text-[12px] font-medium tracking-wider ${style.className}`}>{style.tag}</span>
+      <span className="truncate text-[var(--studio-text-secondary)]">{entry.text}</span>
     </button>
   );
 });
@@ -55,10 +55,10 @@ export function LatestEvent({ onSelectAgent }: { onSelectAgent: (id: string) => 
           }`}
         />
       </span>
-      <span className="event-log-mono shrink-0 text-[10px] font-semibold uppercase tracking-wider text-[var(--studio-text-muted)]">
+      <span className="typo-status shrink-0 uppercase tracking-wider text-[var(--studio-text-muted)]">
         {isSimulating || activeRuns > 0 ? 'LIVE' : status === 'open' ? 'READY' : 'SYNC'}
       </span>
-      <span className="event-log-mono shrink-0 text-[10px] tabular-nums text-[var(--studio-text-muted)]">({count})</span>
+      <span className="typo-code shrink-0 tabular-nums text-[var(--studio-text-muted)]">({count})</span>
       <div className="relative h-6 min-w-0 flex-1 overflow-hidden">
         <AnimatePresence initial={false} mode="popLayout">
           {latest ? (
@@ -73,7 +73,7 @@ export function LatestEvent({ onSelectAgent }: { onSelectAgent: (id: string) => 
               <Line entry={latest} onSelect={onSelectAgent} />
             </motion.div>
           ) : (
-            <div className="flex h-full items-center px-2 font-mono text-[11px] text-[var(--studio-text-muted)]">
+            <div className="typo-code flex h-full items-center px-2 text-[var(--studio-text-muted)]">
               Waiting for agent activity…
             </div>
           )}
@@ -154,7 +154,7 @@ export function EventLog({ onSelectAgent }: { onSelectAgent: (id: string) => voi
               pinnedRef.current = true;
               setIsPinned(true);
             }}
-            className={`inline-flex h-6 shrink-0 items-center rounded-md px-2 font-mono text-[10px] font-medium uppercase leading-none tracking-wider transition-colors ${
+            className={`inline-flex h-6 shrink-0 items-center rounded-md px-2 font-mono text-[12px] font-normal uppercase leading-none tracking-wider transition-colors ${
               filter === f
                 ? 'bg-sky-400/15 text-sky-300'
                 : 'text-[var(--studio-text-muted)] hover:bg-white/[0.04] hover:text-[var(--studio-text-secondary)]'
@@ -180,7 +180,7 @@ export function EventLog({ onSelectAgent }: { onSelectAgent: (id: string) => voi
         className="min-h-0 flex-1 overflow-y-auto py-1"
       >
         {visible.length === 0 ? (
-          <p className="px-3 pt-6 text-center text-[11.5px] text-[var(--studio-text-muted)]">No events yet.</p>
+          <p className="typo-metadata px-3 pt-6 text-center text-[var(--studio-text-muted)]">No events yet.</p>
         ) : (
           visible.map((entry, idx) => (
             <Line key={entry.id ?? `${entry.seq}-${idx}`} entry={entry} onSelect={onSelectAgent} />
@@ -193,7 +193,7 @@ export function EventLog({ onSelectAgent }: { onSelectAgent: (id: string) => voi
         <button
           type="button"
           onClick={pinToLive}
-          className="absolute bottom-2.5 right-3 z-10 inline-flex items-center gap-1.5 rounded-full border border-sky-400/40 bg-studio-surface/95 px-2.5 py-1 font-mono text-[10px] font-medium text-sky-300 shadow-lg backdrop-blur-md transition-colors hover:bg-sky-400/20"
+          className="typo-status absolute bottom-2.5 right-3 z-10 inline-flex items-center gap-1.5 rounded-full border border-sky-400/40 bg-studio-surface/95 px-2.5 py-1 text-sky-300 shadow-lg backdrop-blur-md transition-colors hover:bg-sky-400/20"
         >
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
           Live · Latest

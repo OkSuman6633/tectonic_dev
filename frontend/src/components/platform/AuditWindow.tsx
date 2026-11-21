@@ -35,18 +35,18 @@ function Row({ e }: { e: AuditEvent }) {
     <li className="border-b border-white/[0.05]">
       <button type="button" onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-2 px-3 py-1.5 text-left hover:bg-white/[0.03]">
         <ChevronRight className={`h-3.5 w-3.5 shrink-0 text-[var(--studio-text-muted)] transition-transform ${open ? 'rotate-90' : ''}`} />
-        <span className="w-10 shrink-0 font-mono text-[10.5px] tabular-nums text-[var(--studio-text-muted)]">#{e.sequence}</span>
-        <span className="w-[4.5rem] shrink-0 font-mono text-[10.5px] tabular-nums text-[var(--studio-text-muted)]">{new Date(e.occurred_at).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+        <span className="typo-code w-10 shrink-0 text-[var(--studio-text-muted)]">#{e.sequence}</span>
+        <span className="typo-code w-[4.5rem] shrink-0 text-[var(--studio-text-muted)]">{new Date(e.occurred_at).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
         <span className="w-44 shrink-0"><Chip tone={TYPE_TONE[e.event_type] ?? 'neutral'}>{e.event_type}</Chip></span>
-        <span className="w-36 shrink-0 truncate font-mono text-[11px] text-[var(--studio-text-secondary)]">{e.source}</span>
-        <span className="min-w-0 flex-1 truncate text-[11.5px] text-[var(--studio-text)]">{summary(e)}</span>
+        <span className="typo-code w-36 shrink-0 truncate text-[var(--studio-text-secondary)]">{e.source}</span>
+        <span className="typo-secondary min-w-0 flex-1 truncate text-[var(--studio-text)]">{summary(e)}</span>
         {e.team && <Chip>{e.team}</Chip>}
       </button>
       {open && (
         // Hanging indent aligns detail content under the sequence column:
         // 12px row padding + 14px chevron + 8px gap + 40px sequence + 8px gap.
-        <div className="space-y-2 border-l-2 border-sky-400/30 bg-black/20 pl-[5.25rem] pr-3 py-2 font-mono text-[11px]">
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10.5px] text-[var(--studio-text-muted)]">
+        <div className="typo-code space-y-2 border-l-2 border-sky-400/30 bg-black/20 pl-[5.25rem] pr-3 py-2">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-[var(--studio-text-muted)]">
             <span><Link2 className="mr-1 inline h-3 w-3" />hash {e.entry_hash.slice(0, 16)}…</span>
             <span>prev {e.prev_hash ? `${e.prev_hash.slice(0, 16)}…` : '— (genesis)'}</span>
           </div>

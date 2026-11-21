@@ -54,7 +54,7 @@ export function Workspace({ onSelectAgent }: { onSelectAgent: (id: string) => vo
   }, [maximized, exitMaximize]);
 
   return (
-    <div ref={containerRef} className={`relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${interacting ? 'select-none' : ''}`}>
+    <div ref={containerRef} className={`relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-[74px] ${interacting ? 'select-none' : ''}`}>
       <AnimatePresence>
         {maximized && (
           <motion.div

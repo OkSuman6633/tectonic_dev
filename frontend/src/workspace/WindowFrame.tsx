@@ -63,7 +63,7 @@ export function WindowFrame({ id, title, icon: Icon, accent, status, children }:
             collide with the traffic lights on the left or the status pills on the right. */}
         <div className="pointer-events-none absolute left-1/2 flex max-w-[46%] -translate-x-1/2 items-center justify-center gap-1.5">
           <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: accent }} />
-          <h2 className="truncate text-[13px] font-semibold tracking-[-0.01em] text-[var(--studio-text)]">{title}</h2>
+          <h2 className="typo-panel-heading truncate text-[var(--studio-text)]">{title}</h2>
         </div>
 
         {status && <div className="z-10 ml-auto flex min-w-0 items-center gap-2 overflow-hidden">{status}</div>}

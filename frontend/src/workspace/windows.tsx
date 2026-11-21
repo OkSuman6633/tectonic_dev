@@ -28,7 +28,7 @@ export interface WindowDef {
   DockBadge?: ComponentType;
 }
 
-const pill = 'flex items-center gap-1 rounded-md px-1.5 py-0.5 font-mono text-[10px]';
+const pill = 'typo-status flex items-center gap-1 rounded-md px-1.5 py-0.5 tabular-nums';
 
 function LiveStatus() {
   const status = useTelemetryStore((s) => s.status);
@@ -46,7 +46,7 @@ function WorkingBadge() {
   if (!working) return null;
   // iOS-style count bubble (amber = agents thinking / working).
   return (
-    <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-amber-400 px-1 text-[10px] font-semibold text-black shadow-[0_2px_6px_rgba(0,0,0,0.4)]">
+    <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-amber-400 px-1 font-mono text-[12px] font-medium text-black shadow-[0_2px_6px_rgba(0,0,0,0.4)]">
       {working}
     </span>
   );

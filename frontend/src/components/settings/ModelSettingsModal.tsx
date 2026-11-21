@@ -18,8 +18,8 @@ const KeyField: React.FC<{
   return (
     <div>
       <label className="mb-1 flex items-center justify-between text-slate-300 font-medium">
-        <span className="flex items-center gap-1.5 font-mono text-[11px]"><KeyRound className="h-3 w-3" />{label}</span>
-        <span className={`text-[10px] font-mono ${configured ? 'text-emerald-400' : required ? 'text-amber-300' : 'text-slate-500'}`}>
+        <span className="flex items-center gap-1.5 font-mono text-[12px]"><KeyRound className="h-3 w-3" />{label}</span>
+        <span className={`text-[12px] font-mono ${configured ? 'text-emerald-400' : required ? 'text-amber-300' : 'text-slate-500'}`}>
           {configured ? `Saved ✓ ${hint}` : required ? 'Required for this model' : 'Not set'}
         </span>
       </label>
@@ -32,13 +32,13 @@ const KeyField: React.FC<{
           placeholder={locked ? 'Managed by your admin' : configured ? 'Leave blank to keep the saved key' : placeholder}
           autoComplete="off"
           spellCheck={false}
-          className="h-9 w-full rounded-lg border border-white/10 bg-studio-surface pl-3 pr-10 font-mono text-xs leading-none text-slate-200 focus:border-sky-500 focus:outline-none disabled:opacity-50"
+          className="h-9 w-full rounded-lg border border-white/10 bg-studio-surface pl-3 pr-10 font-mono text-[12px] leading-none text-slate-200 focus:border-sky-500 focus:outline-none disabled:opacity-50"
         />
         <button type="button" onClick={() => setShow(!show)} className="absolute right-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded text-slate-500 hover:bg-white/5 hover:text-slate-300" title={show ? 'Hide' : 'Show'}>
           {show ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
         </button>
       </div>
-      <p className="mt-1 text-[10px] text-slate-500">{help}</p>
+      <p className="mt-1 typo-metadata text-slate-500">{help}</p>
     </div>
   );
 };
@@ -101,10 +101,10 @@ export const ModelSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose 
         title={m.description}
       >
         <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-xs font-semibold">{m.label}</span>
-          <span className="shrink-0 rounded bg-white/10 px-1 text-[9px] uppercase text-slate-400">{m.tag}</span>
+          <span className="typo-agent-name truncate">{m.label}</span>
+          <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[11px] font-medium uppercase text-slate-400">{m.tag}</span>
         </div>
-        <div className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-slate-400">{m.description}</div>
+        <div className="mt-0.5 line-clamp-2 typo-metadata text-slate-400">{m.description}</div>
       </button>
     );
   };
@@ -118,8 +118,8 @@ export const ModelSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose 
               <Cpu className="h-4 w-4 text-white" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-slate-100">Builder model & API keys</h3>
-              <span className="font-mono text-[10px] text-sky-400">
+              <h3 className="typo-panel-heading text-slate-100">Builder model & API keys</h3>
+              <span className="font-mono text-[12px] text-sky-400">
                 Now: {studioSettings ? (catalogue.find((m) => m.id === studioSettings.model)?.label ?? studioSettings.model) : 'loading…'}
               </span>
             </div>
@@ -127,13 +127,13 @@ export const ModelSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose 
           <button onClick={onClose} title="Close" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-white/5 hover:text-white"><X className="h-4 w-4" /></button>
         </div>
 
-        <p className="text-xs leading-relaxed text-slate-300">
+        <p className="typo-secondary text-slate-300">
           The model that designs your agents and writes their code: the Builder, its specialists and the Agent Editor.
-          It switches immediately, no restart, and only for your account. Keys are saved only in the server's <code className="font-mono text-sky-300">.env</code>.
+          It switches immediately, no restart, and only for your account. Keys are saved only in the server's <code className="font-mono text-[12px] text-sky-300">.env</code>.
         </p>
 
         {studioSettings && (
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2 text-[11px]">
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2 text-[12px]">
             <span className="text-slate-300">
               Running on <span className="font-semibold text-slate-100">{catalogue.find((m) => m.id === studioSettings.model)?.label ?? studioSettings.model}</span>
             </span>
@@ -146,26 +146,26 @@ export const ModelSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose 
           </div>
         )}
 
-        <form onSubmit={submit} className="space-y-4 text-xs">
+        <form onSubmit={submit} className="space-y-4 text-[13px]">
           {groups.map(({ provider, models }) => models.length > 0 && (
             <div key={provider}>
-              <div className={`mb-1.5 text-[11px] font-semibold ${PROVIDERS[provider].accent}`}>{PROVIDERS[provider].title}</div>
+              <div className={`mb-1.5 typo-panel-heading ${PROVIDERS[provider].accent}`}>{PROVIDERS[provider].title}</div>
               <div className="grid grid-cols-2 gap-2">{models.map(card)}</div>
             </div>
           ))}
 
           <div>
-            <label className="mb-1 block text-[11px] text-slate-400">Or type any model id</label>
+            <label className="mb-1 block text-[12px] text-slate-400">Or type any model id</label>
             <input
               type="text"
               value={model}
               onChange={(e) => setModel(e.target.value)}
               placeholder="claude-opus-5-5 or gemini-2.5-pro"
               spellCheck={false}
-              className="h-9 w-full rounded-lg border border-white/10 bg-studio-surface px-3 font-mono text-xs leading-none text-slate-200 focus:border-sky-500 focus:outline-none"
+              className="h-9 w-full rounded-lg border border-white/10 bg-studio-surface px-3 font-mono text-[12px] leading-none text-slate-200 focus:border-sky-500 focus:outline-none"
             />
             {!known && model.trim() && (
-              <p className="mt-1 text-[10px] text-slate-500">Custom model · provider: {claude ? 'Anthropic (Claude)' : 'Google (Gemini)'}</p>
+              <p className="mt-1 typo-metadata text-slate-500">Custom model · provider: {claude ? 'Anthropic (Claude)' : 'Google (Gemini)'}</p>
             )}
           </div>
 

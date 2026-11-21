@@ -318,14 +318,14 @@ function StationImpl({ id, position, palette, showLabel }: { id: string; positio
       {(showLabel || inAction || hovered || selected) && (
         <Html position={[0, 2.75, 0]} center distanceFactor={9} zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
           <div
-            className={`office-tag flex flex-col items-center whitespace-nowrap rounded-lg border px-2 py-1 backdrop-blur-md ${
+            className={`office-tag flex flex-col items-center whitespace-nowrap rounded-lg border px-2.5 py-1 backdrop-blur-md ${
               selected ? 'border-sky-400/70 bg-sky-950/70' : 'border-violet-300/25 bg-black/55'
             }`}
           >
-            <span className="text-[11px] font-semibold text-white">{mod.label}</span>
-            <span className={`flex items-center gap-1 font-mono text-[9.5px] ${stateStyle.text}`}>
+            <span className="typo-agent-name text-white">{mod.label}</span>
+            <span className={`typo-status flex items-center gap-1 ${stateStyle.text}`}>
               <span className="h-1.5 w-1.5 rounded-full" style={{ background: stateStyle.color }} />
-              {stateStyle.label} · {mod.totalCalls} calls
+              {stateStyle.label} · <span className="font-mono font-normal">{mod.totalCalls} calls</span>
             </span>
           </div>
         </Html>

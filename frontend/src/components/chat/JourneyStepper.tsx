@@ -76,7 +76,7 @@ export const JourneyStepper: React.FC<Props> = ({ journey, busy }) => {
         {items.map((it, i) => (
           <li key={it.key} className="flex items-center gap-1 flex-1 min-w-0" title={it.title}>
             <span
-              className={`relative shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-semibold border transition-colors ${
+              className={`relative shrink-0 w-5 h-5 rounded-full flex items-center justify-center font-mono text-[10px] font-medium border transition-colors ${
                 it.status === 'done'
                   ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
                   : it.status === 'active'
@@ -91,7 +91,7 @@ export const JourneyStepper: React.FC<Props> = ({ journey, busy }) => {
               {it.status === 'active' && busy && <span className="absolute inset-0 rounded-full border border-sky-400 animate-ping" />}
               {showLabels && (
                 <span
-                  className={`absolute top-full mt-1 whitespace-nowrap text-[9px] font-medium ${
+                  className={`absolute top-full mt-1 whitespace-nowrap font-sans text-[11px] font-medium ${
                     i === 0 ? 'left-0' : i === items.length - 1 ? 'right-0' : 'left-1/2 -translate-x-1/2'
                   } ${
                     it.status === 'active' ? 'text-sky-300' : it.status === 'done' ? 'text-slate-400' : 'text-slate-500'
@@ -107,9 +107,9 @@ export const JourneyStepper: React.FC<Props> = ({ journey, busy }) => {
           </li>
         ))}
       </ol>
-      <div className="mt-1.5 flex items-center justify-between gap-2 text-[10px] min-w-0">
+      <div className="mt-1.5 flex items-center justify-between gap-2 typo-metadata min-w-0">
         <span className="text-slate-300 truncate min-w-0 flex-1 font-medium">{caption}</span>
-        <span className="text-slate-400 font-mono shrink-0 font-medium">
+        <span className="text-slate-400 font-mono shrink-0">
           {items.filter((it) => it.status === 'done').length}/{items.length}
         </span>
       </div>

@@ -238,12 +238,12 @@ export const ArchitectChat: React.FC = () => {
         <div className="flex items-center justify-between gap-2 min-w-0">
           <div className="flex min-w-0 items-center gap-2">
             <div className="h-2 w-2 shrink-0 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(45,212,255,0.7)] animate-pulse" />
-            <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase leading-none tracking-wider text-sky-400 truncate">
+            <span className="flex items-center gap-1.5 text-[12px] font-semibold uppercase leading-none tracking-wider text-sky-400 truncate">
               <Target className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">Architect HUD</span>
             </span>
             {builderSessionId && (
-              <span className="hidden xl:inline-flex h-[18px] shrink-0 items-center rounded bg-white/5 px-1.5 font-mono text-[10px] leading-none text-slate-400 border border-white/10" title={`Session: ${builderSessionId}`}>
+              <span className="hidden xl:inline-flex h-[20px] shrink-0 items-center rounded bg-white/5 px-1.5 font-mono text-[12px] leading-none text-slate-400 border border-white/10" title={`Session: ${builderSessionId}`}>
                 sid:{builderSessionId.slice(0, 6)}
               </span>
             )}
@@ -253,7 +253,7 @@ export const ArchitectChat: React.FC = () => {
             {/* Create Another Agent Button */}
             <button
               onClick={() => startNewBuilderSession()}
-              className="flex h-7 items-center gap-1 rounded-lg border border-sky-500/30 bg-sky-500/15 px-2.5 text-[11px] font-semibold leading-none text-sky-300 shadow-sm transition-all hover:bg-sky-500/25 hover:text-sky-200 active:scale-95 shrink-0"
+              className="flex h-7 items-center gap-1 rounded-lg border border-sky-500/30 bg-sky-500/15 px-2.5 text-[12px] font-medium leading-none text-sky-300 shadow-sm transition-all hover:bg-sky-500/25 hover:text-sky-200 active:scale-95 shrink-0"
               title="Start a new session to create another agent"
             >
               <Plus className="h-3.5 w-3.5 shrink-0" />
@@ -283,11 +283,11 @@ export const ArchitectChat: React.FC = () => {
 
         {/* HUD Content */}
         {!hudCollapsed && (
-          <div className="mt-2.5 max-h-[160px] overflow-y-auto pr-1 space-y-2 text-xs animate-in fade-in duration-200 scrollbar-thin">
+          <div className="mt-2.5 max-h-[160px] overflow-y-auto pr-1 space-y-2 animate-in fade-in duration-200 scrollbar-thin">
             {/* Goal */}
             <div className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5 shadow-inner">
-              <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Identified Goal</span>
-              <p className="text-slate-200 text-xs leading-relaxed select-text font-normal break-words">
+              <span className="mb-1 block text-[12px] font-semibold uppercase tracking-wider text-slate-400">Identified Goal</span>
+              <p className="typo-secondary text-slate-200 select-text break-words">
                 {spec.goal || 'Describe your agent to establish requirements and architecture...'}
               </p>
             </div>
@@ -295,25 +295,25 @@ export const ArchitectChat: React.FC = () => {
             {/* Configured Tools & Capabilities */}
             <div className="rounded-lg border border-white/10 bg-white/[0.02] p-2">
               <div className="mb-1.5 flex items-center justify-between gap-2 min-w-0">
-                <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-sky-400 truncate">
+                <span className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-sky-400 truncate">
                   <Wrench className="h-3.5 w-3.5 shrink-0" />
                   Configured Tools ({spec.tools.length})
                 </span>
-                <span className="shrink-0 font-mono text-[10px] font-semibold text-sky-300 bg-sky-500/10 px-1.5 py-0.5 rounded border border-sky-500/20">Real-time sync</span>
+                <span className="typo-status shrink-0 text-sky-300 bg-sky-500/10 px-1.5 py-0.5 rounded border border-sky-500/20">Real-time sync</span>
               </div>
               <div className="flex flex-wrap gap-1">
                 {spec.tools.length > 0 ? (
                   spec.tools.map((t) => (
                     <span
                       key={t.name}
-                      className="inline-flex h-[20px] items-center gap-1 rounded-md border border-sky-500/25 bg-sky-500/10 px-1.5 font-mono text-[10px] font-medium text-sky-200 shadow-sm"
+                      className="inline-flex h-[22px] items-center gap-1 rounded-md border border-sky-500/25 bg-sky-500/10 px-1.5 font-mono text-[12px] text-sky-200 shadow-sm"
                     >
                       <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400 shadow-[0_0_6px_rgba(45,212,255,0.8)]" />
                       {t.name}
                     </span>
                   ))
                 ) : (
-                  <span className="text-[11px] text-slate-500 italic">No tools configured yet</span>
+                  <span className="typo-metadata text-slate-500 italic">No tools configured yet</span>
                 )}
               </div>
             </div>
@@ -321,25 +321,25 @@ export const ArchitectChat: React.FC = () => {
             {/* Safety Guardrails */}
             <div className="rounded-lg border border-white/10 bg-white/[0.02] p-2">
               <div className="mb-1.5 flex items-center justify-between gap-2 min-w-0">
-                <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400 truncate">
+                <span className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-emerald-400 truncate">
                   <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
                   Safety Guardrails ({spec.guardrails.length})
                 </span>
-                <span className="shrink-0 font-mono text-[10px] font-semibold text-emerald-300 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">Zero-LLM Filter</span>
+                <span className="typo-status shrink-0 text-emerald-300 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">Zero-LLM Filter</span>
               </div>
               <div className="flex flex-wrap gap-1">
                 {spec.guardrails.length > 0 ? (
                   spec.guardrails.map((g) => (
                     <span
                       key={g.id}
-                      className="inline-flex h-[20px] items-center gap-1 rounded-md border border-emerald-500/25 bg-emerald-500/10 px-1.5 text-[10px] font-medium text-emerald-200 shadow-sm"
+                      className="inline-flex h-[22px] items-center gap-1 rounded-md border border-emerald-500/25 bg-emerald-500/10 px-1.5 text-[12px] text-emerald-200 shadow-sm"
                     >
                       <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
                       {g.name}
                     </span>
                   ))
                 ) : (
-                  <span className="text-[11px] text-slate-500 italic">No guardrails active</span>
+                  <span className="typo-metadata text-slate-500 italic">No guardrails active</span>
                 )}
               </div>
             </div>
@@ -350,14 +350,14 @@ export const ArchitectChat: React.FC = () => {
       {/* Chat Messages Stream */}
       <div
         ref={chatScrollRef}
-        className="flex-1 overflow-y-auto p-3.5 space-y-4 scroll-smooth min-h-0"
+        className="flex-1 overflow-y-auto overflow-x-hidden p-3.5 space-y-4 scroll-smooth min-h-0"
       >
         {chatMessages.map((msg) => {
           const isUser = msg.sender === 'user';
           if (msg.sender === 'system') {
             return (
               <div key={msg.id} className="flex justify-center">
-                <div className="max-w-[85%] text-[11px] text-slate-300 bg-white/[0.04] border border-white/10 rounded-full px-3 py-1">
+                <div className="max-w-[85%] min-w-0 text-[12px] text-slate-300 bg-white/[0.04] border border-white/10 rounded-full px-3 py-1 break-words [overflow-wrap:anywhere]">
                   <MarkdownContent content={msg.content} />
                 </div>
               </div>
@@ -367,7 +367,7 @@ export const ArchitectChat: React.FC = () => {
           return (
             <div
               key={msg.id}
-              className={`group flex gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
+              className={`group flex min-w-0 gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
             >
               {!isUser && (
                 <ChatbotAvatar className="w-8 h-8 mt-0.5" />
@@ -375,18 +375,18 @@ export const ArchitectChat: React.FC = () => {
 
               <div className={`max-w-[85%] min-w-0 flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
                 <div className={`flex items-center gap-1.5 mb-1 flex-wrap ${isUser ? 'justify-end' : 'justify-start'}`}>
-                  <span className="text-[11px] font-semibold text-slate-200">
+                  <span className="typo-agent-name text-slate-200">
                     {isUser ? 'You (Architect)' : direct ? msg.agentName : 'Meta-Agent Builder'}
                   </span>
                   {msg.agentTarget && (
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                    <span className="text-[12px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
                       {isUser ? '→ ' : ''}@{msg.agentTarget}
                     </span>
                   )}
-                  <span className="text-[10px] text-slate-400 font-mono">{msg.timestamp}</span>
+                  <span className="typo-metadata font-mono text-slate-400">{msg.timestamp}</span>
                   {!isUser && msg.content && <CopyButton text={msg.content} />}
                   {msg.recovered && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20" title="This reply finished while the page was being refreshed and was recovered from the server">
+                    <span className="typo-status px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20" title="This reply finished while the page was being refreshed and was recovered from the server">
                       recovered
                     </span>
                   )}
@@ -394,7 +394,7 @@ export const ArchitectChat: React.FC = () => {
 
                 {/* Message Body */}
                 <div
-                  className={`p-3.5 rounded-2xl text-xs leading-relaxed break-words overflow-hidden ${isUser
+                  className={`typo-body max-w-full min-w-0 p-3.5 rounded-2xl break-words [overflow-wrap:anywhere] overflow-hidden ${isUser
                       ? 'bg-gradient-to-r from-sky-600 to-blue-600 text-white rounded-tr-none shadow-md shadow-sky-600/20 border border-sky-400/20'
                       : 'bg-slate-900/80 border border-white/10 text-slate-100 rounded-tl-none shadow-md shadow-black/20 backdrop-blur-md'
                     }`}
@@ -435,10 +435,10 @@ export const ArchitectChat: React.FC = () => {
               <div className="mx-auto mb-2.5 w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20 text-white">
                 <Sparkles className="w-5 h-5" />
               </div>
-              <h3 className="text-sm font-bold text-slate-100 tracking-tight">
+              <h3 className="typo-section-heading text-slate-100">
                 Ask anything. Tectonic builds or runs the right agent.
               </h3>
-              <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">
+              <p className="typo-secondary text-slate-400 mt-1 max-w-sm mx-auto">
                 With Autopilot, questions route to existing agents or automatically design and deploy a custom ADK agent.
               </p>
             </div>
@@ -446,7 +446,7 @@ export const ArchitectChat: React.FC = () => {
             <div className="space-y-3.5">
               {/* Quick Prompts (Autopilot) */}
               <div>
-                <div className="flex items-center gap-1.5 mb-2 text-[10px] font-bold uppercase tracking-wider text-sky-400">
+                <div className="flex items-center gap-1.5 mb-2 text-[12px] font-semibold uppercase tracking-wider text-sky-400">
                   <Zap className="w-3.5 h-3.5 shrink-0" /> Quick Prompts (Autopilot)
                 </div>
                 <div className="flex flex-col gap-2">
@@ -461,11 +461,11 @@ export const ArchitectChat: React.FC = () => {
                         <div className="w-6 h-6 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
                           <MessageSquare className="w-3.5 h-3.5" />
                         </div>
-                        <span className="text-xs leading-relaxed text-slate-700 dark:text-slate-200 group-hover:text-slate-950 dark:group-hover:text-white flex-1 break-words font-medium transition-colors">
+                        <span className="typo-secondary text-slate-700 dark:text-slate-200 group-hover:text-slate-950 dark:group-hover:text-white flex-1 break-words transition-colors">
                           {q}
                         </span>
                       </div>
-                      <span className="text-[10px] font-mono font-semibold text-sky-700 dark:text-sky-300 bg-sky-500/15 px-2 py-0.5 rounded-md border border-sky-500/30 group-hover:bg-sky-600 dark:group-hover:bg-sky-500 group-hover:text-white group-hover:border-sky-600 dark:group-hover:border-sky-500 transition-colors shrink-0 mt-0.5">
+                      <span className="typo-status text-sky-700 dark:text-sky-300 bg-sky-500/15 px-2 py-0.5 rounded-md border border-sky-500/30 group-hover:bg-sky-600 dark:group-hover:bg-sky-500 group-hover:text-white group-hover:border-sky-600 dark:group-hover:border-sky-500 transition-colors shrink-0 mt-0.5">
                         Ask →
                       </span>
                     </button>
@@ -475,7 +475,7 @@ export const ArchitectChat: React.FC = () => {
 
               {/* Guided Agent Builds */}
               <div>
-                <div className="flex items-center gap-1.5 mb-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                <div className="flex items-center gap-1.5 mb-2 text-[12px] font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
                   <Hammer className="w-3.5 h-3.5 shrink-0" /> Guided Agent Builds
                 </div>
                 <div className="flex flex-col gap-2">
@@ -490,14 +490,14 @@ export const ArchitectChat: React.FC = () => {
                       <ChatbotAvatar className="w-7 h-7 mt-0.5 group-hover:scale-105 transition-transform" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 mb-0.5">
-                          <span className="font-semibold text-xs text-indigo-600 dark:text-indigo-300 group-hover:text-indigo-800 dark:group-hover:text-indigo-200 transition-colors">
+                          <span className="typo-agent-name text-indigo-600 dark:text-indigo-300 group-hover:text-indigo-800 dark:group-hover:text-indigo-200 transition-colors">
                             {b.label}
                           </span>
-                          <span className="text-[10px] font-mono font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-500/15 px-2 py-0.5 rounded-md border border-indigo-500/30 group-hover:bg-indigo-600 dark:group-hover:bg-indigo-500 group-hover:text-white group-hover:border-indigo-600 dark:group-hover:border-indigo-500 transition-colors shrink-0">
+                          <span className="typo-status text-indigo-700 dark:text-indigo-300 bg-indigo-500/15 px-2 py-0.5 rounded-md border border-indigo-500/30 group-hover:bg-indigo-600 dark:group-hover:bg-indigo-500 group-hover:text-white group-hover:border-indigo-600 dark:group-hover:border-indigo-500 transition-colors shrink-0">
                             Build →
                           </span>
                         </div>
-                        <p className="text-[11.5px] leading-relaxed text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-300 break-words font-normal transition-colors">
+                        <p className="typo-secondary text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-300 break-words transition-colors">
                           {b.prompt}
                         </p>
                       </div>
@@ -530,13 +530,13 @@ export const ArchitectChat: React.FC = () => {
       {/* Follow-ups for the latest reply */}
       {!isWelcome && !isChatLoading && (
         <div className="flex shrink-0 items-center gap-2 overflow-x-auto border-t border-white/10 bg-slate-900/60 px-3 py-1.5 no-scrollbar">
-          <span className="shrink-0 font-mono text-[10px] uppercase leading-none text-slate-400">Next:</span>
+          <span className="typo-metadata shrink-0 uppercase leading-none text-slate-400">Next:</span>
           {followUps(lastAssistant).map((f) => (
             <button
               key={f.label}
               type="button"
               onClick={f.run}
-              className="inline-flex h-6 max-w-[280px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-white/10 bg-white/5 px-2.5 text-[11px] leading-none text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
+              className="inline-flex h-6 max-w-[280px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-white/10 bg-white/5 px-2.5 text-[12px] leading-none text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
               title={f.label}
             >
               <f.icon className="h-3.5 w-3.5 shrink-0" />
@@ -557,7 +557,7 @@ export const ArchitectChat: React.FC = () => {
             type="button"
             onClick={toggleAutopilot}
             aria-pressed={autopilot}
-            className={`inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[10px] font-bold leading-none transition-all shadow-sm ${autopilot
+            className={`typo-status inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border px-2.5 leading-none transition-all shadow-sm ${autopilot
                 ? 'bg-sky-500/20 text-sky-200 border-sky-500/40 shadow-[0_0_12px_-4px_rgba(45,212,255,0.7)]'
                 : 'bg-white/[0.04] text-slate-400 border-white/10 hover:text-slate-200 hover:bg-white/[0.08]'}`}
             title="Ask anything: Tectonic answers directly, asks one of your agents, or builds an agent only when the job needs one"
@@ -570,7 +570,7 @@ export const ArchitectChat: React.FC = () => {
         {(attach.files.length > 0 || attach.error) && (
           <div className="mb-2 space-y-1">
             <AttachmentChips files={attach.files} onRemove={attach.remove} />
-            {attach.error && <div className="text-[11px] text-amber-400 font-medium">{attach.error}</div>}
+            {attach.error && <div className="typo-status text-amber-400">{attach.error}</div>}
           </div>
         )}
         <div className="relative flex items-end">
@@ -591,7 +591,7 @@ export const ArchitectChat: React.FC = () => {
               : autopilot
                 ? 'Ask anything or describe an agent to build (Shift+Enter for newline)…'
                 : 'Describe an agent to build, or type @ to pick one…'}
-            className="w-full resize-none text-xs leading-relaxed bg-slate-950/80 border border-white/10 rounded-xl pl-9 pr-10 py-2.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-500/60 focus:ring-1 focus:ring-sky-500/30 transition-all min-h-[40px] shadow-inner"
+            className="typo-body w-full resize-none bg-slate-950/80 border border-white/10 rounded-xl pl-9 pr-10 py-2.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-500/60 focus:ring-1 focus:ring-sky-500/30 transition-all min-h-[40px] shadow-inner"
           />
           <button
             type="submit"
