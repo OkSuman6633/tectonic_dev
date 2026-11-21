@@ -42,20 +42,9 @@ def _ctx() -> CallContext:
                        role="worker")
 
 
-def _allowed_connectors() -> set[str]:
-    """Connector names the signed-in user's plan entitles them to (fail open)."""
-    try:
-        from agent_builder import entitlements
-
-        return set(entitlements.allowed_connectors(entitlements.effective_plan_id(current_user())))
-    except Exception:  # pragma: no cover - entitlements unavailable
-        return {cls.name for cls in all_connectors()}
-
-
 @router.get("/catalog")
 async def catalog() -> dict:
-    allowed = _allowed_connectors()
-    return {"connectors": [cls.describe() for cls in all_connectors() if cls.name in allowed]}
+    return {"connectors": [cls.describe() for cls in all_connectors()]}
 
 
 @router.get("/connections")
@@ -70,12 +59,9 @@ async def connect(body: dict = Body(...)) -> dict:
         raise HTTPException(400, "values must be an object of credential fields")
     if len(json.dumps(values)) > _MAX_VALUES_BYTES:
         raise HTTPException(413, "credential payload too large")
-    connector = str(body.get("connector") or "")
-    if connector not in _allowed_connectors():
-        raise HTTPException(403, {"code": "CONNECTOR_LOCKED", "detail": f"Connector '{connector}' is not included in your plan."})
     try:
         connection = clean_label(body.get("connection"))
-        result = await _module().connect(owner=_owner(), connector=connector,
+        result = await _module().connect(owner=_owner(), connector=str(body.get("connector") or ""),
                                          scheme=str(body.get("scheme") or ""), values=values, connection=connection)
     except ConnectorError as exc:  # message already scrubbed of secrets
         raise HTTPException(400, {"code": exc.code, "message": str(exc)}) from None

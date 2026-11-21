@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
 
-export type WindowId = 'chat' | 'command' | 'blueprint' | 'roster' | 'events' | 'sandbox' | 'inspector' | 'knowledge' | 'finops' | 'promptops' | 'audit' | 'connectors' | 'images';
+export type WindowId = 'chat' | 'command' | 'blueprint' | 'roster' | 'events' | 'sandbox' | 'inspector' | 'knowledge' | 'finops' | 'promptops' | 'audit' | 'connectors';
 export type PresetId = 'build' | 'monitor' | 'debug' | 'platform';
 
 export interface Cell {
@@ -15,7 +15,7 @@ export interface Cell {
 export const GRID_COLS = 24;
 export const GRID_ROWS = 24;
 
-export const ALL_WINDOWS: WindowId[] = ['chat', 'command', 'blueprint', 'roster', 'events', 'sandbox', 'inspector', 'knowledge', 'finops', 'promptops', 'audit', 'connectors', 'images'];
+export const ALL_WINDOWS: WindowId[] = ['chat', 'command', 'blueprint', 'roster', 'events', 'sandbox', 'inspector', 'knowledge', 'finops', 'promptops', 'audit', 'connectors'];
 
 interface Preset {
   label: string;
@@ -89,7 +89,6 @@ const FALLBACK: Record<WindowId, Cell> = {
   promptops: { x: 17, y: 0, w: 7, h: 14 },
   audit: { x: 0, y: 14, w: 14, h: 10 },
   connectors: { x: 14, y: 0, w: 10, h: 16 },
-  images: { x: 14, y: 0, w: 10, h: 16 },
 };
 
 const GRID_COLS_FALLBACK = 24;

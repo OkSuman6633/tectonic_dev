@@ -206,16 +206,6 @@ def _team(context: Any) -> Optional[str]:
         return None
 
 
-def _entitlements():
-    """The plan engine, if importable (fail open: telemetry must never break an agent)."""
-    try:
-        from . import entitlements
-
-        return entitlements
-    except Exception:  # pragma: no cover
-        return None
-
-
 def _response_model(callback_context: Any, llm_response: Any) -> str:
     version = getattr(llm_response, "model_version", None)
     if isinstance(version, str) and version:
@@ -239,12 +229,6 @@ class TelemetryPlugin(BasePlugin):
     # --- runs -------------------------------------------------------------------------------
     async def before_run_callback(self, *, invocation_context: Any) -> None:
         hub._loop = asyncio.get_running_loop()
-        ent = _entitlements()
-        if ent is not None:
-            try:
-                ent.begin_run(current_user())
-            except Exception:  # pragma: no cover
-                pass
         hub.emit(
             "RUN_STARTED",
             invocation_id=invocation_context.invocation_id,
@@ -255,12 +239,6 @@ class TelemetryPlugin(BasePlugin):
         return None
 
     async def after_run_callback(self, *, invocation_context: Any) -> None:
-        ent = _entitlements()
-        if ent is not None:
-            try:
-                ent.end_run()
-            except Exception:  # pragma: no cover
-                pass
         hub.emit(
             "RUN_COMPLETED",
             invocation_id=invocation_context.invocation_id,
@@ -271,12 +249,6 @@ class TelemetryPlugin(BasePlugin):
         await self._record_prompt_outcome(invocation_context, passed=True)
 
     async def on_run_error_callback(self, *, invocation_context: Any, error: Exception) -> None:
-        ent = _entitlements()
-        if ent is not None:
-            try:
-                ent.end_run()
-            except Exception:  # pragma: no cover
-                pass
         await self._record_prompt_outcome(invocation_context, passed=False)
 
     async def _record_prompt_outcome(self, invocation_context: Any, passed: bool) -> None:
@@ -337,26 +309,6 @@ class TelemetryPlugin(BasePlugin):
 
                 hub.emit("AGENT_STATE_CHANGE", id=agent_id, state="error", detail="budget exhausted")
                 return LlmResponse(content=genai_types.Content(role="model", parts=[genai_types.Part.from_text(text=reason)]))
-        ent = _entitlements()
-        if ent is not None and not blocked:
-            try:
-                ent.note_iteration()
-                plan = ent.effective_plan_id(current_user())
-                reasons: list[str] = []
-                if ent.quota_exhausted(current_user(), plan):
-                    reasons.append("LIMIT_TOKENS_EXCEEDED — your monthly allowance is used up. Upgrade or wait for the next cycle.")
-                if ent.run_cap_exhausted(plan):
-                    reasons.append("LIMIT_TOKENS_EXCEEDED — this run has reached its token limit. Upgrade to raise it.")
-                if ent.iterations_exhausted(plan):
-                    reasons.append("LIMIT_ITERATIONS_EXCEEDED — this run has reached its step limit. Upgrade to raise it.")
-                if reasons:
-                    from google.adk.models.llm_response import LlmResponse
-                    from google.genai import types as genai_types
-
-                    hub.emit("AGENT_STATE_CHANGE", id=agent_id, state="error", detail=reasons[0])
-                    return LlmResponse(content=genai_types.Content(role="model", parts=[genai_types.Part.from_text(text="; ".join(reasons))]))
-            except Exception as exc:  # plan guardrail failures must not take agents down
-                logger.warning("Plan guardrail check failed: %s", exc)
         hub.emit("AGENT_STATE_CHANGE", id=agent_id, state="thinking")
         return None
 
@@ -403,14 +355,6 @@ class TelemetryPlugin(BasePlugin):
                                                     output_tokens=completion_tokens, kind="agent")
                 except Exception as exc:
                     logger.warning("FinOps metering failed: %s", exc)
-            ent = _entitlements()
-            if ent is not None:
-                try:
-                    total = getattr(usage, "total_token_count", 0) or (prompt_tokens + completion_tokens)
-                    ent.add_run_tokens(int(total))
-                    ent.record_tokens(current_user(), int(total))
-                except Exception as exc:
-                    logger.warning("Plan metering failed: %s", exc)
         error = getattr(llm_response, "error_message", None)
         if error:
             hub.emit("AGENT_STATE_CHANGE", id=agent_id, state="error", detail=str(error)[:500])

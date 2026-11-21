@@ -17,7 +17,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Body, HTTPException
 
-from . import auth, entitlements
+from . import auth
 from .tools.file_manager import resolve_safe_path
 from .workspace import current_user, module_prefix, output_dir
 
@@ -105,97 +105,7 @@ async def auth_login(body: dict = Body(...)):
 
 @router.get("/auth/me")
 async def auth_me():
-    user = current_user_info()
-    return {"user": user, "plan_id": entitlements.get_plan_id(current_user())}
-
-
-# --- subscription plans (no payment yet: choosing/switching is free) -----------------------------
-@router.get("/api/plans")
-async def list_plans():
-    """Every plan for the picker/compare UI, with the user's current choice flagged."""
-    return {"plans": entitlements.public_plans(current_user())}
-
-
-@router.get("/api/plan")
-async def current_plan():
-    """The signed-in user's plan and what it entitles them to (models, modules, usage)."""
-    return entitlements.plan_status(current_user())
-
-
-@router.put("/api/plan")
-async def choose_plan(body: dict = Body(...)):
-    """Choose or switch plan: {plan_id}. Free and immediate while there is no billing."""
-    plan_id = str(body.get("plan_id", "")).strip()
-    try:
-        entitlements.set_plan_id(current_user(), plan_id)
-    except ValueError as exc:
-        raise HTTPException(400, str(exc)) from exc
-    return entitlements.plan_status(current_user())
-
-
-@router.get("/api/plan/report")
-async def plan_report():
-    """Account-wide plan-compliance report: live usage vs. limits, plus one report per project."""
-    return entitlements.account_report(current_user())
-
-
-# --- image generation for the Studio's Image window (owner-scoped, plan-gated) -------------------
-def _image_ctx() -> "tectonic_runtime.CallContext":  # type: ignore[name-defined]
-    from tectonic_runtime import CallContext
-
-    return CallContext(agent_id="studio_user", tenant_id=current_user() or "default",
-                       session_id="studio-images", role="worker")
-
-
-@router.get("/api/images/recent")
-async def recent_images():
-    """Images this account has generated, newest first (rendered by the Image window)."""
-    from tectonic_runtime import get_runtime
-
-    result = await get_runtime().module("image_generation").invoke("recent", {"whole_account": True}, _image_ctx())
-    if not result.ok:
-        raise HTTPException(400, result.error)
-    return result.data
-
-
-@router.post("/api/images/generate")
-async def generate_image(body: dict = Body(...)):
-    """Generate images from a prompt for this account: {prompt, aspect_ratio?, count?, style?}."""
-    from tectonic_runtime import get_runtime
-
-    if not entitlements.module_allowed(entitlements.effective_plan_id(current_user()), "image_generation"):
-        raise HTTPException(403, {"code": "MODULE_LOCKED", "detail": "Image generation is not included in your plan."})
-    prompt = str(body.get("prompt", "")).strip()
-    if not prompt:
-        raise HTTPException(400, "prompt is required")
-    result = await get_runtime().module("image_generation").invoke("generate", {
-        "prompt": prompt,
-        "aspect_ratio": str(body.get("aspect_ratio", "1:1")),
-        "count": max(1, min(4, int(body.get("count", 1)))),
-        "style": str(body.get("style", "auto")),
-    }, _image_ctx())
-    if not result.ok:
-        raise HTTPException(400, result.error)
-    return result.data
-
-
-# --- web search provider choice (DuckDuckGo / Tavily / Apify) -------------------------------------
-@router.get("/api/web-search")
-async def web_search_status():
-    from .tools import web_search
-
-    return web_search.providers_status(current_user())
-
-
-@router.put("/api/web-search")
-async def web_search_choose(body: dict = Body(...)):
-    from .tools import web_search
-
-    try:
-        web_search.set_provider(current_user(), str(body.get("provider", "")).strip().lower())
-    except ValueError as exc:
-        raise HTTPException(400, str(exc)) from exc
-    return web_search.providers_status(current_user())
+    return {"user": current_user_info()}
 
 
 # --- the Builder's model ------------------------------------------------------------------------

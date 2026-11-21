@@ -12,7 +12,6 @@ import {
   RefreshCw,
   LogOut,
   UserCircle2,
-  Gem,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAgentStudioStore, type StudioTab } from './store/useAgentStudioStore';
@@ -22,10 +21,7 @@ import { Dock } from './workspace/Dock';
 import { PRESETS, useWorkspaceStore, type PresetId, type WindowId } from './workspace/useWorkspaceStore';
 import { refreshAllViews } from './workspace/refreshAllViews';
 import { ModelSettingsModal } from './components/settings/ModelSettingsModal';
-import { PlanPicker } from './components/plans/PlanPicker';
-import { PlanReportPanel } from './components/plans/PlanReportPanel';
 import { getUser, signOut } from './services/auth';
-import { getPlan } from './services/plans';
 
 // Store code still asks for a "tab" (e.g. after a build: 'sandbox'); in the workspace that means "reveal this window".
 const TAB_TO_WINDOW: Record<StudioTab, WindowId> = { command: 'command', visualizer: 'blueprint', sandbox: 'sandbox', inspector: 'inspector' };
@@ -82,7 +78,6 @@ export const App: React.FC = () => {
     refreshCreatedAgents,
     startNewBuilderSession,
     restoreStudio,
-    loadStudioSettings,
     isRefreshing,
   } = useAgentStudioStore();
   const connectTelemetry = useTelemetryStore((s) => s.connect);
@@ -100,8 +95,6 @@ export const App: React.FC = () => {
   }, [tabNonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [agentDropdownOpen, setAgentDropdownOpen] = useState(false);
-  const [planName, setPlanName] = useState<string | null>(null);
-  const [showPlanModal, setShowPlanModal] = useState(false);
   const signedIn = getUser();
   const builderModelLabel = studioSettings
     ? (studioSettings.catalogue.find((m) => m.id === studioSettings.model)?.label ?? studioSettings.model)
@@ -139,15 +132,7 @@ export const App: React.FC = () => {
     // Reopen the conversations, sessions and agent from before the page refresh (or start fresh).
     restoreStudio();
     connectTelemetry();
-    // Current plan (for the nav badge and "Change plan" modal).
-    getPlan().then((s) => { if (s) setPlanName(s.plan.name); }).catch(() => {});
   }, []);
-
-  const handlePlanSelected = () => {
-    setShowPlanModal(false);
-    getPlan().then((s) => { if (s) setPlanName(s.plan.name); }).catch(() => {});
-    loadStudioSettings(); // the model picker catalogue changes with the plan
-  };
 
   const handleStartNewAgent = () => {
     startNewBuilderSession();
@@ -249,16 +234,6 @@ export const App: React.FC = () => {
             <span className="truncate">Builder · {builderModelLabel}</span>
           </button>
 
-          {/* Current plan + change plan */}
-          <button
-            onClick={() => setShowPlanModal(true)}
-            className="flex items-center gap-1.5 rounded-full bg-white/[0.06] px-3 py-1 text-[12px] font-medium text-[var(--studio-text-secondary)] transition-colors hover:bg-white/[0.1] hover:text-[var(--studio-text)]"
-            title="View or change your plan"
-          >
-            <Gem className="h-3.5 w-3.5 text-fuchsia-300" />
-            <span>{planName ?? 'Plan'}</span>
-          </button>
-
           {/* Re-sync agents, files, sessions and history with the backend (the conversation is kept) */}
           <button
             onClick={() => refreshAllViews()}
@@ -315,18 +290,6 @@ export const App: React.FC = () => {
 
       {/* Builder model (Claude or Gemini) and provider API keys */}
       {showEnvModal && <ModelSettingsModal onClose={() => setShowEnvModal(false)} />}
-
-      {/* Change plan + live plan usage */}
-      {showPlanModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-studio-border bg-studio-card p-6 shadow-2xl">
-            <PlanPicker embedded onClose={() => setShowPlanModal(false)} onSelected={handlePlanSelected} />
-            <div className="mt-6 border-t border-white/10 pt-5">
-              <PlanReportPanel />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

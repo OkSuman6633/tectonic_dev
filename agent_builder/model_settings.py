@@ -75,17 +75,6 @@ def _provider_name(provider: str) -> str:
     return "Anthropic" if provider == "anthropic" else "Google"
 
 
-def _catalogue_for(account: str | None) -> list[dict]:
-    """The model picker filtered to the account's plan (fail open if entitlements are unavailable)."""
-    try:
-        from . import entitlements
-
-        allowed = set(entitlements.allowed_models(entitlements.effective_plan_id(account)))
-        return [m for m in CATALOGUE if m["id"] in allowed]
-    except Exception:
-        return CATALOGUE
-
-
 def _hint(key: str) -> str:
     """The first characters of a key: enough to tell which key it is, never enough to use it."""
     return f"{key[:6]}…" if key else ""
@@ -282,7 +271,7 @@ def status(admin: bool = True) -> dict:
         "can_edit_default": can_edit_default,
         "can_edit_keys": can_edit_default,  # older Studio builds read this name
         "default_managed_by": "studio" if not _on_cloud_run() else "deployment",
-        "catalogue": _catalogue_for(account),
+        "catalogue": CATALOGUE,
         "has_anthropic_key": bool(anthropic_key), "anthropic_key_hint": _hint(anthropic_key),
         "has_google_key": bool(google_key), "google_key_hint": _hint(google_key),
     }
@@ -369,18 +358,6 @@ async def save_custom(model: str, api_key: str | None = None, admin: bool = True
     account = _require_account()
     model = _validate_model(model)
     provider = provider_of(model)
-    try:  # plan gating: BYOK and model tier (fail open if entitlements are unavailable)
-        from . import entitlements
-
-        plan_id = entitlements.effective_plan_id(account)
-        if not entitlements.allow_byok(plan_id):
-            raise SettingsError("Your plan does not allow a custom model. Upgrade to Pro to use your own model and key.")
-        if not entitlements.model_allowed(plan_id, model):
-            raise SettingsError(f"{model} is not available on your plan. Upgrade to unlock it.")
-    except SettingsError:
-        raise
-    except Exception:
-        pass
     new_key = (api_key or "").strip() or None
     if new_key:
         _validate_key_format(provider, new_key)

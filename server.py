@@ -19,8 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from google.adk.cli.fast_api import get_fast_api_app
 from google.adk.cli.utils._nested_agent_loader import NestedAgentLoader
 
-from agent_builder import directory, editor, entitlements, studio_api
-from agent_builder.workspace import current_user
+from agent_builder import directory, editor, studio_api
 from agent_builder.telemetry import hub
 from agent_builder.telemetry import router as telemetry_router
 from tectonic_runtime import bus as module_bus
@@ -97,20 +96,10 @@ hub.add_listener(lambda event: None if event.get("type", "").startswith("MODULE_
 OPERATOR = CallContext(agent_id="operator", role="operator", session_id="command-center")
 
 
-def _allowed_modules() -> set[str]:
-    """The module names the signed-in user's plan entitles them to (fail open)."""
-    try:
-        return entitlements.allowed_modules(entitlements.effective_plan_id(current_user()))
-    except Exception:  # pragma: no cover - entitlements unavailable
-        return set(runtime.modules)
-
-
 @app.post("/modules/{module}/{operation}")
 async def invoke_module(module: str, operation: str, payload: dict = Body(default_factory=dict)) -> dict:
     if module not in runtime.modules:
         raise HTTPException(404, f"unknown module {module!r}")
-    if module not in _allowed_modules():
-        raise HTTPException(403, {"code": "MODULE_LOCKED", "detail": f"Module '{module}' is not included in your plan."})
     result = await runtime.invoke(module, operation, payload, OPERATOR)
     return result.to_dict()
 
@@ -125,8 +114,7 @@ async def _flush_state() -> None:
 
 @app.get("/modules")
 async def list_modules() -> dict:
-    allowed = _allowed_modules()
-    return {"modules": [m for m in runtime.describe() if m["module"] in allowed], "simulation_running": is_running()}
+    return {"modules": runtime.describe(), "simulation_running": is_running()}
 
 
 @app.post("/modules/simulate")
