@@ -22,6 +22,7 @@ import { useAgentStudioStore } from '../../store/useAgentStudioStore';
 import { DecisionCardGroup } from './DecisionCardGroup';
 import { JourneyStepper } from './JourneyStepper';
 import { AgentTargetPicker, MentionSuggestions } from './AgentTargetPicker';
+import { SearchProviderPicker } from './SearchProviderPicker';
 import { CallTrace } from './CallTrace';
 import { GeneratedImages } from './GeneratedImages';
 import { SpecCard } from './SpecCard';
@@ -565,6 +566,7 @@ export const ArchitectChat: React.FC = () => {
           <div className="min-w-0 flex-1">
             <AgentTargetPicker />
           </div>
+          <SearchProviderPicker />
           <button
             type="button"
             onClick={toggleAutopilot}

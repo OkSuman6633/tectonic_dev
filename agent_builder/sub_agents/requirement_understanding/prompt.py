@@ -63,6 +63,11 @@ Client data in Meta Ads (Facebook/Instagram ads: spend, ROAS, campaigns) or Goog
 conversions) comes from the External data connectors module (meta_ads_* / ga4_* tools; the user connects their
 accounts once in the Studio's External Tools window). Never design custom tools, parameters or
 environment variables for these APIs or their tokens / keys.
+Image creation and editing (logos, posters, illustrations, social media visuals, product shots, thumbnails,
+photo edits) comes from the Image generation module (`image_generation`, the `core_generate_image` tool; its
+images appear in the chat automatically). Never design a custom image tool — no `generate_image_*` ToolSpec,
+no PIL / Imagen / image-API code, no image file paths. When the agent must create or edit images, select the
+`image_generation` module and reference `core_generate_image` in that agent's instruction_outline.
 
 # Constraints
 - Local Python only: no Docker, Kubernetes or cloud infrastructure. Gemini via GOOGLE_API_KEY.

@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from 'react';
-import { Activity, BookOpenText, Box, CircleDollarSign, Code2, FileClock, MessageSquareText, Network, Plug, ScrollText, Terminal, Variable, type LucideIcon } from 'lucide-react';
+import { Activity, BookOpenText, Box, CircleDollarSign, Code2, FileClock, ImagePlus, MessageSquareText, Network, Plug, ScrollText, Terminal, Variable, type LucideIcon } from 'lucide-react';
 import { ArchitectChat } from '../components/chat/ArchitectChat';
 import { AgentGraph } from '../components/command/AgentGraph';
 import { Office3D } from '../components/office/Office3D';
@@ -11,6 +11,7 @@ import { KnowledgeWindow } from '../components/platform/KnowledgeWindow';
 import { FinOpsWindow } from '../components/platform/FinOpsWindow';
 import { PromptOpsWindow } from '../components/platform/PromptOpsWindow';
 import { AuditWindow } from '../components/platform/AuditWindow';
+import { ImageStudio } from '../components/platform/ImageStudio';
 import { ExternalToolsStatus, ExternalToolsWindow } from '../components/connectors/ExternalToolsWindow';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 import { useAgentStudioStore } from '../store/useAgentStudioStore';
@@ -117,4 +118,5 @@ export const WINDOWS: Record<WindowId, WindowDef> = {
   promptops: { title: 'PromptOps', icon: Variable, accent: '#A78BFA', minW: 6, minH: 8, render: () => <PromptOpsWindow />, Status: () => <ModuleBusy ids={['promptops']} /> },
   audit: { title: 'Audit Trail', icon: FileClock, accent: '#FBBF24', minW: 6, minH: 6, render: () => <AuditWindow />, Status: () => <ModuleBusy ids={['auditability']} /> },
   connectors: { title: 'External Tools', icon: Plug, accent: '#F472B6', minW: 5, minH: 8, render: () => <ExternalToolsWindow />, Status: ExternalToolsStatus },
+  images: { title: 'Image Studio', icon: ImagePlus, accent: '#E879F9', minW: 5, minH: 8, render: () => <ImageStudio /> },
 };

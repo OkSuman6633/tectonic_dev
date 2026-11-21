@@ -88,7 +88,7 @@ except Exception as exc:
                        allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 # ── 1b. Accounts: every API call runs as a signed-in user in their own workspace ──
-from agent_builder import studio_api
+from agent_builder import entitlements, studio_api
 from agent_builder.studio_api import current_user_info as _me
 from agent_builder.workspace import current_user
 
@@ -304,7 +304,12 @@ async def set_env(body: dict = Body(...)):
 @app.get("/modules")
 async def list_modules():
     if RUNTIME_AVAILABLE:
-        return {"modules": _runtime.describe(), "simulation_running": _is_running_fn()}
+        try:
+            allowed = entitlements.allowed_modules(entitlements.effective_plan_id(current_user()))
+            modules = [m for m in _runtime.describe() if m["module"] in allowed]
+        except Exception:
+            modules = _runtime.describe()
+        return {"modules": modules, "simulation_running": _is_running_fn()}
     return {"modules": [], "simulation_running": False}
 
 @app.post("/modules/simulate")
@@ -328,6 +333,12 @@ async def invoke_module(module: str, operation: str, payload: dict = Body(defaul
         raise HTTPException(503, "Runtime modules not available")
     if module not in _runtime.modules:
         raise HTTPException(404, f"Unknown module '{module}'")
+    try:
+        allowed = entitlements.allowed_modules(entitlements.effective_plan_id(current_user()))
+    except Exception:
+        allowed = set(_runtime.modules)
+    if module not in allowed:
+        raise HTTPException(403, {"code": "MODULE_LOCKED", "detail": f"Module '{module}' is not included in your plan."})
     from tectonic_runtime import CallContext
     ctx = CallContext(agent_id="operator", role="operator", session_id="command-center")
     return (await _runtime.invoke(module, operation, payload, ctx)).to_dict()

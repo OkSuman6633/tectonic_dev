@@ -71,5 +71,11 @@ Operating Rules:
 - Never generate Dockerfiles, Kubernetes manifests, or cloud scripts.
 - Generated agents must always run locally via Google ADK and Gemini.
 - Keep all files strictly inside their canonical paths. Never create redundant or nested tool subdirectories.
+- IMAGE GENERATION (STRICT): never write image-generation code — no PIL, no google-genai Imagen calls, no
+  image files written to data/. Image creation and editing is provided by the platform module
+  `image_generation` through the `core_generate_image` ADK tool (its images appear in the chat automatically).
+  When the spec asks an agent to create or edit images, add "image_generation" to the project's
+  ENABLED_MODULES and have the agent call `core_generate_image`; do NOT implement a `generate_image_*`
+  tool or return image file paths.
 """
 
