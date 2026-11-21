@@ -6,26 +6,29 @@ import {
   User,
   ShieldAlert,
   Wrench,
+
   AlertTriangle,
+
   Code,
   Terminal,
   Clock,
-  Sparkles,
   ChevronDown,
   Plus,
-  Key,
-  X,
-  Save,
-  Check,
   Cpu,
   Pencil,
   Play,
-  RotateCw
+  RotateCw,
+  Plug
 } from 'lucide-react';
 import { useAgentStudioStore } from '../../store/useAgentStudioStore';
 import { MarkdownContent } from '../chat/MarkdownContent';
+
 import { ChatbotAvatar } from '../chat/ArchitectChat';
+import { GeneratedImages } from '../chat/GeneratedImages';
 import { EditResultCard } from './EditResultCard';
+import { ConnectorNoticeCard } from '../connectors/ConnectorNoticeCard';
+import { ModelSettingsModal } from '../settings/ModelSettingsModal';
+import { useWorkspaceStore } from '../../workspace/useWorkspaceStore';
 
 const EDIT_SUGGESTIONS = [
   'Reply in short bullet points',
@@ -45,16 +48,17 @@ export const LiveAgentRunner: React.FC = () => {
     setSelectedAgent,
     sandboxSessionId,
     startNewSandboxSession,
-    selectedAgentEnv,
-    showAgentEnvModal,
-    setShowAgentEnvModal,
-    saveSelectedAgentEnv,
-    checkSelectedAgentEnv,
-    envConfig,
+    studioSettings,
+    loadStudioSettings,
     isEditingAgent,
     editSelectedAgent,
-    undoLastAgentEdit
+    undoLastAgentEdit,
+    continueAfterConnect
   } = useAgentStudioStore();
+  const revealWindow = useWorkspaceStore((s) => s.reveal);
+  const [showModelSettings, setShowModelSettings] = useState(false);
+  // Every workflow runs on the Agent Builder's current model (its default or the user's custom choice).
+  const workflowModel = studioSettings?.model ?? 'Builder model';
 
   const [inputVal, setInputVal] = useState('');
   const attach = useAttachments();
@@ -67,45 +71,7 @@ export const LiveAgentRunner: React.FC = () => {
   const undoableId = lastEdit?.edit?.outcome === 'success' && !lastEdit.edit.undone ? lastEdit.id : null;
   const [showRawJson, setShowRawJson] = useState(false);
   const [agentDropdownOpen, setAgentDropdownOpen] = useState(false);
-  const [modalApiKey, setModalApiKey] = useState('');
-  const [modalModel, setModalModel] = useState('gemini-3.6-flash');
-  const [isCustomModel, setIsCustomModel] = useState(false);
-  const [isSavingKey, setIsSavingKey] = useState(false);
-  const [keySavedToast, setKeySavedToast] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  const AVAILABLE_GEMINI_MODELS = [
-    {
-      id: 'gemini-3.6-flash',
-      name: 'Gemini 3.6 Flash',
-      tag: 'Recommended',
-      description: 'Ultra-fast speed & advanced multimodal reasoning. Built for live agents.'
-    },
-    {
-      id: 'gemini-2.5-flash',
-      name: 'Gemini 2.5 Flash',
-      tag: 'Low Latency',
-      description: 'Sub-second response latency for interactive sandbox workflows.'
-    },
-    {
-      id: 'gemini-2.5-pro',
-      name: 'Gemini 2.5 Pro',
-      tag: 'Deep Reasoning',
-      description: 'Best for complex logic, multi-table SQLite schema & deep analysis.'
-    },
-    {
-      id: 'gemini-1.5-flash',
-      name: 'Gemini 1.5 Flash',
-      tag: 'Efficient',
-      description: 'Lightweight workhorse for simple tool invocation and JSON formatting.'
-    },
-    {
-      id: 'gemini-1.5-pro',
-      name: 'Gemini 1.5 Pro',
-      tag: 'Long Context',
-      description: 'Massive context window for analyzing large log files and documents.'
-    }
-  ];
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -113,22 +79,9 @@ export const LiveAgentRunner: React.FC = () => {
     }
   }, [sandboxMessages, isSandboxLoading, isEditingAgent]);
 
-  // Sync modal inputs when agent env loads
   useEffect(() => {
-    if (selectedAgent) {
-      checkSelectedAgentEnv(selectedAgent.name);
-    }
-  }, [selectedAgent]);
-
-  useEffect(() => {
-    if (selectedAgentEnv) {
-      setModalApiKey(selectedAgentEnv.apiKey || envConfig?.apiKey || '');
-      const currentModel = selectedAgentEnv.model || 'gemini-3.6-flash';
-      setModalModel(currentModel);
-      const isKnown = AVAILABLE_GEMINI_MODELS.some((m) => m.id === currentModel);
-      setIsCustomModel(!isKnown && currentModel !== '');
-    }
-  }, [selectedAgentEnv, envConfig]);
+    if (!studioSettings) loadStudioSettings();
+  }, [studioSettings, loadStudioSettings]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,24 +97,6 @@ export const LiveAgentRunner: React.FC = () => {
   const handleQuickTest = (prompt: string) => {
     if (busy) return;
     sendSandboxMessage(prompt);
-  };
-
-  const handleSaveAgentKey = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedAgent) return;
-    setIsSavingKey(true);
-    try {
-      await saveSelectedAgentEnv(selectedAgent.name, modalApiKey, modalModel);
-      setKeySavedToast(true);
-      setTimeout(() => {
-        setKeySavedToast(false);
-        setShowAgentEnvModal(false);
-      }, 1200);
-    } catch (err) {
-      alert('Failed to save agent key: ' + err);
-    } finally {
-      setIsSavingKey(false);
-    }
   };
 
   const agentDisplayName = selectedAgent ? selectedAgent.name : 'agent_builder';
@@ -249,9 +184,10 @@ export const LiveAgentRunner: React.FC = () => {
             )}
           </div>
 
-          {/* Agent-Specific .env Status Pill */}
+          {/* The model every workflow runs on: the Agent Builder's current one */}
           {selectedAgent && (
             <button
+
               onClick={() => setShowAgentEnvModal(true)}
               className={`typo-status inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 leading-none transition-all ${selectedAgentEnv?.hasKey
                 ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-500/30 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 shadow-sm dark:shadow-none'
@@ -261,18 +197,21 @@ export const LiveAgentRunner: React.FC = () => {
             >
               <Key className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">{selectedAgentEnv?.hasKey ? '.env: Configured ✓' : '.env: Missing Key ⚠️'}</span>
+
             </button>
           )}
 
-          {/* Agent Model Selector Pill */}
+          {/* External data sources (Meta Ads, GA4, ...): connected once in the External Tools window */}
           {selectedAgent && (
             <button
+
               onClick={() => setShowAgentEnvModal(true)}
               className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg border border-sky-300 dark:border-sky-500/30 bg-sky-50 dark:bg-sky-500/10 px-2.5 font-mono text-[12px] leading-none text-sky-700 dark:text-sky-300 shadow-sm dark:shadow-none transition-all hover:bg-sky-100 dark:hover:bg-sky-500/20"
               title={`Active Model: ${selectedAgentEnv?.model || 'gemini-3.6-flash'} (Click to change)`}
             >
               <Cpu className="h-3.5 w-3.5 shrink-0 text-sky-500 dark:text-sky-400" />
               <span className="truncate">{selectedAgentEnv?.model || 'gemini-3.6-flash'}</span>
+
             </button>
           )}
 
@@ -324,6 +263,7 @@ export const LiveAgentRunner: React.FC = () => {
         </div>
       </div>
 
+
       {/* Warning banner if particular agent's .env key is missing */}
       {selectedAgent && selectedAgentEnv && !selectedAgentEnv.hasKey && (
         <div className="flex items-center justify-between gap-3 border-b border-amber-500/30 bg-amber-500/15 px-3 py-1.5 text-[11.5px] leading-tight text-amber-200">
@@ -342,6 +282,7 @@ export const LiveAgentRunner: React.FC = () => {
         </div>
       )}
 
+
       {/* Messages Stream */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4">
         {sandboxMessages.length === 0 ? (
@@ -354,13 +295,24 @@ export const LiveAgentRunner: React.FC = () => {
                 Ready to test {agentDisplayName}
               </h4>
               <p className="text-xs text-slate-400 mt-1 max-w-sm">
-                Type a test prompt below or click one of the suggested test cases to execute this agent with Google Gemini.
+                Type a test prompt below or click one of the suggested test cases. It runs on the Agent Builder's model ({workflowModel}).
               </p>
             </div>
           </div>
         ) : (
           sandboxMessages.map((msg) => {
             const isUser = msg.sender === 'user';
+            if (msg.kind === 'connector-notice' && msg.connectorNotice) {
+              return (
+                <div key={msg.id} className="flex gap-3 justify-start">
+                  <div className="w-8 h-8 shrink-0" />
+                  <div className="max-w-[85%] flex-1">
+                    <ConnectorNoticeCard view={msg.connectorNotice} busy={busy}
+                      onContinue={() => continueAfterConnect('sandbox', msg.id)} />
+                  </div>
+                </div>
+              );
+            }
             if (msg.kind === 'notice') {
               return (
                 <div key={msg.id} className="flex justify-center">
@@ -489,8 +441,9 @@ export const LiveAgentRunner: React.FC = () => {
                       : 'bg-white dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/5 text-slate-800 dark:text-slate-200 rounded-tl-none shadow-sm dark:shadow-none'
                       }`}
                   >
-                    <MarkdownContent content={msg.content} isUser={isUser} />
+                    {msg.content && <MarkdownContent content={msg.content} isUser={isUser} />}
                     {msg.attachments && <div className="mt-2"><AttachmentChips files={msg.attachments} onDark={isUser} /></div>}
+                    <GeneratedImages images={msg.images} />
 
                     {/* Raw JSON Payload Inspector */}
                     {showRawJson && (msg.toolCalls || msg.cardPayload) && (
@@ -525,7 +478,7 @@ export const LiveAgentRunner: React.FC = () => {
               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-bounce" />
               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-bounce [animation-delay:0.2s]" />
               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-bounce [animation-delay:0.4s]" />
-              <span>Running {agentDisplayName} on Google Gemini backend...</span>
+              <span>Running {agentDisplayName} on {workflowModel}…</span>
             </div>
           </div>
         )}
@@ -811,6 +764,7 @@ export const LiveAgentRunner: React.FC = () => {
             </form>
           </div>
         </div>
+
       )}
     </div>
   );

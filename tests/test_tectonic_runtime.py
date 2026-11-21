@@ -29,7 +29,8 @@ def rt(events):
 async def test_registers_all_modules_offline(rt, events):
     registered = {e["module"] for e in events if e["type"] == "MODULE_REGISTERED"}
     assert registered == {"guardrails", "intent_detection", "short_term_memory", "long_term_memory", "tool_orchestration",
-                          "agentic_rag", "vector_db", "finops", "promptops", "auditability"}
+                          "agentic_rag", "vector_db", "finops", "promptops", "auditability", "external_connectors",
+                          "image_generation"}
     assert all(e["state"] == "offline" for e in events if e["type"] == "MODULE_STATE")
 
 
@@ -185,7 +186,7 @@ async def test_adk_tools_attribute_calls_to_the_calling_agent(rt, events):
     start = next(e for e in events if e["type"] == "MODULE_CALL_START")
     assert (start["agent_id"], start["session_id"]) == ("invoice_worker", "sess-9")
 
-    names = {f.__name__ for f in worker_tools(team="demo")}
+    names = {getattr(f, "__name__", None) or f.name for f in worker_tools(team="demo")}
     assert {"core_guardrails_check", "core_recall", "core_share_knowledge", "core_call_tool"} <= names
     assert {"core_remember", "core_recall", "core_share_with_project", "core_provision_team", "core_ingest_knowledge",
             "core_publish_prompt", "core_verify_audit"} <= {f.__name__ for f in builder_tools()}
@@ -195,7 +196,13 @@ async def test_adk_tools_build_valid_function_declarations():
     from google.adk.tools.function_tool import FunctionTool
     from tectonic_runtime.adk_tools import builder_tools, worker_tools
 
+    from google.adk.tools.base_tool import BaseTool
+
     for fn in [*worker_tools(), *builder_tools()]:
+        if isinstance(fn, BaseTool):  # connector tools declare their own JSON Schema
+            decl = fn._get_declaration()
+            assert decl.name == fn.name and decl.description and decl.parameters_json_schema["type"] == "object"
+            continue
         decl = FunctionTool(fn)._get_declaration()
         assert decl.name == fn.__name__ and decl.description
         schema = decl.parameters_json_schema or {}

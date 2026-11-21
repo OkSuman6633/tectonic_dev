@@ -100,7 +100,9 @@ class GuardrailsModule(BaseModule):
     def summarize(self, op_name: str, data: Any) -> str:
         if op_name in ("check_input", "check_output") and isinstance(data, dict):
             verdict = data["decision"].upper()
-            return f"{verdict}{f' ({data['violation']})' if data.get('violation') else ''}"
+            # No nested same-quote f-strings: that syntax needs Python 3.12+ and the image runs 3.11.
+            violation = f" ({data['violation']})" if data.get("violation") else ""
+            return f"{verdict}{violation}"
         if op_name == "redact_pii" and isinstance(data, dict):
             return f"redacted {', '.join(data['entities']) or 'nothing'}"
         return super().summarize(op_name, data)

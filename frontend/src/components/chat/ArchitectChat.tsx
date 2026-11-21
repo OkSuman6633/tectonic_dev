@@ -23,6 +23,7 @@ import { DecisionCardGroup } from './DecisionCardGroup';
 import { JourneyStepper } from './JourneyStepper';
 import { AgentTargetPicker, MentionSuggestions } from './AgentTargetPicker';
 import { CallTrace } from './CallTrace';
+import { GeneratedImages } from './GeneratedImages';
 import { SpecCard } from './SpecCard';
 import { MarkdownContent } from './MarkdownContent';
 import { StreamingAgentDisplay } from './StreamingAgentDisplay';
@@ -31,6 +32,7 @@ import { refreshAllViews } from '../../workspace/refreshAllViews';
 import { AttachButton, AttachmentChips, useAttachments } from './Attachments';
 import { AutopilotAnswerCard, IdeasCard, ReviewCard } from './ReviewCards';
 import type { ChatMessage } from '../../types/agent';
+import { ConnectorNoticeCard } from '../connectors/ConnectorNoticeCard';
 
 const AUTOPILOT_KEY = 'tectonic-autopilot';
 const ATTACHED_ONLY = 'Please look at the attached file(s).';
@@ -139,7 +141,8 @@ export const ArchitectChat: React.FC = () => {
     isRefreshing,
     refreshCreatedAgents,
     setSelectedAgent,
-    setActiveTab
+    setActiveTab,
+    continueAfterConnect
   } = useAgentStudioStore();
 
   const [inputVal, setInputVal] = useState('');
@@ -399,8 +402,9 @@ export const ArchitectChat: React.FC = () => {
                       : 'bg-slate-900/80 border border-white/10 text-slate-100 rounded-tl-none shadow-md shadow-black/20 backdrop-blur-md'
                     }`}
                 >
-                  <MarkdownContent content={msg.content} isUser={isUser} />
+                  {msg.content && <MarkdownContent content={msg.content} isUser={isUser} />}
                   {msg.attachments && <div className="mt-2"><AttachmentChips files={msg.attachments} onDark={isUser} /></div>}
+                  <GeneratedImages images={msg.images} />
 
                   {msg.autopilot && <AutopilotAnswerCard run={msg.autopilot} />}
                   {msg.designIdeas && <IdeasCard ideas={msg.designIdeas} />}
@@ -410,6 +414,14 @@ export const ArchitectChat: React.FC = () => {
                   {msg.architectureSpec && <SpecCard spec={msg.architectureSpec} />}
 
                   {!isUser && msg.trace && msg.trace.length > 0 && <CallTrace steps={msg.trace} />}
+
+                  {/* The agent could not get connector data: pop-up pointing to External Tools */}
+                  {msg.connectorNotice && (
+                    <div className="mt-2">
+                      <ConnectorNoticeCard view={msg.connectorNotice} busy={isChatLoading}
+                        onContinue={() => continueAfterConnect('chat', msg.id)} />
+                    </div>
+                  )}
 
                   {/* If this message contains interactive decisions, render the form */}
                   {msg.decisionGroup && (

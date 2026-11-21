@@ -34,7 +34,13 @@ from .tracing import TRACE_CALLBACKS
 
 try:  # shared core-module runtime (tectonic_runtime/); the Builder still runs without it
     from tectonic_runtime.adk_tools import builder_tools
-except ImportError:  # pragma: no cover - runtime package absent
+except ImportError as _exc:  # pragma: no cover - runtime package absent
+    import logging
+
+    # Loud on purpose: without the runtime every generated agent silently loses its platform modules.
+    logging.getLogger(__name__).error("tectonic_runtime unavailable (%s): the Builder and generated agents run "
+                                      "without the shared platform modules.", _exc)
+
     def builder_tools(team: str = "default") -> list:
         return []
 

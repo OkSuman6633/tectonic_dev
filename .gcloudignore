@@ -25,9 +25,12 @@ frontend/node_modules/
 tests/
 .pytest_cache/
 
-# Local environment files
+# Local environment files and local state: accounts, the sign-in secret and users' encrypted model keys
 .env
 .env.local
+.env.*.local
+data/
+generated_agents/
 
 # Logs and generated files
 logs/

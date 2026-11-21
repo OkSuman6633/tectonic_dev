@@ -332,6 +332,11 @@ async def test_generated_worker_instruction_is_served_by_promptops(rt):
     namespace: dict = {}
     source = _GEN_CORE_MODULES.replace("{project}", "invoice_desk").replace("{enabled_modules}", "None")
     exec(compile(source, "core_modules.py", "exec"), namespace)
+    # Regression guard: a broken runtime import used to leave every generated agent with no platform tools.
+    from tectonic_runtime.adk_tools import worker_tools
+
+    assert namespace["CORE_MODULE_TOOLS"] and len(namespace["CORE_MODULE_TOOLS"]) == len(worker_tools("invoice_desk"))
+    assert namespace["CORE_MODULE_INSTRUCTIONS"]
     provider = namespace["managed_instruction"]("refund_agent", "Handle refunds for {customer}.", ["customer"])
     ctx = SimpleNamespace(state={"customer": "ACME"}, session=SimpleNamespace(id="s1"))
     assert await provider(ctx) == "Handle refunds for ACME."

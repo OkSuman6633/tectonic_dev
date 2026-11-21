@@ -32,8 +32,14 @@ def auth_enabled() -> bool:
 
 def install(app) -> None:
     from . import model_settings  # noqa: F401  (registers each user's own Builder model)
+    from .connectors_api import router as connectors_router
+    from .media_api import router as media_router
 
     app.include_router(router)
+    # Images generated in the chat, served to their owner only.
+    app.include_router(media_router)
+    # The chat's secure "connect a data source" form (credentials never pass through the agents).
+    app.include_router(connectors_router)
     if auth_enabled():
         app.add_middleware(auth.AuthMiddleware,
                            list_apps=lambda: [f"{module_prefix()}.{d.name}.{d.name}" for d in own_projects()])
@@ -105,22 +111,45 @@ async def auth_me():
 # --- the Builder's model ------------------------------------------------------------------------
 @router.get("/studio/settings")
 async def studio_settings():
-    """The model the Builder runs on for this user, the models offered, and which keys are in use (masked)."""
+    """This user's mode (default | custom), the model and key actually in use (masked), their saved override
+    (masked) and the platform default."""
     from . import model_settings
 
     return model_settings.status(admin=current_user_info()["admin"])
 
 
-@router.post("/studio/settings")
-async def studio_settings_update(body: dict = Body(...)):
-    """{model, anthropic_api_key?, google_api_key?}: any user switches their own model; keys need an admin."""
+async def _settings_call(call):
     from . import model_settings
 
     try:
-        return await model_settings.apply(str(body.get("model", "")), body.get("anthropic_api_key"),
-                                          body.get("google_api_key"), admin=current_user_info()["admin"])
+        return await call(model_settings, current_user_info()["admin"])
     except model_settings.SettingsError as exc:
         raise HTTPException(400, str(exc)) from exc
+
+
+@router.post("/studio/settings")
+async def studio_settings_update(body: dict = Body(...)):
+    """{model, anthropic_api_key?, google_api_key?}: the platform default, for every user (admin; not on Cloud Run)."""
+    return await _settings_call(lambda ms, admin: ms.apply_default(
+        str(body.get("model", "")), body.get("anthropic_api_key"), body.get("google_api_key"), admin=admin))
+
+
+@router.put("/studio/settings/custom")
+async def studio_custom_save(body: dict = Body(...)):
+    """{model, api_key?}: overwrite this user's one custom override and switch to it."""
+    return await _settings_call(lambda ms, admin: ms.save_custom(str(body.get("model", "")), body.get("api_key"), admin=admin))
+
+
+@router.delete("/studio/settings/custom")
+async def studio_custom_clear():
+    """Delete this user's override (model and key) and return to the platform default."""
+    return await _settings_call(lambda ms, admin: ms.clear_custom(admin=admin))
+
+
+@router.post("/studio/settings/mode")
+async def studio_mode(body: dict = Body(...)):
+    """{mode: "default" | "custom"}: toggle without losing the saved override."""
+    return await _settings_call(lambda ms, admin: ms.set_mode(str(body.get("mode", "")), admin=admin))
 
 
 # --- the user's generated agents -----------------------------------------------------------------
@@ -182,6 +211,8 @@ async def get_agent_env(name: str):
         mk = re.search(r"^GEMINI_MODEL=(.*)$", txt, re.MULTILINE)
         key = gk.group(1).strip() if gk else ""
         model = mk.group(1).strip() if mk else model
+    if key and key == (os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")):
+        key = ""  # projects generated before this fix carry the server's own key: never hand it out
     return {"agentName": name, "hasKey": bool(key) or _server_key(), "apiKey": key, "model": model,
             "agentEnvExists": env_path.exists(), "envPath": f"generated_agents/{name}/.env"}
 

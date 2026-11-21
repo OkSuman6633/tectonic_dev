@@ -34,8 +34,19 @@ RUN pip install --no-cache-dir -r requirements.txt && \
 COPY agent_builder/ ./agent_builder/
 COPY server_full.py ./server.py
 
-# NOTE: tectonic_runtime excluded - has syntax errors and heavy dependencies
-# The server has graceful fallback when it's not available
+# Shared platform runtime: the Builder and every generated agent get guardrails, memory, RAG, vector DB,
+# FinOps, PromptOps and audit tools from it. modules/ is filtered by .dockerignore to the ten src/ trees
+# tectonic_runtime loads (see tectonic_runtime/_paths.py).
+COPY tectonic_runtime/ ./tectonic_runtime/
+COPY modules/ ./modules/
+
+# Fail the build (not production) if the platform modules cannot load: a syntax error or a missing
+# dependency here used to make every generated agent silently run without them.
+RUN python -m compileall -q agent_builder tectonic_runtime server.py && \
+    TECTONIC_OFFLINE=1 python -c "import tectonic_runtime.adk_tools as t, tectonic_runtime._paths as p; \
+missing = [m for m in p.MODULE_PACKAGES if not (p.MODULES_DIR / m / 'src').is_dir()]; \
+assert not missing, f'modules missing from image: {missing}'; \
+print('platform modules OK:', len(t.worker_tools(team='build_check')), 'worker tools')"
 
 # Copy built frontend from Stage 1
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist

@@ -69,8 +69,12 @@ def _is_aq_key(api_key: str) -> bool:
     return api_key and api_key.startswith("AQ.")
 
 
-def build_model(model_name: str = None):
+def build_model(model_name: str = None, api_key: str | None = None):
     """Create the model wrapper for a model name: Claude or Gemini.
+
+    ``api_key``: a caller-supplied key (a user's custom override) handed straight to that model's own
+    client. It is never written to os.environ, so it cannot leak into other users' calls. Without it the
+    platform key from the environment is used.
 
     For Gemini we ALWAYS use the native google-genai SDK (Gemini class) regardless
     of key format. This calls generativelanguage.googleapis.com directly and avoids
@@ -78,7 +82,7 @@ def build_model(model_name: str = None):
     LiteLLM is only kept as a last-resort fallback.
     """
     if model_name and is_claude(model_name):
-        anthropic_key = os.getenv("ANTHROPIC_API_KEY", "")
+        anthropic_key = api_key or os.getenv("ANTHROPIC_API_KEY", "")
         if not anthropic_key:
             raise ValueError(f"{model_name} needs an Anthropic API key (ANTHROPIC_API_KEY).")
         return build_claude(model_name, anthropic_key)
@@ -89,6 +93,10 @@ def build_model(model_name: str = None):
     # Direct call to Google AI Studio API, no LiteLLM proxy, far more reliable.
     try:
         from google.adk.models.google_llm import Gemini
+        if api_key:
+            # ADK builds one google-genai client per event loop from client_kwargs: an explicit key there
+            # wins over the environment, and vertexai=False keeps it on the Gemini API (AI Studio).
+            return Gemini(model=target_model, client_kwargs={"api_key": api_key, "vertexai": False})
         return Gemini(model=target_model)
     except Exception as exc:
         logging.getLogger(__name__).warning(
@@ -96,7 +104,7 @@ def build_model(model_name: str = None):
         )
 
     # Fallback: LiteLLM (use fewer retries to fail fast and surface real errors)
-    api_key = os.getenv("GOOGLE_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")
+    api_key = api_key or os.getenv("GOOGLE_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")
     from google.adk.models.lite_llm import LiteLlm
     litellm_model = resolve_litellm_model_name(model_name or RAW_MODEL_NAME)
     kwargs: dict = {"model": litellm_model, "num_retries": 2}

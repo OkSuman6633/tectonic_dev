@@ -162,7 +162,7 @@ def verify_token(token: str | None) -> str | None:
 
 # --- request gate ---------------------------------------------------------------------------------
 # Paths that need a signed-in user; everything else is the public SPA, its assets and /auth/*.
-_PROTECTED = ("/api/", "/modules", "/directory", "/studio", "/run", "/apps/", "/list-apps", "/ws/", "/auth/me",
+_PROTECTED = ("/api/", "/modules", "/directory", "/studio", "/connectors", "/media/", "/run", "/apps/", "/list-apps", "/ws/", "/auth/me",
               "/dev-ui", "/debug", "/builder", "/agent-identity", "/eval", "/version")
 _ADK_PREFIXES = ("/run", "/apps/", "/list-apps", "/dev-ui", "/debug", "/builder", "/agent-identity", "/eval", "/version")
 _SESSION_PATH = re.compile(r"^/apps/([^/]+)/users/([^/]+)(/.*)?$")

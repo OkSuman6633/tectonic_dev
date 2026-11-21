@@ -16,6 +16,7 @@ const TILES: Record<WindowId, string> = {
   finops: 'linear-gradient(160deg, #BBF7D0 0%, #22C55E 50%, #15803D 100%)',
   promptops: 'linear-gradient(160deg, #F5D0FE 0%, #C084FC 50%, #7E22CE 100%)',
   audit: 'linear-gradient(160deg, #FEF3C7 0%, #F59E0B 50%, #B45309 100%)',
+  connectors: 'linear-gradient(160deg, #FBCFE8 0%, #EC4899 50%, #BE185D 100%)',
 };
 
 const BASE = 44;

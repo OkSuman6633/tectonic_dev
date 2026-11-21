@@ -49,7 +49,9 @@ app = get_fast_api_app(
     allow_origins=ALLOWED_ORIGINS,
     # workspace first: it binds the signed-in user that telemetry and the Builder's tools rely on
     extra_plugins=["agent_builder.workspace.workspace_plugin", "agent_builder.attachments.attachment_plugin",
-                   "agent_builder.telemetry.telemetry_plugin"],
+                   "agent_builder.telemetry.telemetry_plugin", "tectonic_runtime.connectors.plugin.connector_secrets_plugin",
+                   # Generated workflows run on the Builder's current model (default or the user's custom one).
+                   "agent_builder.workflow_model.workflow_model_plugin"],
 )
 app.include_router(telemetry_router)
 # Sign-in (TECTONIC_AUTH=off for a single-user Studio) and each user's own agents under /api/system.
@@ -203,7 +205,7 @@ if FRONTEND_DIR.exists():
     async def serve_frontend(request: Request, full_path: str):
         """Serve frontend files. Falls back to index.html for SPA routing."""
         # Skip API routes
-        if full_path.startswith(("api/", "ws/", "run", "apps/", "list-apps", "directory/", "modules")):
+        if full_path.startswith(("api/", "ws/", "run", "apps/", "list-apps", "directory/", "modules", "connectors/", "media/")):
             raise HTTPException(404, "Not found")
         
         file_path = FRONTEND_DIR / full_path

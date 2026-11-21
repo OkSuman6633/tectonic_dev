@@ -1,6 +1,9 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { GeneratedImages } from './GeneratedImages';
+
+const MEDIA_IMAGE = /^\/media\/images\/([0-9a-f]{32})$/;
 
 interface MarkdownContentProps {
   content: string;
@@ -38,10 +41,13 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({
               {children}
             </h4>
           ),
+          // A div, not a <p>: a paragraph may hold a generated image, whose tile is block content.
           p: ({ children }) => (
+
             <p className="my-1 leading-[var(--leading-body)] break-words [overflow-wrap:anywhere]">
+
               {children}
-            </p>
+            </div>
           ),
           ul: ({ children }) => (
             <ul className="list-disc pl-4 space-y-1 my-1.5 marker:text-sky-400">
@@ -131,6 +137,12 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({
               {children}
             </a>
           ),
+          // Generated images need the sign-in token, which a plain <img src> cannot send.
+          img: ({ src, alt }) => {
+            const id = typeof src === 'string' ? MEDIA_IMAGE.exec(src)?.[1] : undefined;
+            if (id) return <GeneratedImages images={[{ id, url: `/media/images/${id}`, mimeType: 'image/png' }]} />;
+            return <img src={src} alt={alt ?? ''} className="max-w-full rounded-lg my-2" />;
+          },
           hr: () => (
             <hr className="border-t border-white/10 my-2.5" />
           ),
