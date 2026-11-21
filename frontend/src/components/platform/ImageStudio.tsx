@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { ImagePlus, Loader2, RefreshCw, Sparkles } from 'lucide-react';
-import { GeneratedImages } from '../chat/GeneratedImages';
-import type { GeneratedImage } from '../../types/agent';
 
 interface ImageRecord {
   id: string;
@@ -14,7 +12,46 @@ interface ImageRecord {
 const ASPECTS = ['1:1', '16:9', '9:16', '4:5', '3:4', '4:3'];
 const STYLES = ['auto', 'photo', 'vector'];
 
-const toGenerated = (i: ImageRecord): GeneratedImage => ({ id: i.id, url: i.url, mimeType: i.mime_type ?? 'image/png' });
+/** Renders one /media image: fetched with the sign-in token, shown as a blob URL. */
+const ImageTile: React.FC<{ image: ImageRecord }> = ({ image }) => {
+  const [state, setState] = useState<{ src: string | null; failed: boolean }>({ src: null, failed: false });
+  useEffect(() => {
+    let objectUrl: string | null = null;
+    let cancelled = false;
+    setState({ src: null, failed: false });
+    fetch(image.url)
+      .then(async (res) => {
+        if (!res.ok) throw new Error(String(res.status));
+        const blob = await res.blob();
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setState({ src: objectUrl, failed: false });
+      })
+      .catch(() => {
+        if (!cancelled) setState({ src: null, failed: true });
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [image.url]);
+
+  if (state.failed) {
+    return (
+      <div className="flex aspect-square items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] p-2 text-center text-[11px] text-slate-500">
+        Image unavailable
+      </div>
+    );
+  }
+  if (!state.src) {
+    return (
+      <div className="flex aspect-square items-center justify-center rounded-lg border border-white/10 bg-white/[0.03]">
+        <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
+      </div>
+    );
+  }
+  return <img src={state.src} alt={image.prompt ?? 'Generated image'} className="aspect-square w-full rounded-lg object-cover" />;
+};
 
 /** The Studio's image window: generate images (via the platform image_generation module) and browse
  *  this account's recent images. Images render inline through the owner-scoped /media route. */
@@ -142,7 +179,11 @@ export const ImageStudio: React.FC = () => {
       {fresh.length > 0 && (
         <div>
           <div className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">Just generated</div>
-          <GeneratedImages images={fresh.map(toGenerated)} />
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {fresh.map((i) => (
+              <ImageTile key={i.id} image={i} />
+            ))}
+          </div>
         </div>
       )}
 
@@ -158,7 +199,7 @@ export const ImageStudio: React.FC = () => {
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {recent.map((i) => (
               <figure key={i.id} className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.02]">
-                <GeneratedImages images={[toGenerated(i)]} />
+                <ImageTile image={i} />
                 {i.prompt && (
                   <figcaption className="truncate px-2 py-1 text-[10px] text-slate-500" title={i.prompt}>{i.prompt}</figcaption>
                 )}
