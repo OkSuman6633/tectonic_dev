@@ -3,7 +3,6 @@
 import ast
 import importlib
 import json
-import os
 from pathlib import Path
 from typing import Optional
 
@@ -70,6 +69,9 @@ _kwargs = {"model": MODEL_NAME, "num_retries": 5}
 if GOOGLE_API_KEY and "gemini" in MODEL_NAME:
     _kwargs["api_key"] = GOOGLE_API_KEY
 
+# Placeholder. Inside the Tectonic Studio every agent of this project runs on the model the Agent Builder
+# currently uses (the platform default or the user's custom model, switched live in the Builder settings).
+# This GEMINI_MODEL-based model only applies when the project runs standalone (plain `adk run`).
 MODEL = LiteLlm(**_kwargs)
 
 
@@ -94,7 +96,8 @@ _GEN_CORE_MODULES = '''"""Shared Tectonic platform modules for this project's ag
 
 Inside the Tectonic agent server every agent gets the platform as ADK tools (guardrails, intent,
 short/long-term memory, tool orchestration, Agentic RAG knowledge, FinOps spend, PromptOps feedback,
-audit trail) and its instruction is served by PromptOps as '<team>.<agent>' (versioned, A/B-testable).
+audit trail, image generation, external data connectors such as Meta Ads and GA4) and its instruction is served by
+PromptOps as '<team>.<agent>' (versioned, A/B-testable).
 Run standalone (plain `adk run`), the import fails and the agents work with their static prompts.
 """
 
@@ -111,9 +114,10 @@ def _fill(text, context, state_keys):
 
 
 try:
-    from tectonic_runtime.adk_tools import CORE_MODULE_INSTRUCTIONS, worker_tools
+    from tectonic_runtime.adk_tools import module_instructions, worker_tools
 
     CORE_MODULE_TOOLS = worker_tools(team=TEAM, modules=ENABLED_MODULES)
+    CORE_MODULE_INSTRUCTIONS = module_instructions(ENABLED_MODULES)
 
     def managed_instruction(agent_name, template, state_keys=()):
         """Instruction provider served by PromptOps ('<team>.<agent>'), falling back to the template."""
@@ -133,7 +137,13 @@ try:
 
         return provider
 
-except ImportError:
+except ImportError as _exc:  # standalone run, or a server shipped without tectonic_runtime
+    import logging
+
+    logging.getLogger(__name__).warning(
+        "Tectonic platform modules unavailable (%s): %s runs WITHOUT guardrails, memory, RAG, FinOps or audit tools.",
+        _exc, TEAM,
+    )
     CORE_MODULE_TOOLS = []
     CORE_MODULE_INSTRUCTIONS = ""
 
@@ -328,16 +338,19 @@ def scaffold_project(project_name: str, extra_requirements_json: str, tool_conte
 
     root = roots[0]
     configured_model = root.get("model", "gemini-3.6-flash") or "gemini-3.6-flash"
-    master_key = os.getenv("GOOGLE_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")
 
     env_example = f"""# Google Gemini Configuration
 GOOGLE_API_KEY=
 GEMINI_API_KEY=
 GEMINI_MODEL={configured_model}
 """
+    # The server's own key is never copied into a project: the project's files are readable by its owner
+    # (Studio file view, /api/system/agents/<name>/env). Inside the Tectonic server the agent runs on the
+    # platform key from the environment (load_dotenv never overrides it); run standalone, fill in your own.
     env_actual = f"""# Google Gemini Configuration for {project}
-GOOGLE_API_KEY={master_key}
-GEMINI_API_KEY={master_key}
+# Blank: inside the Tectonic server this agent uses the platform's key. Run standalone: add your own.
+GOOGLE_API_KEY=
+GEMINI_API_KEY=
 GEMINI_MODEL={configured_model}
 """
     requirements = sorted(set(_BASE_REQUIREMENTS + [str(e) for e in extras]))

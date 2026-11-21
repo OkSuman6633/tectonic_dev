@@ -59,6 +59,10 @@ Produce a rigorous specification:
 Weave platform capabilities into the agents' instruction_outline where they apply (answer from knowledge via
 core_ask_knowledge, remember preferences via core_remember, check budget via core_spend_status, screen inputs
 with core_guardrails_check). Do not re-implement them as custom tools.
+Client data in Meta Ads (Facebook/Instagram ads: spend, ROAS, campaigns) or Google Analytics 4 (traffic, sources,
+conversions) comes from the External data connectors module (meta_ads_* / ga4_* tools; the user connects their
+accounts once in the Studio's External Tools window). Never design custom tools, parameters or
+environment variables for these APIs or their tokens / keys.
 
 # Constraints
 - Local Python only: no Docker, Kubernetes or cloud infrastructure. Gemini via GOOGLE_API_KEY.

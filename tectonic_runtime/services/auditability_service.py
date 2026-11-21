@@ -28,6 +28,7 @@ from typing import Any
 
 from .._paths import ensure_module_paths
 from ..base import BaseModule, CallContext, operation
+from ..connectors.redaction import scrub as scrub_secrets
 from ..models import current_caller, generate_json, online, utility_model
 from ..persist import from_dict, state_path
 
@@ -46,7 +47,9 @@ PII_TYPES = ["EMAIL", "PHONE_NUMBER", "CREDIT_CARD", "SSN"]
 
 AGENT_EVENTS = {"AGENT_CREATED", "AGENT_STATE_CHANGE", "TOOL_CALL_START", "TOOL_CALL_END", "A2A_MESSAGE", "AGENT_METRICS",
                 "RUN_STARTED", "RUN_COMPLETED"}
-MODULE_EVENTS = {"MODULE_CALL_END", "MODULE_ACCESS_DENIED"}
+# Connector lifecycle (connect / disconnect / data notices) carries no secret, only who and what.
+MODULE_EVENTS = {"MODULE_CALL_END", "MODULE_ACCESS_DENIED", "CONNECTOR_CONNECTED", "CONNECTOR_DISCONNECTED",
+                 "CONNECTOR_NOTICE"}
 # Read-only operations the operator UI polls; recording each refresh would bury real activity.
 # Operator writes and every agent call (reads included — they are part of an agent's reasoning) stay audited.
 OPERATOR_READS = {"report", "rates", "recommendations", "check", "stats", "list_prompts", "versions", "get_version",
@@ -63,6 +66,7 @@ def redact(value: Any, key: str = "") -> Any:
     if isinstance(value, str):
         if (key and _IDENTIFIER_KEYS.search(key)) or _IDENTIFIER_RE.match(value):
             return value
+        value = scrub_secrets(value)  # connector credentials, should one ever reach an event
         return pii_detector.detect_and_redact(value, PII_TYPES)[0] if len(value) < 20_000 else value[:20_000]
     if isinstance(value, dict):
         return {k: redact(v, str(k)) for k, v in value.items()}
