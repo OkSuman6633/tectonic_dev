@@ -76,6 +76,6 @@ Operating Rules:
   `image_generation` through the `core_generate_image` ADK tool (its images appear in the chat automatically).
   When the spec asks an agent to create or edit images, add "image_generation" to the project's
   ENABLED_MODULES and have the agent call `core_generate_image`; do NOT implement a `generate_image_*`
-  tool or return image file paths.
+  tool, do NOT define your own function named `core_generate_image`, and do NOT return image file paths.
 """
 
