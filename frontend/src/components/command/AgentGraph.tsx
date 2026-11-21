@@ -48,62 +48,56 @@ function Toolbar({ onRelayout }: { onRelayout: () => void }) {
   const statusColor = status === 'open' ? '#10b981' : status === 'connecting' ? '#f59e0b' : '#64748b';
   const statusLabel = status === 'open' ? 'Live' : status === 'connecting' ? 'Connecting' : 'Offline';
 
-  const btn = 'flex h-7 items-center gap-1.5 whitespace-nowrap rounded-md px-2 text-[12px] font-medium leading-none text-[var(--studio-text-secondary)] transition-colors hover:bg-white/5 hover:text-[var(--studio-text)] disabled:opacity-40';
+  const btn = 'flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium text-[var(--studio-text-secondary)] hover:bg-white/5 hover:text-[var(--studio-text)] transition-colors disabled:opacity-40';
 
   return (
-    <div className="pointer-events-none absolute left-3 right-3 top-3 z-10 flex items-center justify-between gap-2 overflow-hidden">
-      <div className="pointer-events-auto flex h-8 shrink-0 items-center gap-2.5 overflow-x-auto no-scrollbar rounded-lg border border-studio-border bg-studio-surface/85 px-2.5 shadow-lg backdrop-blur-md">
-        <div className="typo-status flex shrink-0 items-center gap-1.5 whitespace-nowrap" title="Telemetry WebSocket: /ws/telemetry">
-          <span className="relative flex h-2 w-2 shrink-0">
+    <div className="pointer-events-none absolute left-3 right-3 top-3 z-10 flex items-start justify-between gap-3">
+      <div className="pointer-events-auto flex items-center gap-3 rounded-lg border border-studio-border bg-studio-surface/85 px-3 py-1.5 shadow-lg backdrop-blur-md">
+        <div className="flex items-center gap-1.5 font-mono text-[10.5px]" title="Telemetry WebSocket: /ws/telemetry">
+          <span className="relative flex h-2 w-2">
             {status === 'open' && <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ background: statusColor }} />}
             <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: statusColor }} />
           </span>
           <span style={{ color: statusColor }}>{statusLabel}</span>
         </div>
-        <span className="h-3.5 w-px shrink-0 bg-studio-border" />
+        <span className="h-3.5 w-px bg-studio-border" />
         <Metric label="agents" value={agentCount} />
         <Metric label="active" value={busy} accent={busy > 0 ? STATE_STYLES.thinking.color : undefined} />
         <Metric label="runs" value={activeRuns} />
         {moduleCount > 0 && (
           <>
-            <span className="h-3.5 w-px shrink-0 bg-studio-border" />
-            <div className="flex items-baseline gap-1 whitespace-nowrap shrink-0" title={`${modulesBusy} of ${moduleCount} shared modules currently busy`}>
-              <span className="font-mono text-[12px] font-semibold tabular-nums" style={{ color: modulesBusy > 0 ? MODULE_STATE_STYLES.busy.color : 'var(--studio-text)' }}>
-                {modulesBusy}
-                <span className="text-[12px] font-normal text-[var(--studio-text-muted)]">/{moduleCount}</span>
-              </span>
-              <span className="text-[12px] text-[var(--studio-text-muted)]">busy</span>
-            </div>
+            <span className="h-3.5 w-px bg-studio-border" />
+            <Metric label={`of ${moduleCount} modules busy`} value={modulesBusy} accent={modulesBusy > 0 ? MODULE_STATE_STYLES.busy.color : undefined} />
           </>
         )}
       </div>
 
-      <div className="pointer-events-auto flex h-8 shrink-0 items-center gap-0.5 rounded-lg border border-studio-border bg-studio-surface/85 p-0.5 shadow-lg backdrop-blur-md">
+      <div className="pointer-events-auto flex items-center gap-0.5 rounded-lg border border-studio-border bg-studio-surface/85 p-1 shadow-lg backdrop-blur-md">
         <button type="button" className={btn} onClick={onRelayout} title="Re-run auto layout and fit view">
-          <LayoutGrid className="h-3.5 w-3.5 shrink-0" /> Layout
+          <LayoutGrid className="h-3.5 w-3.5" /> Layout
         </button>
         {isSimulating ? (
           <button type="button" className={btn} onClick={cancelSimulation} title="Stop the simulated run">
-            <Square className="h-3.5 w-3.5 shrink-0" /> Stop
+            <Square className="h-3.5 w-3.5" /> Stop
           </button>
         ) : (
           <button type="button" className={btn} onClick={() => void startSimulation()} title={status === 'open' ? 'Run a live office shift on the real shared modules' : 'Replay a scripted run (no backend needed)'}>
-            <Play className="h-3.5 w-3.5 shrink-0" /> Simulate
+            <Play className="h-3.5 w-3.5" /> Simulate
           </button>
         )}
         <button type="button" className={btn} onClick={reset} disabled={isSimulating || agentCount === 0} title="Clear the floorplan">
-          <Eraser className="h-3.5 w-3.5 shrink-0" /> Clear
+          <Eraser className="h-3.5 w-3.5" /> Clear
         </button>
       </div>
     </div>
   );
 }
 
-function Metric({ label, value, accent }: { label: string; value: number | string; accent?: string }) {
+function Metric({ label, value, accent }: { label: string; value: number; accent?: string }) {
   return (
-    <div className="flex items-baseline gap-1 whitespace-nowrap shrink-0">
-      <span className="font-mono text-[12px] font-semibold tabular-nums" style={{ color: accent ?? 'var(--studio-text)' }}>{value}</span>
-      <span className="text-[12px] text-[var(--studio-text-muted)]">{label}</span>
+    <div className="flex items-baseline gap-1 font-mono">
+      <span className="text-[12px] font-semibold tabular-nums" style={{ color: accent ?? 'var(--studio-text)' }}>{value}</span>
+      <span className="text-[9.5px] uppercase tracking-wider text-[var(--studio-text-muted)]">{label}</span>
     </div>
   );
 }
@@ -116,11 +110,11 @@ function EmptyState({ compact }: { compact: boolean }) {
         initial={{ opacity: 0, y: -6 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0 }}
-        className="pointer-events-auto absolute left-1/2 top-16 z-10 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-studio-border bg-studio-surface/90 px-3.5 py-2 text-[13px] text-[var(--studio-text-secondary)] shadow-lg backdrop-blur-md"
+        className="pointer-events-auto absolute left-1/2 top-16 z-10 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-studio-border bg-studio-surface/90 px-3.5 py-2 text-[11.5px] text-[var(--studio-text-secondary)] shadow-lg backdrop-blur-md"
       >
         <Building2 className="h-4 w-4 text-violet-300" />
         <span>Shared modules are on the floor. Agents appear above them as they spawn.</span>
-        <button type="button" onClick={() => void startSimulation()} className="inline-flex items-center gap-1 rounded-md border border-sky-500/40 bg-sky-500/10 px-2 py-1 text-[12px] font-medium text-sky-300 hover:bg-sky-500/20">
+        <button type="button" onClick={() => void startSimulation()} className="inline-flex items-center gap-1 rounded-md border border-sky-500/40 bg-sky-500/10 px-2 py-1 text-[11px] font-medium text-sky-300 hover:bg-sky-500/20">
           <Play className="h-3 w-3" /> Simulate office
         </button>
       </motion.div>
@@ -137,8 +131,8 @@ function EmptyState({ compact }: { compact: boolean }) {
         <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-lg border border-studio-border bg-studio-card">
           {status === 'open' ? <Radio className="h-5 w-5 text-emerald-400" /> : <Workflow className="h-5 w-5 text-slate-400" />}
         </div>
-        <h3 className="typo-panel-heading text-[var(--studio-text)]">No agents on the floor yet</h3>
-        <p className="typo-secondary mt-1.5 text-[var(--studio-text-secondary)]">
+        <h3 className="text-sm font-semibold text-[var(--studio-text)]">No agents on the floor yet</h3>
+        <p className="mt-1.5 text-[12px] leading-relaxed text-[var(--studio-text-secondary)]">
           {status === 'open'
             ? 'Telemetry is live. Send a request in the Architect chat or the sandbox, and agents will appear here as they spawn.'
             : 'Telemetry is offline. Start the backend with python server.py, or press Simulate to replay a scripted run.'}
@@ -146,7 +140,7 @@ function EmptyState({ compact }: { compact: boolean }) {
         <button
           type="button"
           onClick={() => void startSimulation()}
-          className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-sky-500/40 bg-sky-500/10 px-3 py-1.5 text-[12px] font-medium text-sky-300 hover:bg-sky-500/20"
+          className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-sky-500/40 bg-sky-500/10 px-3 py-1.5 text-[11.5px] font-medium text-sky-300 hover:bg-sky-500/20"
         >
           <Play className="h-3.5 w-3.5" /> Simulate a build run
         </button>

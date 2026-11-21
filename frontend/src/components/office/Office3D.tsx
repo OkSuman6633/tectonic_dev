@@ -147,7 +147,7 @@ function Hud({ onFit, showLabels, toggleLabels }: { onFit: () => void; showLabel
     return s.moduleOrder.filter((id) => ['busy', 'booting'].includes(s.modules[id]?.state ?? '') || (s.moduleCalls[id]?.at(-1)?.startedAt ?? 0) > cutoff).length;
   });
   const modules = useTelemetryStore((s) => s.moduleOrder.length);
-  const btn = 'flex h-7 items-center gap-1.5 rounded-md px-2 text-[12px] font-medium text-[var(--studio-text-secondary)] transition-colors hover:bg-white/[0.06] hover:text-[var(--studio-text)]';
+  const btn = 'flex h-7 items-center gap-1.5 rounded-md px-2 text-[11px] font-medium text-[var(--studio-text-secondary)] transition-colors hover:bg-white/[0.06] hover:text-[var(--studio-text)]';
 
   return (
     <>
@@ -163,7 +163,7 @@ function Hud({ onFit, showLabels, toggleLabels }: { onFit: () => void; showLabel
           {showLabels ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />} Labels: {showLabels ? 'always' : 'on hover'}
         </button>
       </div>
-      <div className="typo-metadata pointer-events-none absolute bottom-3 left-3 z-10 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-studio-border bg-[var(--glass-bg)] px-3 py-1.5 text-[var(--studio-text-secondary)] backdrop-blur-md">
+      <div className="pointer-events-none absolute bottom-3 left-3 z-10 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-studio-border bg-[var(--glass-bg)] px-3 py-1.5 font-mono text-[10px] text-[var(--studio-text-secondary)] backdrop-blur-md">
         {[
           ['Thinking', STATE_STYLES.thinking.color],
           ['Calling tool', STATE_STYLES.tool_execution.color],
@@ -191,9 +191,9 @@ function Hud({ onFit, showLabels, toggleLabels }: { onFit: () => void; showLabel
 
 function Stat({ value, of, label, color }: { value: number; of: number; label: string; color: string }) {
   return (
-    <span className="flex items-baseline gap-1 whitespace-nowrap shrink-0">
-      <span className="font-mono text-[13px] font-semibold tabular-nums" style={{ color: value > 0 ? color : 'var(--studio-text)' }}>{value}</span>
-      <span className="typo-metadata text-[var(--studio-text-muted)]">/ {of} {label}</span>
+    <span className="flex items-baseline gap-1 font-mono">
+      <span className="text-[13px] font-semibold tabular-nums" style={{ color: value > 0 ? color : 'var(--studio-text)' }}>{value}</span>
+      <span className="text-[10px] text-[var(--studio-text-muted)]">/ {of} {label}</span>
     </span>
   );
 }
@@ -203,11 +203,11 @@ function EmptyOffice() {
     <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
       <div className="pointer-events-auto max-w-xs rounded-xl border border-studio-border bg-[var(--glass-bg)] p-5 text-center backdrop-blur-md">
         <Building2 className="mx-auto mb-2 h-6 w-6 text-violet-300" />
-        <h3 className="typo-panel-heading text-[var(--studio-text)]">The office is empty</h3>
-        <p className="typo-secondary mt-1 text-[var(--studio-text-secondary)]">
+        <h3 className="text-sm font-semibold text-[var(--studio-text)]">The office is empty</h3>
+        <p className="mt-1 text-[12px] leading-relaxed text-[var(--studio-text-secondary)]">
           Desks appear as agents spawn; module stations light up as agents use them.
         </p>
-        <button type="button" onClick={() => void startSimulation()} className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-sky-400/40 bg-sky-400/10 px-3 py-1.5 text-[12px] font-medium text-sky-300 hover:bg-sky-400/20">
+        <button type="button" onClick={() => void startSimulation()} className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-sky-400/40 bg-sky-400/10 px-3 py-1.5 text-[11.5px] font-medium text-sky-300 hover:bg-sky-400/20">
           <Play className="h-3.5 w-3.5" /> Simulate office
         </button>
       </div>

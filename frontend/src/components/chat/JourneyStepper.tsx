@@ -76,25 +76,25 @@ export const JourneyStepper: React.FC<Props> = ({ journey, busy }) => {
         {items.map((it, i) => (
           <li key={it.key} className="flex items-center gap-1 flex-1 min-w-0" title={it.title}>
             <span
-              className={`relative shrink-0 w-5 h-5 rounded-full flex items-center justify-center font-mono text-[10px] font-medium border transition-colors ${
+              className={`relative shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-semibold border transition-colors ${
                 it.status === 'done'
-                  ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                  ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-300'
                   : it.status === 'active'
-                    ? 'bg-sky-500/25 border-sky-400 text-sky-200 ring-2 ring-sky-500/30'
-                    : 'bg-white/[0.03] border-white/10 text-slate-400'
+                    ? 'bg-sky-500/25 border-sky-400 text-sky-200'
+                    : 'bg-white/[0.03] border-white/10 text-slate-500'
               }`}
             >
               {it.status === 'done' ? <Check className="w-3 h-3" /> : i + 1}
               {it.auto && (
-                <Sparkles className="absolute -top-1.5 -right-1.5 w-2.5 h-2.5 text-indigo-400" aria-label="decided by the AI" />
+                <Sparkles className="absolute -top-1.5 -right-1.5 w-2.5 h-2.5 text-indigo-300" aria-label="decided by the AI" />
               )}
               {it.status === 'active' && busy && <span className="absolute inset-0 rounded-full border border-sky-400 animate-ping" />}
               {showLabels && (
                 <span
-                  className={`absolute top-full mt-1 whitespace-nowrap font-sans text-[11px] font-medium ${
+                  className={`absolute top-full mt-1 whitespace-nowrap text-[9px] font-medium ${
                     i === 0 ? 'left-0' : i === items.length - 1 ? 'right-0' : 'left-1/2 -translate-x-1/2'
                   } ${
-                    it.status === 'active' ? 'text-sky-300' : it.status === 'done' ? 'text-slate-400' : 'text-slate-500'
+                    it.status === 'active' ? 'text-sky-300' : it.status === 'done' ? 'text-slate-400' : 'text-slate-600'
                   }`}
                 >
                   {it.label}
@@ -102,14 +102,14 @@ export const JourneyStepper: React.FC<Props> = ({ journey, busy }) => {
               )}
             </span>
             {i < items.length - 1 && (
-              <span className={`h-px flex-1 min-w-[4px] ${it.status === 'done' ? 'bg-emerald-500/40' : 'bg-white/10'}`} />
+              <span className={`h-px flex-1 min-w-[4px] ${it.status === 'done' ? 'bg-emerald-400/40' : 'bg-white/10'}`} />
             )}
           </li>
         ))}
       </ol>
-      <div className="mt-1.5 flex items-center justify-between gap-2 typo-metadata min-w-0">
-        <span className="text-slate-300 truncate min-w-0 flex-1 font-medium">{caption}</span>
-        <span className="text-slate-400 font-mono shrink-0">
+      <div className="mt-1.5 flex items-center justify-between gap-2 text-[10px]">
+        <span className="text-slate-300 truncate">{caption}</span>
+        <span className="text-slate-500 font-mono shrink-0">
           {items.filter((it) => it.status === 'done').length}/{items.length}
         </span>
       </div>

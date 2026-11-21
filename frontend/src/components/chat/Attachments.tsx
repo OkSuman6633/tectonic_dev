@@ -24,10 +24,8 @@ const readFile = (file: File): Promise<ChatAttachment> =>
     reader.onload = () => {
       const url = String(reader.result ?? '');
       const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
-      resolve({
-        name: file.name, size: file.size, mimeType: file.type || BY_EXTENSION[ext] || 'application/octet-stream',
-        data: url.slice(url.indexOf(',') + 1)
-      });
+      resolve({ name: file.name, size: file.size, mimeType: file.type || BY_EXTENSION[ext] || 'application/octet-stream',
+                data: url.slice(url.indexOf(',') + 1) });
     };
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
@@ -77,11 +75,11 @@ export const AttachButton: React.FC<{ onFiles: (files: FileList | null) => void;
   return (
     <>
       <input ref={input} type="file" multiple accept={ATTACHMENT_ACCEPT} className="hidden"
-        onChange={(e) => { onFiles(e.target.files); e.target.value = ''; }} />
+             onChange={(e) => { onFiles(e.target.files); e.target.value = ''; }} />
       <button type="button" onClick={() => input.current?.click()} disabled={disabled}
-        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-30 ${className ?? ''}`}
-        title="Attach images or documents (PDF, Word, Excel, PowerPoint, text): or paste / drop them here">
-        <Paperclip className="h-3.5 w-3.5" />
+              className={`p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 disabled:opacity-30 transition-colors ${className ?? ''}`}
+              title="Attach images or documents (PDF, Word, Excel, PowerPoint, text): or paste / drop them here">
+        <Paperclip className="w-3.5 h-3.5" />
       </button>
     </>
   );
@@ -96,7 +94,7 @@ export const AttachmentChips: React.FC<{ files: ChatAttachment[]; onRemove?: (in
         const Icon = f.mimeType.startsWith('image/') ? ImageIcon : FileText;
         return (
           <span key={`${f.name}-${i}`} title={`${f.name} · ${formatSize(f.size)}`}
-            className={`inline-flex max-w-[220px] items-center gap-1 rounded-lg px-2 py-1 text-[11px] ${onDark ? 'bg-white/15 text-white' : 'bg-white/[0.06] border border-white/10 text-slate-300'}`}>
+                className={`inline-flex max-w-[220px] items-center gap-1 rounded-lg px-2 py-1 text-[11px] ${onDark ? 'bg-white/15 text-white' : 'bg-white/[0.06] border border-white/10 text-slate-300'}`}>
             <Icon className="h-3 w-3 shrink-0" />
             <span className="truncate">{f.name}</span>
             <span className="shrink-0 opacity-60">{formatSize(f.size)}</span>

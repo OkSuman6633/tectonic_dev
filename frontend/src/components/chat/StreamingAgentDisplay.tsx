@@ -140,10 +140,11 @@ export const StreamingAgentDisplay: React.FC<Props> = ({ isActive, onPhaseChange
           const status = statuses[i];
           return (
             <React.Fragment key={stage.id}>
-              <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-all ${status === 'active' ? 'bg-sky-500/20 border border-sky-500/50' :
+              <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-all ${
+                status === 'active' ? 'bg-sky-500/20 border border-sky-500/50' :
                 status === 'done' ? 'bg-emerald-500/10' : 'bg-white/5'}`}>
                 <Icon className={`w-3 h-3 ${status === 'active' ? 'text-sky-400 animate-pulse' : status === 'done' ? 'text-emerald-400' : 'text-slate-600'}`} />
-                <span className={`text-[12px] font-medium whitespace-nowrap ${status === 'active' ? 'text-sky-300' : status === 'done' ? 'text-emerald-300' : 'text-slate-600'}`}>{stage.name}</span>
+                <span className={`text-[9px] font-medium whitespace-nowrap ${status === 'active' ? 'text-sky-300' : status === 'done' ? 'text-emerald-300' : 'text-slate-600'}`}>{stage.name}</span>
               </div>
               {i < STAGES.length - 1 && <ChevronRight className={`w-3 h-3 flex-shrink-0 ${status === 'done' ? 'text-emerald-500' : 'text-slate-700'}`} />}
             </React.Fragment>
@@ -157,8 +158,8 @@ export const StreamingAgentDisplay: React.FC<Props> = ({ isActive, onPhaseChange
           {React.createElement(current.icon, { className: 'w-5 h-5 text-white' })}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="typo-agent-name text-sky-300">{current.name}</div>
-          <div className="typo-code text-slate-400 truncate">{statusLine}<span className="animate-pulse">▋</span></div>
+          <div className="text-sm font-semibold text-sky-300">{current.name}</div>
+          <div className="text-xs text-slate-400 font-mono truncate">{statusLine}<span className="animate-pulse">▋</span></div>
         </div>
         <Activity className="w-5 h-5 text-sky-400 animate-pulse" />
       </div>
@@ -170,7 +171,7 @@ export const StreamingAgentDisplay: React.FC<Props> = ({ isActive, onPhaseChange
             {steps.map((c) => {
               const secs = c.status === 'running' ? Math.max(0, now - c.startedAt) : (c.durationMs ?? 0) / 1000;
               return (
-                <li key={c.callId} className="relative flex items-center gap-2 text-[12px]">
+                <li key={c.callId} className="relative flex items-center gap-2 text-[11px]">
                   <span className="absolute -left-[19px] flex h-3.5 w-3.5 items-center justify-center rounded-full bg-studio-card">
                     {c.status === 'running' ? <Loader2 className="h-3 w-3 animate-spin text-sky-400" />
                       : c.status === 'error' ? <XCircle className="h-3 w-3 text-red-400" />
@@ -179,7 +180,7 @@ export const StreamingAgentDisplay: React.FC<Props> = ({ isActive, onPhaseChange
                   <span className={`truncate ${c.status === 'running' ? 'text-sky-200' : c.status === 'error' ? 'text-red-300' : 'text-slate-300'}`}>
                     {labelFor(c)}
                   </span>
-                  <span className="typo-code ml-auto shrink-0 text-slate-500">{secs > 0 ? elapsed(secs) : ''}</span>
+                  <span className="ml-auto shrink-0 font-mono text-[10px] text-slate-500">{secs > 0 ? elapsed(secs) : ''}</span>
                 </li>
               );
             })}
@@ -188,7 +189,7 @@ export const StreamingAgentDisplay: React.FC<Props> = ({ isActive, onPhaseChange
       )}
 
       {/* Live event stream (same feed as the Command Center ticker) */}
-      <div ref={logRef} className="typo-code h-20 p-2 bg-slate-900/50 rounded-lg border border-white/5 overflow-y-auto space-y-0.5 scrollbar-thin">
+      <div ref={logRef} className="h-20 p-2 bg-slate-900/50 rounded-lg border border-white/5 overflow-y-auto text-[10px] font-mono space-y-0.5 scrollbar-thin">
         {recent.map((l, i) => (
           <div key={l.seq} className={`truncate ${i === recent.length - 1 ? 'text-sky-400' : 'text-slate-500'}`}>
             [{new Date(l.timestamp * 1000).toLocaleTimeString()}] {l.text}
