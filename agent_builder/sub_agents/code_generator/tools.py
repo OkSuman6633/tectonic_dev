@@ -96,7 +96,7 @@ _GEN_CORE_MODULES = '''"""Shared Tectonic platform modules for this project's ag
 
 Inside the Tectonic agent server every agent gets the platform as ADK tools (guardrails, intent,
 short/long-term memory, tool orchestration, Agentic RAG knowledge, FinOps spend, PromptOps feedback,
-audit trail, external data connectors such as Meta Ads and GA4) and its instruction is served by
+audit trail, image generation, external data connectors such as Meta Ads and GA4) and its instruction is served by
 PromptOps as '<team>.<agent>' (versioned, A/B-testable).
 Run standalone (plain `adk run`), the import fails and the agents work with their static prompts.
 """

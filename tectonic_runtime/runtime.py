@@ -25,6 +25,7 @@ from .services.finops_service import FinOpsModule
 from .services.promptops_service import PromptOpsModule
 from .services.vector_db_service import VectorDBModule
 from .services.connectors_service import ExternalConnectorsModule
+from .services.image_generation_service import ImageGenerationModule
 from . import models
 
 MODULE_CLASSES: tuple[type[BaseModule], ...] = (
@@ -39,6 +40,7 @@ MODULE_CLASSES: tuple[type[BaseModule], ...] = (
     PromptOpsModule,
     AuditabilityModule,
     ExternalConnectorsModule,
+    ImageGenerationModule,
 )
 
 

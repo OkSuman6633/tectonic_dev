@@ -87,17 +87,17 @@ export const AgentTargetPicker: React.FC = () => {
     return (
       <li key={a.id}>
         <div
-          className={`group flex items-center gap-2 rounded-lg px-2 py-1.5 ${selected ? 'bg-sky-500/15' : 'hover:bg-white/5'}`}
+          className={`group flex items-center gap-2 rounded-lg px-2 py-1.5 ${selected ? 'bg-sky-500/15 text-sky-200' : 'hover:bg-white/5'}`}
           style={{ paddingLeft: 8 + (a.project ? a.depth : Math.min(a.depth, 1)) * 14 }}
         >
           <button type="button" onClick={() => choose(a)} className="flex-1 min-w-0 text-left">
             <div className="flex items-center gap-1.5">
-              <span className={`font-mono text-[11px] truncate ${selected ? 'text-sky-200' : 'text-slate-200'}`}>
+              <span className={`typo-agent-name truncate ${selected ? 'text-sky-300' : 'text-slate-200'}`}>
                 {a.kind === 'project' ? a.project : a.name}
               </span>
-              <span className="text-[9px] uppercase tracking-wide text-slate-500 shrink-0">{KIND_LABEL[a.kind]}</span>
+              <span className="text-[11px] uppercase tracking-wide text-slate-400 shrink-0">{KIND_LABEL[a.kind]}</span>
             </div>
-            {a.description && <div className="text-[10px] text-slate-500 truncate">{a.description}</div>}
+            {a.description && <div className="typo-metadata text-slate-400 truncate">{a.description}</div>}
           </button>
           {a.deletable ? (
             <button
@@ -147,32 +147,32 @@ export const AgentTargetPicker: React.FC = () => {
 
   return (
     <div ref={rootRef} className="relative">
-      <div className="flex items-center gap-1.5">
-        <span className="text-[10px] uppercase font-mono text-slate-500">To</span>
+      <div className="flex items-center gap-1.5 min-w-0">
+        <span className="typo-metadata uppercase text-slate-500 shrink-0">To</span>
         <button
           type="button"
           onClick={() => setOpen(!open)}
           disabled={isChatLoading}
           aria-haspopup="listbox"
           aria-expanded={open}
-          className="flex items-center gap-1.5 max-w-[320px] text-[11px] px-2 py-1 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-slate-200 disabled:opacity-50"
+          className="flex items-center gap-1.5 min-w-0 max-w-[240px] text-[12px] px-2.5 py-1 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-slate-200 shadow-sm disabled:opacity-50 transition-colors font-medium"
         >
-          {current ? <AtSign className="w-3 h-3 text-sky-300 shrink-0" /> : <Sparkles className="w-3 h-3 text-indigo-300 shrink-0" />}
+          {current ? <AtSign className="w-3 h-3 text-sky-400 shrink-0" /> : <Sparkles className="w-3 h-3 text-indigo-400 shrink-0" />}
           <span className="font-mono truncate">{current ? current.id : 'agent_builder'}</span>
-          <span className="text-slate-500 shrink-0">{current ? KIND_LABEL[current.kind] : 'auto-routes'}</span>
-          <ChevronDown className="w-3 h-3 text-slate-500 shrink-0" />
+          <span className="text-slate-400 text-[12px] font-normal shrink-0 hidden xs:inline">{current ? KIND_LABEL[current.kind] : 'auto-routes'}</span>
+          <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
         </button>
         {current && (
-          <button type="button" onClick={() => setChatTarget(null)} className="p-1 rounded text-slate-500 hover:text-white hover:bg-white/10" title="Back to the Agent Builder">
+          <button type="button" onClick={() => setChatTarget(null)} className="p-1 rounded text-slate-400 hover:text-white hover:bg-white/10 shrink-0" title="Back to the Agent Builder">
             <X className="w-3 h-3" />
           </button>
         )}
       </div>
 
       {open && (
-        <div className="absolute bottom-full mb-2 left-0 z-30 w-[min(420px,calc(100vw-48px))] rounded-xl border border-studio-border [background:linear-gradient(var(--popover-bg),var(--popover-bg)),var(--studio-bg)] shadow-2xl">
+        <div className="absolute bottom-full mb-2 left-0 z-30 w-[min(420px,calc(100vw-48px))] rounded-xl border border-white/10 bg-[#12141c]/95 backdrop-blur-xl shadow-2xl">
           <div className="flex items-center gap-1.5 px-2.5 py-2 border-b border-white/10">
-            <Search className="w-3.5 h-3.5 text-slate-500" />
+            <Search className="w-3.5 h-3.5 text-slate-400" />
             <input
               autoFocus
               value={query}

@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react';
 import { AnimatePresence, motion, useMotionValue, useSpring, useTransform, type MotionValue } from 'framer-motion';
-import { LatestEvent } from '../components/command/EventTicker';
 import { WINDOWS } from './windows';
 import { ALL_WINDOWS, useWorkspaceStore, type WindowId } from './useWorkspaceStore';
 
@@ -56,7 +55,7 @@ function DockIcon({ id, mouseX }: { id: WindowId; mouseX: MotionValue<number> })
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.96 }}
             transition={{ duration: 0.12 }}
-            className="glass pointer-events-none absolute -top-9 whitespace-nowrap rounded-md px-2.5 py-1 text-[12px] font-medium text-[var(--studio-text)]"
+            className="glass pointer-events-none absolute -top-9 inline-flex h-6 items-center whitespace-nowrap rounded-lg px-2.5 text-[12px] font-medium leading-none text-[var(--studio-text)]"
           >
             {label}
           </motion.span>
@@ -91,14 +90,11 @@ function DockIcon({ id, mouseX }: { id: WindowId; mouseX: MotionValue<number> })
 }
 
 /** macOS-style floating dock: every window has an icon; open/minimized windows show a dot. */
-export function Dock({ onSelectAgent }: { onSelectAgent: (id: string) => void }) {
+export function Dock({ onSelectAgent: _onSelectAgent }: { onSelectAgent?: (id: string) => void }) {
   const mouseX = useMotionValue(Infinity);
 
   return (
-    <footer className="pointer-events-none relative z-30 flex h-[78px] shrink-0 items-end justify-center pb-2">
-      <div className="glass pointer-events-auto absolute bottom-3 left-3 hidden h-9 w-[min(34vw,440px)] items-center rounded-xl px-2 lg:flex">
-        <LatestEvent onSelectAgent={onSelectAgent} />
-      </div>
+    <footer className="pointer-events-none fixed bottom-2 left-1/2 z-30 -translate-x-1/2">
       <motion.nav
         onMouseMove={(e) => mouseX.set(e.clientX)}
         onMouseLeave={() => mouseX.set(Infinity)}

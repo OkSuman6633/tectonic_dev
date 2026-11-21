@@ -80,30 +80,30 @@ function CustomAgentNodeImpl({ data, selected }: NodeProps<AgentFlowNode>) {
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <span className="truncate font-mono text-[12.5px] font-semibold tracking-tight text-[var(--studio-text)]" title={agent.role}>
+            <span className="typo-agent-name truncate text-[var(--studio-text)]" title={agent.role}>
               {agent.role}
             </span>
-            <span className={`shrink-0 rounded border px-1 font-mono text-[8.5px] uppercase tracking-wider ${ROLE_STYLES[role].chip}`}>
+            <span className={`shrink-0 rounded border px-1 font-mono text-[10px] uppercase tracking-wider ${ROLE_STYLES[role].chip}`}>
               {ROLE_STYLES[role].label}
             </span>
           </div>
-          <div className={`mt-0.5 flex items-center gap-1 font-mono text-[10px] ${style.text}`}>
+          <div className={`typo-status mt-0.5 flex items-center gap-1 ${style.text}`}>
             <span>{style.label}</span>
             {agent.state === 'tool_execution' && agent.stateDetail && (
-              <span className="truncate text-[var(--studio-text-secondary)]">· {agent.stateDetail}</span>
+              <span className="truncate font-mono text-[var(--studio-text-secondary)]">· {agent.stateDetail}</span>
             )}
           </div>
         </div>
       </div>
 
-      <div className="mt-2.5 flex items-end justify-between gap-2">
-        <div className="flex flex-col gap-1 font-mono text-[9.5px] text-[var(--studio-text-muted)]">
+      <div className="mt-2 flex items-end justify-between gap-2">
+        <div className="flex flex-col gap-0.5 font-mono text-[12px] leading-tight text-[var(--studio-text-muted)]">
           <span className="flex items-center gap-1" title="Total tokens">
-            <Cpu className="h-3 w-3" />
+            <Cpu className="h-3 w-3 shrink-0" />
             {formatCount(agent.tokens.total)} tok
           </span>
           <span className="flex items-center gap-1" title="Tool calls">
-            <Wrench className="h-3 w-3" />
+            <Wrench className="h-3 w-3 shrink-0" />
             {agent.toolCallCount} calls{childCount > 0 ? ` · ${childCount} sub` : ''}
           </span>
         </div>

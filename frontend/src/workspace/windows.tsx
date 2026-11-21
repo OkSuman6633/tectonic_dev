@@ -30,7 +30,7 @@ export interface WindowDef {
   DockBadge?: ComponentType;
 }
 
-const pill = 'flex items-center gap-1 rounded-md px-1.5 py-0.5 font-mono text-[10px]';
+const pill = 'typo-status flex items-center gap-1 rounded-md px-1.5 py-0.5 tabular-nums';
 
 function LiveStatus() {
   const status = useTelemetryStore((s) => s.status);
@@ -48,7 +48,7 @@ function WorkingBadge() {
   if (!working) return null;
   // iOS-style count bubble (amber = agents thinking / working).
   return (
-    <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-amber-400 px-1 text-[10px] font-semibold text-black shadow-[0_2px_6px_rgba(0,0,0,0.4)]">
+    <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-amber-400 px-1 font-mono text-[12px] font-medium text-black shadow-[0_2px_6px_rgba(0,0,0,0.4)]">
       {working}
     </span>
   );
@@ -86,7 +86,23 @@ function ModuleBusy({ ids }: { ids: string[] }) {
 
 function EventsCount() {
   const n = useTelemetryStore((s) => s.logs.length);
-  return n ? <span className={`${pill} text-[var(--studio-text-muted)]`}>{n}</span> : null;
+  const status = useTelemetryStore((s) => s.status);
+  const isSimulating = useTelemetryStore((s) => s.isSimulating);
+  const activeRuns = useTelemetryStore((s) => s.activeRuns);
+  const active = isSimulating || activeRuns > 0;
+  const color = active ? '#38BDF8' : status === 'open' ? '#34D399' : status === 'connecting' ? '#FBBF24' : '#5F6573';
+  const label = active ? 'Live' : status === 'open' ? 'Live' : status === 'connecting' ? 'Connecting' : 'Offline';
+
+  return (
+    <span className={pill} style={{ color }}>
+      <span
+        className={`h-1.5 w-1.5 rounded-full ${status === 'open' || active ? 'animate-pulse' : ''}`}
+        style={{ background: color }}
+      />
+      <span>{label}</span>
+      {n > 0 && <span className="tabular-nums text-[var(--studio-text-muted)]">· {n}</span>}
+    </span>
+  );
 }
 
 export const WINDOWS: Record<WindowId, WindowDef> = {

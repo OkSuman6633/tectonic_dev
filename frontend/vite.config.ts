@@ -197,9 +197,23 @@ export default defineConfig({
         configure: (proxy) => proxy.on('proxyReq', (proxyReq) => proxyReq.setHeader('origin', `http://${BACKEND}`)),
       },
       // Command Center telemetry stream from server.py
-      '/ws/telemetry': { target: `ws://${BACKEND}`, ws: true, changeOrigin: true },
+      '/ws/telemetry': {
+        target: `ws://${BACKEND}`,
+        ws: true,
+        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => proxyReq.setHeader('origin', `http://${BACKEND}`));
+          proxy.on('proxyReqWs', (proxyReq) => proxyReq.setHeader('origin', `http://${BACKEND}`));
+        },
+      },
       // Agent directory: chat with / delete any agent from the Builder chat (server.py)
       '/directory': {
+        target: `http://${BACKEND}`,
+        changeOrigin: true,
+        configure: (proxy) => proxy.on('proxyReq', (proxyReq) => proxyReq.setHeader('origin', `http://${BACKEND}`)),
+      },
+      // Images generated in the chat (served to their owner only)
+      '/media': {
         target: `http://${BACKEND}`,
         changeOrigin: true,
         configure: (proxy) => proxy.on('proxyReq', (proxyReq) => proxyReq.setHeader('origin', `http://${BACKEND}`)),

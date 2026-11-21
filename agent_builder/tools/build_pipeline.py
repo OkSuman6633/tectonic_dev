@@ -525,7 +525,7 @@ _BUILD_STATE = (STATE_REQUIREMENTS, STATE_DECISIONS, STATE_PENDING_DECISIONS, ST
                 STATE_REVIEW_PROGRESS, STATE_GUARDRAIL_REPORT, STATE_GUARDRAIL_HISTORY)
 
 
-def start_autopilot(request: str, answer_after_build: bool, tool_context: ToolContext) -> dict:
+def start_autopilot(request: str, answer_after_build: bool, tool_context: ToolContext, hands_free: bool = False) -> dict:
     """Build a new agent on autopilot: the user first ticks which design steps they want to check (the AI
     decides all the others), the idea provider and critics improve it, and (with answer_after_build) the new
     agent then answers the user's request.
@@ -539,6 +539,8 @@ def start_autopilot(request: str, answer_after_build: bool, tool_context: ToolCo
         answer_after_build: True to ask the new agent this request once it is live; False when the user only
             asked for an agent to be built.
         tool_context: Injected by ADK.
+        hands_free: True when no existing capability can do the task (a capability gap) or the user said not to
+            ask anything: no step-plan card, the AI decides every step and the build runs to the end.
 
     Returns:
         dict with status and the next step.
@@ -549,10 +551,17 @@ def start_autopilot(request: str, answer_after_build: bool, tool_context: ToolCo
     s[STATE_PROJECT_NAME] = ""
     # The step-plan card comes first: the user ticks the steps to check themselves, the AI decides the rest.
     s[STATE_INTERVIEW] = {"index": 0, "completed": [], "approved": False, "return_to_compile": False, "plan": None}
+    if hands_free:  # as if the user ticked "let the AI decide everything" on the step-plan card
+        s[STATE_INTERVIEW] = {"index": step_index("compile"), "completed": [k for k in STEP_KEYS if k != "compile"],
+                              "approved": False, "return_to_compile": False, "plan": []}
     s[STATE_AUTOPILOT] = {"request": request, "question": request if answer_after_build else "", "project": "",
                           "answered": False, "agent": ""}
     # The request is the intent: no separate intent_detection round-trip on autopilot.
     s[STATE_INTENT] = {"category": "ask_task" if answer_after_build else "create_agent", "summary": request, "confidence": 1.0}
+    if hands_free:
+        return then(tool_context, {"status": "success", "mode": "autopilot_hands_free",
+                                   "note": "Hands-free: the AI decides every step. Follow next_action to the end without "
+                                           "stopping or asking the user anything."})
     return then(tool_context, {"status": "success", "mode": "autopilot",
                                "note": "It shows the step-plan card first (stop there). After the user ticks it, continue "
                                        "without stopping except at the steps they chose to check."})

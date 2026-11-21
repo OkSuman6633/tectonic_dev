@@ -29,7 +29,8 @@ def rt(events):
 async def test_registers_all_modules_offline(rt, events):
     registered = {e["module"] for e in events if e["type"] == "MODULE_REGISTERED"}
     assert registered == {"guardrails", "intent_detection", "short_term_memory", "long_term_memory", "tool_orchestration",
-                          "agentic_rag", "vector_db", "finops", "promptops", "auditability", "external_connectors"}
+                          "agentic_rag", "vector_db", "finops", "promptops", "auditability", "external_connectors",
+                          "image_generation"}
     assert all(e["state"] == "offline" for e in events if e["type"] == "MODULE_STATE")
 
 

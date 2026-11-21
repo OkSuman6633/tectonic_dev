@@ -22,4 +22,9 @@ def isolated_platform_state(tmp_path, monkeypatch):
     monkeypatch.setenv("TECTONIC_OFFLINE", "1")
     for var, name in STATE_VARS.items():
         monkeypatch.setenv(var, name if name == ":memory:" else str(tmp_path / name))
+    # Generated images: a fresh store per test.
+    from tectonic_runtime.media import reset_media_store
+
+    monkeypatch.setenv("TECTONIC_MEDIA_PATH", str(tmp_path / "media"))
+    reset_media_store()
     return tmp_path

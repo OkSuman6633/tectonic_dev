@@ -39,34 +39,34 @@ export const ReviewCard: React.FC<{ review: DesignReview }> = ({ review }) => {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             {review.stage === 'code' ? <Code2 className="w-3.5 h-3.5 text-indigo-300" /> : <ScanSearch className="w-3.5 h-3.5 text-indigo-300" />}
-            <span className="text-[11px] font-semibold text-slate-200">Critic · {review.stage === 'code' ? 'code review' : 'design review'}</span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${review.verdict === 'approve'
+            <span className="typo-agent-name text-slate-200">Critic · {review.stage === 'code' ? 'code review' : 'design review'}</span>
+            <span className={`typo-status px-1.5 py-0.5 rounded-full border ${review.verdict === 'approve'
               ? 'text-emerald-300 bg-emerald-500/10 border-emerald-500/25' : 'text-amber-300 bg-amber-500/10 border-amber-500/25'}`}>
               {review.verdict === 'approve' ? 'Approved' : 'Revised'}
             </span>
             {counts.filter(([, n]) => n > 0).map(([s, n]) => (
-              <span key={s} className={`text-[10px] px-1.5 py-0.5 rounded-full border ${SEVERITY[s].cls}`}>{n} {SEVERITY[s].label.toLowerCase()}</span>
+              <span key={s} className={`typo-status px-1.5 py-0.5 rounded-full border ${SEVERITY[s].cls}`}>{n} {SEVERITY[s].label.toLowerCase()}</span>
             ))}
           </div>
-          {review.summary && <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-2">{review.summary}</p>}
+          {review.summary && <p className="typo-secondary text-slate-400 mt-0.5 line-clamp-2">{review.summary}</p>}
         </div>
         {open ? <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" /> : <ChevronRight className="w-4 h-4 text-slate-500 shrink-0" />}
       </button>
       {open && (
-        <div className="px-3 pb-3 space-y-2.5 text-[11px]">
+        <div className="px-3 pb-3 space-y-2.5 text-[13px]">
           {review.strengths.length > 0 && (
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Strengths</div>
+              <div className="text-[12px] font-medium uppercase tracking-wider text-slate-500 mb-1">Strengths</div>
               <ul className="space-y-0.5">
                 {review.strengths.map((s, i) => (
-                  <li key={i} className="flex gap-1.5 text-slate-300"><CheckCircle2 className="w-3 h-3 mt-0.5 text-emerald-400 shrink-0" />{s}</li>
+                  <li key={i} className="flex gap-1.5 text-slate-300"><CheckCircle2 className="w-3 h-3 mt-1 text-emerald-400 shrink-0" />{s}</li>
                 ))}
               </ul>
             </div>
           )}
           {review.issues.length > 0 && (
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Issues & fixes</div>
+              <div className="text-[12px] font-medium uppercase tracking-wider text-slate-500 mb-1">Issues & fixes</div>
               <div className="space-y-1.5">
                 {(['blocker', 'major', 'minor'] as const).flatMap((sev) => review.issues.filter((i) => i.severity === sev)).map((issue, i) => {
                   const S = SEVERITY[issue.severity];
@@ -75,7 +75,7 @@ export const ReviewCard: React.FC<{ review: DesignReview }> = ({ review }) => {
                       <div className="flex items-center gap-1.5 font-medium">
                         <S.icon className="w-3 h-3 shrink-0" />
                         <span>{issue.problem}</span>
-                        {issue.area && <span className="ml-auto text-[9px] font-mono opacity-70 shrink-0">{issue.area}</span>}
+                        {issue.area && <span className="ml-auto font-mono text-[12px] opacity-70 shrink-0">{issue.area}</span>}
                       </div>
                       {issue.fix && <div className="mt-1 text-slate-300"><span className="text-slate-500">Fix: </span>{issue.fix}</div>}
                     </div>
@@ -86,10 +86,10 @@ export const ReviewCard: React.FC<{ review: DesignReview }> = ({ review }) => {
           )}
           {review.acceptedIdeas.length > 0 && (
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Ideas adopted</div>
+              <div className="text-[12px] font-medium uppercase tracking-wider text-slate-500 mb-1">Ideas adopted</div>
               <div className="flex flex-wrap gap-1">
                 {review.acceptedIdeas.map((t, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/25 text-indigo-200">
+                  <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/25 text-[12px] text-indigo-200">
                     <Lightbulb className="w-3 h-3" />{t}
                   </span>
                 ))}
@@ -116,25 +116,25 @@ export const IdeasCard: React.FC<{ ideas: DesignIdeas }> = ({ ideas }) => {
     <div className="mt-3 rounded-xl border border-indigo-500/20 bg-indigo-500/[0.04] p-2.5">
       <div className="flex items-center gap-1.5 mb-1.5">
         <Lightbulb className="w-3.5 h-3.5 text-amber-300" />
-        <span className="text-[11px] font-semibold text-slate-200">Idea Provider</span>
-        <span className="text-[10px] text-slate-500">{ideas.ideas.length} idea{ideas.ideas.length === 1 ? '' : 's'}</span>
+        <span className="typo-agent-name text-slate-200">Idea Provider</span>
+        <span className="typo-metadata text-slate-500">{ideas.ideas.length} idea{ideas.ideas.length === 1 ? '' : 's'}</span>
       </div>
-      {ideas.summary && <p className="text-[11px] text-slate-400 mb-2">{ideas.summary}</p>}
+      {ideas.summary && <p className="typo-secondary text-slate-400 mb-2">{ideas.summary}</p>}
       <div className="space-y-1.5">
         {shown.map((idea, i) => (
           <div key={i} className="rounded-lg bg-white/[0.03] border border-white/5 p-2">
             <div className="flex items-center gap-1.5 flex-wrap">
               <Sparkles className="w-3 h-3 text-indigo-300 shrink-0" />
-              <span className="text-[11px] font-medium text-slate-200">{idea.title}</span>
-              <span className={`text-[9px] px-1.5 py-0.5 rounded-full border ${IMPACT[idea.impact]}`}>{idea.impact} impact</span>
-              {idea.area && <span className="text-[9px] font-mono text-slate-500">{idea.area}</span>}
+              <span className="text-[13px] font-medium text-slate-200">{idea.title}</span>
+              <span className={`typo-status px-1.5 py-0.5 rounded-full border ${IMPACT[idea.impact]}`}>{idea.impact} impact</span>
+              {idea.area && <span className="typo-code text-slate-500">{idea.area}</span>}
             </div>
-            {idea.description && <p className="text-[11px] text-slate-400 mt-0.5">{idea.description}</p>}
+            {idea.description && <p className="typo-secondary text-slate-400 mt-0.5">{idea.description}</p>}
           </div>
         ))}
       </div>
       {ideas.ideas.length > 3 && (
-        <button type="button" onClick={() => setOpen(!open)} className="mt-1.5 text-[10px] text-sky-400 hover:underline">
+        <button type="button" onClick={() => setOpen(!open)} className="mt-1.5 text-[12px] font-medium text-sky-400 hover:underline">
           {open ? 'Show fewer' : `Show all ${ideas.ideas.length}`}
         </button>
       )}
@@ -158,7 +158,7 @@ export const AutopilotAnswerCard: React.FC<{ run: AutopilotRun }> = ({ run }) =>
       setBusy(false);
     }
   };
-  const btn = 'inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-medium border transition-colors disabled:opacity-50';
+  const btn = 'inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[12px] font-medium border transition-colors disabled:opacity-50';
 
   return (
     <div className="mt-3 rounded-xl border border-emerald-500/25 bg-gradient-to-br from-emerald-500/[0.08] to-sky-500/[0.05] p-2.5">
@@ -166,13 +166,13 @@ export const AutopilotAnswerCard: React.FC<{ run: AutopilotRun }> = ({ run }) =>
         <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center">
           <Bot className="w-3.5 h-3.5 text-white" />
         </div>
-        <span className="text-[11px] font-semibold text-emerald-200">Autopilot built a new agent</span>
-        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/25">@{run.project}</span>
-        <span className="text-[10px] text-slate-500">built just now · verified · live</span>
+        <span className="typo-agent-name text-emerald-200">Autopilot built a new agent</span>
+        <span className="typo-code px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/25">@{run.project}</span>
+        <span className="typo-metadata text-slate-500">built just now · verified · live</span>
       </div>
       {run.question && (
-        <div className="mt-2 text-[11px] text-slate-400 flex gap-1.5">
-          <MessageSquare className="w-3 h-3 mt-0.5 shrink-0" />
+        <div className="mt-2 typo-secondary text-slate-400 flex gap-1.5">
+          <MessageSquare className="w-3 h-3 mt-1 shrink-0" />
           <span className="line-clamp-2">Asked: “{run.question}”</span>
         </div>
       )}

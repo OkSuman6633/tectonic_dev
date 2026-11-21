@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { BookOpenText, Brain, Database, FileUp, GitBranch, Search, Sparkles, Trash2, Waypoints } from 'lucide-react';
 import { invokeModule, useAction, useModuleData } from '../../services/platformApi';
-import { BackendGate, Button, Card, Chip, Empty, ErrorNote, Input, StatusPill, Tabs, TextArea } from './ui';
+import { BackendGate, Button, Card, Chip, Empty, ErrorNote, Input, Select, StatusPill, Tabs, TextArea } from './ui';
 
 interface Hop { hop: number; query: string; backends: string[]; route: string; route_method: string; items: number; groundedness: number; gaps: string; critic: string; reformulated: boolean }
 interface Citation { n: number; source: string; location: string; backend: string; score: number; excerpt: string }
@@ -22,9 +22,9 @@ function Answer({ text }: { text: string }) {
   // Render [n] citation markers as chips.
   const parts = text.split(/(\[\d+\])/g);
   return (
-    <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-[var(--studio-text)]">
+    <p className="typo-body whitespace-pre-wrap text-[var(--studio-text)]">
       {parts.map((p, i) => /^\[\d+\]$/.test(p)
-        ? <span key={i} className="mx-0.5 rounded bg-sky-400/15 px-1 font-mono text-[10.5px] text-sky-300">{p.slice(1, -1)}</span>
+        ? <span key={i} className="mx-0.5 rounded bg-sky-400/15 px-1 font-mono text-[12px] text-sky-300">{p.slice(1, -1)}</span>
         : <span key={i}>{p}</span>)}
     </p>
   );
@@ -45,13 +45,14 @@ function Trace({ result }: { result: AskResult }) {
             </div>
             <div className="mt-1.5 font-mono text-[11.5px] text-[var(--studio-text)]">“{h.query}”</div>
             <div className="mt-1 text-[11px] text-[var(--studio-text-secondary)]">{h.route}</div>
+            {/* Label / bar / value columns are fixed-width so every hop's bar starts and ends at the same x. */}
             <div className="mt-2 flex items-center gap-2">
-              <span className="w-20 shrink-0 text-[10.5px] text-[var(--studio-text-muted)]">groundedness</span>
-              <div className="relative h-[6px] flex-1 rounded-full bg-white/[0.06]">
+              <span className="w-[84px] shrink-0 text-[10.5px] leading-none text-[var(--studio-text-muted)]">groundedness</span>
+              <div className="relative h-[6px] min-w-0 flex-1 rounded-full bg-white/[0.06]">
                 <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${h.groundedness * 100}%`, background: 'var(--chart-a)' }} />
                 <div className="absolute -top-1 h-[14px] w-px bg-[var(--studio-text-secondary)]" style={{ left: `${result.threshold * 100}%` }} title={`threshold ${result.threshold}`} />
               </div>
-              <span className="w-24 shrink-0 text-right"><StatusPill status={pass ? 'good' : 'warn'} label={`${h.groundedness.toFixed(2)} ${h.critic}`} /></span>
+              <span className="flex w-[112px] shrink-0 items-center justify-end overflow-hidden tabular-nums"><StatusPill status={pass ? 'good' : 'warn'} label={`${h.groundedness.toFixed(2)} ${h.critic}`} /></span>
             </div>
             {!pass && h.gaps && <div className="mt-1 text-[11px] text-amber-300/90">gap: {h.gaps}</div>}
           </li>
@@ -73,10 +74,10 @@ function AskTab({ namespaces }: { namespaces: string[] }) {
     <div className="space-y-3 p-3">
       <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void ask(); }}>
         <Input value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Ask the knowledge base… e.g. Who approves refunds over 500 EUR?" />
-        <select value={ns} onChange={(e) => setNs(e.target.value)} className="rounded-lg border border-studio-border bg-black/20 px-2 text-[12px] text-[var(--studio-text)]">
+        <Select value={ns} onChange={(e) => setNs(e.target.value)} className="w-auto shrink-0">
           <option value="">all namespaces</option>
           {namespaces.map((n) => <option key={n} value={n}>{n}</option>)}
-        </select>
+        </Select>
         <Button type="submit" variant="primary" busy={busy === 'ask'}><Sparkles className="h-3.5 w-3.5" />Ask</Button>
       </form>
       <ErrorNote error={error} />
@@ -166,7 +167,7 @@ function CorpusTab({ stats, refreshStats }: { stats: Stats | null; refreshStats:
       <Card title={`Documents · ${docs.data?.documents.length ?? 0}`} icon={BookOpenText}>
         {!docs.data?.documents.length ? <Empty>No documents yet.</Empty> : (
           <table className="w-full text-left text-[11.5px]">
-            <thead className="text-[10.5px] uppercase tracking-wider text-[var(--studio-text-muted)]"><tr><th className="py-1">Title</th><th>Namespace</th><th className="text-right">Chunks</th><th>Owner</th><th /></tr></thead>
+            <thead className="text-[10.5px] uppercase tracking-wider text-[var(--studio-text-muted)]"><tr><th className="py-1.5">Title</th><th>Namespace</th><th className="text-right">Chunks</th><th>Owner</th><th /></tr></thead>
             <tbody>
               {docs.data.documents.map((d) => (
                 <tr key={d.doc_id} className="border-t border-white/[0.05]">
@@ -175,7 +176,7 @@ function CorpusTab({ stats, refreshStats }: { stats: Stats | null; refreshStats:
                   <td className="text-right tabular-nums text-[var(--studio-text-secondary)]">{d.chunks}</td>
                   <td className="font-mono text-[var(--studio-text-muted)]">{d.owner}</td>
                   <td className="text-right">
-                    <button type="button" title="Delete document and vectors" className="rounded p-1 text-[var(--studio-text-muted)] hover:bg-rose-500/15 hover:text-rose-300"
+                    <button type="button" title="Delete document and vectors" className="ml-auto flex h-6 w-6 items-center justify-center rounded text-[var(--studio-text-muted)] hover:bg-rose-500/15 hover:text-rose-300"
                       onClick={() => void run('del', async () => { await invokeModule('agentic_rag', 'delete_document', { doc_id: d.doc_id }); docs.refresh(); refreshStats(); })}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>

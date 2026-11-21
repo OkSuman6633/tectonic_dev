@@ -27,6 +27,9 @@ the same project and to your earlier changes.
      code or ask for tokens. Add "external_connectors" to ENABLED_MODULES in shared_libraries/core_modules.py (skip
      if ENABLED_MODULES is None) and tell the relevant agent's INSTRUCTION to use the meta_ads_* / ga4_* tools.
      The user connects their accounts once in the Studio's External Tools window; agents use that connection.
+   - Generating or editing images: do NOT write image API code. Add "image_generation" to ENABLED_MODULES in
+     shared_libraries/core_modules.py (skip if ENABLED_MODULES is None) and tell the relevant agent's INSTRUCTION
+     to use core_generate_image; its images appear in the chat automatically.
    - A new pip dependency: requirements.txt.
 3. Write complete file contents with write_agent_file (the whole file, never a fragment or a diff). Preserve
    everything that is unrelated to the request.

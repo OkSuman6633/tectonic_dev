@@ -231,10 +231,10 @@ def session_id_for(session_key: str, entry_id: str) -> str:
 
 
 async def drive(runner: Runner, session_id: str, message: str, trace: list[dict],
-                attachments: list[types.Part] | None = None) -> str:
+                attachments: list[types.Part] | None = None, images: list[dict] | None = None) -> str:
     """Run one turn and return the final text reply; agent hand-offs and tool calls are appended to
     `trace` (whose first step names the agent that starts). `attachments` are image / document parts sent
-    with the message. Closes the runner."""
+    with the message; images the agents generated in this turn are appended to `images`. Closes the runner."""
     reply, last_author = "", trace[0]["agent"] if trace else ""
     parts = [types.Part(text=message), *(attachments or [])]
     try:
@@ -248,6 +248,8 @@ async def drive(runner: Runner, session_id: str, message: str, trace: list[dict]
                 trace.append({"type": "tool", "agent": author, "name": call.name, "args": _short(call.args or {}), "id": call.id})
             for resp in event.get_function_responses():
                 status = resp.response.get("status") if isinstance(resp.response, dict) else None
+                if images is not None and status == "success" and (resp.name or "").endswith("generate_image"):
+                    images.extend(i for i in resp.response.get("images") or [] if isinstance(i, dict) and i.get("url"))
                 for step in reversed(trace):
                     if step["type"] == "tool" and step.get("id") == resp.id and "status" not in step:
                         step["status"] = status or "done"
@@ -277,9 +279,11 @@ async def run_agent(target: str, message: str, session_key: str = "default",
                     auto_create_session=True)
     trace: list[dict] = [{"type": "agent", "agent": entry["name"], "detail": f"{entry['kind'].replace('_', ' ')} · {entry['id']}"}]
     started = time.perf_counter()
-    reply = await drive(runner, session_id_for(session_key, entry["id"]), message, trace, attachments)
+    images: list[dict] = []
+    reply = await drive(runner, session_id_for(session_key, entry["id"]), message, trace, attachments, images)
     return {"status": "success", "target": entry["id"], "agent": entry["name"], "kind": entry["kind"],
-            "project": entry["project"], "reply": reply or "(no text reply)", "trace": trace,
+            "project": entry["project"], "reply": reply or ("(no text reply)" if not images else ""), "trace": trace,
+            "images": images,
             "duration_ms": round((time.perf_counter() - started) * 1000)}
 
 

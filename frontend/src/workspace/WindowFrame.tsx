@@ -37,7 +37,7 @@ export function WindowFrame({ id, title, icon: Icon, accent, status, children }:
       className={`studio-window flex h-full flex-col overflow-hidden ${focused ? 'is-focused' : ''} ${flash ? 'attention' : ''}`}
     >
       <header
-        className="window-drag studio-window-header relative flex h-9 shrink-0 cursor-default items-center border-b px-3 select-none"
+        className="window-drag studio-window-header relative flex h-9 shrink-0 cursor-default items-center gap-2 border-b px-3 select-none"
         onDoubleClick={() => toggleMaximize(id)}
       >
         {/* macOS traffic lights: close (to dock, no dot) · minimize (to dock) · zoom */}
@@ -59,10 +59,11 @@ export function WindowFrame({ id, title, icon: Icon, accent, status, children }:
           </button>
         </div>
 
-        {/* Centered title, like a native window */}
-        <div className="pointer-events-none absolute inset-x-24 flex items-center justify-center gap-1.5">
+        {/* Centered title, like a native window. Width-capped so it can never
+            collide with the traffic lights on the left or the status pills on the right. */}
+        <div className="pointer-events-none absolute left-1/2 flex max-w-[46%] -translate-x-1/2 items-center justify-center gap-1.5">
           <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: accent }} />
-          <h2 className="truncate text-[13px] font-semibold tracking-[-0.01em] text-[var(--studio-text)]">{title}</h2>
+          <h2 className="typo-panel-heading truncate text-[var(--studio-text)]">{title}</h2>
         </div>
 
         {status && <div className="z-10 ml-auto flex min-w-0 items-center gap-2 overflow-hidden">{status}</div>}
