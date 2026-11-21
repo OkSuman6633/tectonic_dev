@@ -22,6 +22,7 @@ import type {
 import { api, DEFAULT_MOCK_SPEC, SessionMissingError, type ChatResponse, type RuntimeChatResponse } from '../services/api';
 import { storageScope } from '../services/auth';
 import { fetchConnectorNotices, looksLikeCredential, noticeCursor } from '../services/connectorsApi';
+import { formatProjectReport, getPlanReport } from '../services/plans';
 import type { ConnectorNotice } from '../types/connectors';
 
 export type StudioTab = 'command' | 'visualizer' | 'sandbox' | 'inspector';
@@ -329,12 +330,20 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
     const [added] = await Promise.all([get().refreshCreatedAgents(), get().refreshDirectory()]);
     if (added.length > 0) {
       const names = added.map((a) => `**${a.name}**`).join(', ');
+      let reportBlock = '';
+      try {
+        const report = await getPlanReport();
+        const pr = report?.projects?.find((p) => p.project === added[0].name);
+        if (pr) reportBlock = `\n\n${formatProjectReport(pr)}`;
+      } catch {
+        /* the compliance report is best-effort; the ready note still shows */
+      }
       set((state) => ({
         isAgentReady: true,
         chatMessages: [...state.chatMessages, {
           id: newId('msg-agent-ready'),
           sender: 'assistant' as const,
-          content: `✅ New agent ${names} is ready: chat with it here as \`@${added[0].name}\`, or in the **Live Sandbox** tab.`,
+          content: `✅ New agent ${names} is ready: chat with it here as \`@${added[0].name}\`, or in the **Live Sandbox** tab.${reportBlock}`,
           timestamp: stamp()
         }]
       }));

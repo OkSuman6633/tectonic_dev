@@ -790,6 +790,15 @@ async def finalize_build(project_name: str, tool_context: ToolContext) -> dict:
         dict with status and per-step results.
     """
     project = slugify_identifier(project_name, default="generated_agent")
+    try:  # plan gating: the account's agent-slot limit (fail open)
+        from agent_builder import entitlements
+        from agent_builder.workspace import current_user
+
+        ok, reason = entitlements.agent_creation_allowed(current_user(), project)
+        if not ok:
+            return then(tool_context, {"status": "blocked", "code": "AGENT_LIMIT_EXCEEDED", "message": reason})
+    except Exception:  # pragma: no cover - entitlements unavailable
+        pass
     s = tool_context.state
     req = _as_dict(s.get(STATE_REQUIREMENTS))
     decisions = dict(s.get(STATE_DECISIONS) or {})
@@ -842,4 +851,13 @@ async def finalize_build(project_name: str, tool_context: ToolContext) -> dict:
 
     s[STATE_BUILD_RECORD] = {"project": project, "provisioned": True, "spec_sha256": spec_hash,
                              "budget": {"limit_usd": amount, "enforcement": enforcement}, "prompts": prompts}
-    return then(tool_context, {"status": "success", "project": project, "steps": steps})
+    plan_report = None
+    try:  # plan-compliance snapshot for the build record and audit trail (fail open)
+        from agent_builder import entitlements
+        from agent_builder.workspace import current_user
+
+        plan_report = entitlements.project_report(current_user(), project)
+    except Exception:  # pragma: no cover - entitlements unavailable
+        pass
+    s[STATE_BUILD_RECORD]["plan_report"] = plan_report
+    return then(tool_context, {"status": "success", "project": project, "steps": steps, "plan_report": plan_report})

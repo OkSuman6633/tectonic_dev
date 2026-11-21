@@ -163,6 +163,7 @@
 .light .border-studio-border { border-color: var(--studio-border); }
 .light .bg-white\/5 { background-color: rgba(0, 0, 0, 0.03); }
 .light .bg-white\/10 { background-color: rgba(0, 0, 0, 0.06); }
+.light .bg-white\/\[0\.06\], .light .bg-white\/\[0\.07\], .light .bg-white\/\[0\.08\] { background-color: rgba(14, 17, 22, 0.06); }
 .light .border-white\/5 { border-color: rgba(0, 0, 0, 0.05); }
 .light .border-white\/10 { border-color: rgba(0, 0, 0, 0.08); }
 .light .hover\:bg-white\/5:hover { background-color: rgba(0, 0, 0, 0.03); }

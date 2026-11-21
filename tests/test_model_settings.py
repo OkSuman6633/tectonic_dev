@@ -210,6 +210,11 @@ def overrides(settings, tmp_path, monkeypatch):
     monkeypatch.delenv("K_SERVICE", raising=False)
     monkeypatch.setattr(auth, "_secret_cache", None)
     monkeypatch.setattr(model_settings, "_fernet_cache", None)
+    # Custom models are a Pro feature: put both test accounts on Pro so the plan gate passes.
+    from agent_builder import entitlements
+
+    entitlements.set_plan_id(ALICE, "pro")
+    entitlements.set_plan_id(BOB, "pro")
     gemini_checked: list = []
 
     async def fake_gemini(model, key):
@@ -401,6 +406,11 @@ def test_settings_routes_toggle_per_signed_in_user(overrides):
     studio_api.install(app)
     client = TestClient(app)
     alice, bob = auth.register("alice", "correct-horse-1"), auth.register("bobby", "correct-horse-2")
+    # Custom models are a Pro feature.
+    from agent_builder import entitlements
+
+    entitlements.set_plan_id(alice["id"], "pro")
+    entitlements.set_plan_id(bob["id"], "pro")
     as_alice = {"Authorization": f"Bearer {auth.issue_token(alice)}"}
     as_bob = {"Authorization": f"Bearer {auth.issue_token(bob)}"}
 

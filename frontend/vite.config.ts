@@ -185,6 +185,17 @@ export default defineConfig({
         changeOrigin: true,
         configure: (proxy) => proxy.on('proxyReq', (proxyReq) => proxyReq.setHeader('origin', `http://${BACKEND}`)),
       },
+      // Subscription plans (no payment yet): list, read and choose/switch a plan
+      '/api/plans': {
+        target: `http://${BACKEND}`,
+        changeOrigin: true,
+        configure: (proxy) => proxy.on('proxyReq', (proxyReq) => proxyReq.setHeader('origin', `http://${BACKEND}`)),
+      },
+      '/api/plan': {
+        target: `http://${BACKEND}`,
+        changeOrigin: true,
+        configure: (proxy) => proxy.on('proxyReq', (proxyReq) => proxyReq.setHeader('origin', `http://${BACKEND}`)),
+      },
       // Command Center telemetry stream from server.py
       '/ws/telemetry': { target: `ws://${BACKEND}`, ws: true, changeOrigin: true },
       // Agent directory: chat with / delete any agent from the Builder chat (server.py)
@@ -210,6 +221,13 @@ export default defineConfig({
         target: `http://${BACKEND}`,
         changeOrigin: true,
         // The ADK server rejects unknown origins (403); present the backend's own origin, as the ADK proxy above does.
+        configure: (proxy) => proxy.on('proxyReq', (proxyReq) => proxyReq.setHeader('origin', `http://${BACKEND}`)),
+      },
+      // Everything else under /api (images, plans, web-search, …) goes to the backend too.
+      // More specific /api/* entries above win for their own paths.
+      '/api': {
+        target: `http://${BACKEND}`,
+        changeOrigin: true,
         configure: (proxy) => proxy.on('proxyReq', (proxyReq) => proxyReq.setHeader('origin', `http://${BACKEND}`)),
       }
     }
