@@ -197,7 +197,10 @@ export async function startSimulation(): Promise<void> {
   if (store.status === 'open') {
     try {
       const res = await fetch('/modules/simulate', { method: 'POST' });
-      if (res.ok) return;
+      if (res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { status?: string };
+        if (data.status === 'started' || data.status === 'already_running') return;
+      }
     } catch {
       /* fall back to the local replay */
     }

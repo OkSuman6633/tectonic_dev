@@ -71,20 +71,54 @@ export const PRESETS: Record<PresetId, Preset> = {
   },
 };
 
+/**
+ * Default cell for a window that the active preset does not place. The geometry of each family
+ * tiles the 24-column grid exactly (debug: 6 + 9 + 9, platform: 10 + 7 + 7) so a window restored
+ * from the Dock never lands half on top of its siblings.
+ */
 const FALLBACK: Record<WindowId, Cell> = {
-  chat: { x: 0, y: 0, w: 7, h: 24 },
-  command: { x: 7, y: 0, w: 11, h: 14 },
-  blueprint: { x: 7, y: 14, w: 10, h: 10 },
-  roster: { x: 18, y: 0, w: 6, h: 14 },
-  events: { x: 17, y: 14, w: 7, h: 10 },
-  sandbox: { x: 6, y: 0, w: 10, h: 16 },
-  inspector: { x: 12, y: 0, w: 12, h: 16 },
+  chat: { x: 0, y: 0, w: 6, h: 24 },
+  command: { x: 6, y: 0, w: 9, h: 14 },
+  blueprint: { x: 15, y: 0, w: 9, h: 14 },
+  roster: { x: 15, y: 14, w: 9, h: 10 },
+  events: { x: 6, y: 14, w: 9, h: 10 },
+  sandbox: { x: 6, y: 0, w: 9, h: 14 },
+  inspector: { x: 15, y: 0, w: 9, h: 14 },
   knowledge: { x: 0, y: 0, w: 10, h: 14 },
   finops: { x: 10, y: 0, w: 7, h: 14 },
-  promptops: { x: 12, y: 0, w: 12, h: 14 },
+  promptops: { x: 17, y: 0, w: 7, h: 14 },
   audit: { x: 0, y: 14, w: 14, h: 10 },
   connectors: { x: 14, y: 0, w: 10, h: 16 },
 };
+
+const GRID_COLS_FALLBACK = 24;
+
+const overlaps = (a: Cell, b: Cell) =>
+  a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
+/**
+ * First cell that fits `id` without covering a window already on the grid. Restoring a window from
+ * the Dock used to drop it on top of whatever the preset had placed at that cell; now it is nudged
+ * to the first free slot (or a fresh row below the grid) so the layout stays readable.
+ */
+function freeCell(id: WindowId, s: { layouts: Record<WindowId, Cell>; closed: WindowId[]; minimized: WindowId[] }): Cell {
+  const want = s.layouts[id] ?? FALLBACK[id];
+  const taken = ALL_WINDOWS
+    .filter((w) => w !== id && !s.closed.includes(w) && !s.minimized.includes(w))
+    .map((w) => s.layouts[w])
+    .filter((c): c is Cell => Boolean(c));
+  if (!taken.some((c) => overlaps(c, want))) return want;
+  const w = Math.min(want.w, GRID_COLS_FALLBACK);
+  const h = want.h;
+  const bottom = taken.reduce((m, c) => Math.max(m, c.y + c.h), 0);
+  for (let y = 0; y <= bottom; y += 1) {
+    for (let x = 0; x + w <= GRID_COLS_FALLBACK; x += 1) {
+      const probe = { x, y, w, h };
+      if (!taken.some((c) => overlaps(c, probe))) return probe;
+    }
+  }
+  return { x: 0, y: bottom, w, h };
+}
 
 function presetState(preset: PresetId) {
   const layout = PRESETS[preset].layout;
@@ -176,7 +210,12 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         })),
 
       restore: (id) =>
-        set((s) => ({ minimized: s.minimized.filter((m) => m !== id), closed: s.closed.filter((m) => m !== id), focused: id })),
+        set((s) => ({
+          minimized: s.minimized.filter((m) => m !== id),
+          closed: s.closed.filter((m) => m !== id),
+          layouts: { ...s.layouts, [id]: freeCell(id, s) },
+          focused: id,
+        })),
 
       toggleMaximize: (id) =>
         set((s) => ({
@@ -202,6 +241,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         set((s) => ({
           minimized: s.minimized.filter((m) => m !== id),
           closed: s.closed.filter((m) => m !== id),
+          layouts: { ...s.layouts, [id]: freeCell(id, s) },
           maximized: s.maximized && s.maximized !== id ? null : s.maximized,
           focused: id,
           attention: { id, nonce: Date.now() },

@@ -489,7 +489,7 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
     api.setMockMode(val);
     set({ mockMode: val });
   },
-  hudCollapsed: false,
+  hudCollapsed: true,
   setHudCollapsed: (val) => set({ hudCollapsed: val }),
 
   // Global Google Gemini Environment State

@@ -117,6 +117,8 @@ const compact = (value: unknown, limit = 140): string => {
   return flat.length > limit ? `${flat.slice(0, limit - 1)}…` : flat;
 };
 
+let nextLogId = 1;
+
 /** Pure reducer: folds a batch of events into a new data snapshot, copying only touched maps. */
 function reduce(prev: TelemetryData, events: TelemetryEvent[], now: number): TelemetryData {
   const d: TelemetryData = { ...prev };
@@ -130,7 +132,7 @@ function reduce(prev: TelemetryData, events: TelemetryEvent[], now: number): Tel
     return d[key];
   };
   const log = (e: TelemetryEvent, level: LogEntry['level'], text: string, agentId?: string) => {
-    own('logs').push({ seq: e.seq, timestamp: e.timestamp, level, agentId, text });
+    own('logs').push({ id: nextLogId++, seq: e.seq, timestamp: e.timestamp, level, agentId, text });
   };
   const bump = (id: string, amount: number) => {
     const activity = own('activity');
@@ -213,6 +215,7 @@ function reduce(prev: TelemetryData, events: TelemetryEvent[], now: number): Tel
         patchAgent(e.id, { state: e.state, stateDetail: e.detail });
         bump(e.id, 1);
         if (e.state === 'error') log(e, 'error', `${e.id} error: ${e.detail ?? 'unknown'}`, e.id);
+        else if (e.state === 'thinking' && prevState !== 'thinking') log(e, 'state', `${e.id} → thinking${e.detail ? ` (${e.detail})` : ''}`, e.id);
         else if (e.state === 'idle' && prevState && prevState !== 'idle') log(e, 'state', `${e.id} → idle`, e.id);
         break;
       }
@@ -255,6 +258,7 @@ function reduce(prev: TelemetryData, events: TelemetryEvent[], now: number): Tel
           own('memory')[e.id] = { ...(d.memory[e.id] ?? {}), ...e.state_delta };
         }
         if (e.status === 'error') log(e, 'error', `${e.id} tool ${e.tool_name} failed`, e.id);
+        else log(e, 'tool', `${e.id} completed tool: ${e.tool_name}${e.duration_ms != null ? ` (${Math.round(e.duration_ms)}ms)` : ''}`, e.id);
         break;
       }
 
@@ -331,12 +335,15 @@ function reduce(prev: TelemetryData, events: TelemetryEvent[], now: number): Tel
 
       case 'MODULE_CALL_START': {
         ensureModule(e.module);
-        ensureAgent(e.agent_id, e.timestamp);
-        const linkId = moduleEdgeId(e.agent_id, e.module);
-        if (!d.moduleLinks.some((l) => l.id === linkId)) {
-          own('moduleLinks').push({ id: linkId, source: e.agent_id, target: moduleNodeId(e.module) });
+        if (e.agent_id !== 'operator') {
+          ensureAgent(e.agent_id, e.timestamp);
+          const linkId = moduleEdgeId(e.agent_id, e.module);
+          if (!d.moduleLinks.some((l) => l.id === linkId)) {
+            own('moduleLinks').push({ id: linkId, source: e.agent_id, target: moduleNodeId(e.module) });
+          }
+          own('packets').push({ key: `${e.seq}`, edgeId: linkId, reverse: false, label: e.operation, bornAt: now });
+          bump(e.agent_id, 2);
         }
-        own('packets').push({ key: `${e.seq}`, edgeId: linkId, reverse: false, label: e.operation, bornAt: now });
         const calls = own('moduleCalls');
         calls[e.module] = [
           ...(calls[e.module] ?? []),
@@ -345,7 +352,6 @@ function reduce(prev: TelemetryData, events: TelemetryEvent[], now: number): Tel
         ].slice(-MAX_MODULE_CALLS);
         own('modules')[e.module] = { ...d.modules[e.module], lastAgent: e.agent_id, lastOperation: e.operation };
         bump(moduleNodeId(e.module), 4);
-        bump(e.agent_id, 2);
         break;
       }
 
@@ -360,12 +366,16 @@ function reduce(prev: TelemetryData, events: TelemetryEvent[], now: number): Tel
         const done: ModuleCallRecord = { ...base, status: e.status, durationMs: e.duration_ms, summary: e.summary, result: e.result, error: e.error };
         if (idx >= 0) list[idx] = done; else list.push(done);
         calls[e.module] = list.slice(-MAX_MODULE_CALLS);
-        own('packets').push({ key: `${e.seq}`, edgeId: moduleEdgeId(e.agent_id, e.module), reverse: true, label: e.summary, bornAt: now });
+        if (e.agent_id !== 'operator') {
+          own('packets').push({ key: `${e.seq}`, edgeId: moduleEdgeId(e.agent_id, e.module), reverse: true, label: e.summary, bornAt: now });
+        }
         if (e.status === 'error') {
           own('modules')[e.module] = { ...d.modules[e.module], errorCount: d.modules[e.module].errorCount + 1 };
         }
         bump(moduleNodeId(e.module), 2);
-        log(e, e.status === 'error' ? 'error' : 'module', `${e.agent_id} → ${e.module}.${e.operation}: ${compact(e.summary, 90)}`, e.agent_id);
+        if (e.agent_id !== 'operator') {
+          log(e, e.status === 'error' ? 'error' : 'module', `${e.agent_id} → ${e.module}.${e.operation}: ${compact(e.summary, 90)}`, e.agent_id);
+        }
         break;
       }
 
@@ -519,7 +529,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => {
       startTicker();
       const state = get();
       const next = reduce(state, events, Date.now());
-      const lastSeq = events.reduce((m, e) => Math.max(m, e.seq), state.lastSeq);
+      const lastSeq = events.reduce((m, e) => (!STICKY_TYPES.has(e.type) && e.seq > m ? e.seq : m), state.lastSeq);
       set({ ...next, lastSeq });
     },
 

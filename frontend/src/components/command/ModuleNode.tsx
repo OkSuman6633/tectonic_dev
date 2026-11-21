@@ -108,19 +108,19 @@ function ModuleNodeImpl({ data, selected }: NodeProps<ModuleFlowNode>) {
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[12px] font-semibold text-[var(--studio-text)]">{mod.label}</div>
-          <div className={`flex items-center gap-1 font-mono text-[9.5px] ${style.text}`}>
+          <div className="typo-agent-name truncate text-[var(--studio-text)]">{mod.label}</div>
+          <div className={`typo-status flex items-center gap-1 ${style.text}`}>
             <span className={`h-1.5 w-1.5 rounded-full ${live ? 'animate-pulse' : ''}`} style={{ background: style.color }} />
             {style.label}
-            {shownState === 'busy' && mod.lastOperation && <span className="truncate text-[var(--studio-text-muted)]">· {mod.lastOperation}</span>}
+            {shownState === 'busy' && mod.lastOperation && <span className="truncate font-mono text-[var(--studio-text-muted)]">· {mod.lastOperation}</span>}
           </div>
         </div>
       </div>
 
-      <div className="relative mt-2 flex items-end justify-between gap-2">
-        <div className="font-mono text-[9.5px] leading-tight text-[var(--studio-text-muted)]">
+      <div className="relative mt-1.5 flex items-end justify-between gap-2">
+        <div className="font-mono text-[12px] leading-tight text-[var(--studio-text-muted)]">
           <div>{mod.totalCalls} calls{mod.errorCount ? <span className="text-rose-400"> · {mod.errorCount} err</span> : null}</div>
-          <div className="max-w-[110px] truncate" title={mod.lastAgent}>{mod.lastAgent ? `last: ${mod.lastAgent}` : 'shared module'}</div>
+          <div className="max-w-[120px] truncate" title={mod.lastAgent}>{mod.lastAgent ? `last: ${mod.lastAgent}` : 'shared module'}</div>
         </div>
         <ActivityBars series={series.slice(-16)} color={style.color} />
       </div>
