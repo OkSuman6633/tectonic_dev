@@ -181,9 +181,6 @@ async def test_each_user_picks_their_own_builder_model_and_sees_the_key_in_use(a
     default = MODEL.model
     alice, bob = "u_aaaaaaaaaaaa", "u_bbbbbbbbbbbb"
 
-    from agent_builder import entitlements
-
-    entitlements.set_plan_id(alice, "pro")  # custom models are a Pro feature
     with as_user(alice):
         out = await model_settings.save_custom("gemini-2.5-pro", admin=False)  # any user may switch their own model
         assert out["model"] == "gemini-2.5-pro" and out["can_edit_keys"] is False and out["mode"] == "custom"

@@ -457,11 +457,6 @@ def api(rt, tmp_path, monkeypatch):
     monkeypatch.setattr(auth, "_secret_cache", None)
     monkeypatch.setattr(auth, "_failures", {})
     users = {name: auth.register(name, "password123") for name in ("alice", "bob")}
-    # Connectors are a Pro feature: put both accounts on Pro so the catalog shows them.
-    from agent_builder import entitlements
-
-    for u in users.values():
-        entitlements.set_plan_id(u["id"], "pro")
     app = FastAPI()
     app.include_router(router)
     app.add_middleware(auth.AuthMiddleware, list_apps=lambda: [])

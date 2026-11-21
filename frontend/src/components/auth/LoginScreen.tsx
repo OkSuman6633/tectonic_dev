@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Loader2, LogIn, UserPlus } from 'lucide-react';
 import { signIn } from '../../services/auth';
-import { ThemeToggle } from '../ThemeToggle';
 
 /** Sign in / create an account. Each account has its own agents, sessions, history and live events. */
 export const LoginScreen: React.FC = () => {
@@ -34,13 +33,9 @@ export const LoginScreen: React.FC = () => {
   const field = 'h-10 w-full rounded-lg border border-white/10 bg-studio-surface/90 px-3 text-sm leading-none text-slate-100 placeholder-slate-500 focus:border-sky-500/50 focus:outline-none transition-colors';
 
   return (
-
-    <div className="relative h-screen w-full overflow-y-auto bg-studio-bg font-sans text-[var(--studio-text)]">
-      <ThemeToggle className="absolute right-4 top-4" />
-      <div className="flex min-h-full items-center justify-center px-4 py-10">
-        <form onSubmit={submit} className="w-full max-w-sm rounded-2xl border border-white/10 bg-studio-card/90 p-6 shadow-2xl">
-        <div className="mb-6 flex items-center gap-2.5">
-
+    <div className="flex min-h-screen w-full items-center justify-center bg-studio-bg px-4 font-sans text-[var(--studio-text)]">
+      <form onSubmit={submit} className="w-full max-w-sm rounded-xl border border-white/10 bg-studio-card/90 p-5 shadow-2xl">
+        <div className="mb-5 flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-[9px] bg-gradient-to-br from-sky-300 via-sky-400 to-indigo-500">
             <Box className="h-4 w-4 text-white" strokeWidth={2.4} />
           </div>
@@ -92,7 +87,6 @@ export const LoginScreen: React.FC = () => {
           Your agents, conversations and live activity are private to your account.
         </p>
       </form>
-      </div>
     </div>
   );
 };

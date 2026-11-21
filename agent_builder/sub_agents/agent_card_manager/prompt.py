@@ -80,7 +80,4 @@ Operating Rules:
 - Pass JSON arguments as clean, valid JSON strings.
 - Ensure every agent has a non-empty instruction.
 - Create agents in dependency order (parents before children).
-- Image generation is a platform module, not a custom tool: when an agent must create or edit images,
-  assign it the `image_generation` module (tool `core_generate_image`) instead of declaring a
-  `generate_image_*` custom tool.
 """

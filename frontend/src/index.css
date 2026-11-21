@@ -288,9 +288,17 @@
 .light .border-studio-border { border-color: var(--studio-border); }
 .light .bg-white\/5 { background-color: rgba(0, 0, 0, 0.03); }
 .light .bg-white\/10 { background-color: rgba(0, 0, 0, 0.06); }
-
-.light .bg-white\/\[0\.06\], .light .bg-white\/\[0\.07\], .light .bg-white\/\[0\.08\] { background-color: rgba(14, 17, 22, 0.06); }
-
+.light .bg-white\/\[0\.02\] { background-color: rgba(0, 0, 0, 0.02); }
+.light .bg-white\/\[0\.03\] { background-color: rgba(0, 0, 0, 0.035); }
+.light .bg-white\/\[0\.04\] { background-color: rgba(0, 0, 0, 0.04); }
+.light .bg-white\/\[0\.07\] { background-color: rgba(0, 0, 0, 0.06); }
+.light .hover\:bg-white\/\[0\.07\]:hover { background-color: rgba(0, 0, 0, 0.06); }
+.light .bg-slate-900\/60 { background-color: rgba(255, 255, 255, 0.75); }
+.light .bg-slate-900\/70 { background-color: rgba(255, 255, 255, 0.82); }
+.light .bg-slate-900\/80 { background-color: rgba(255, 255, 255, 0.9); }
+.light .bg-slate-950\/80 { background-color: rgba(245, 247, 250, 0.95); }
+.light .bg-slate-800 { background-color: #e2e8f0; }
+.light select { background-color: rgba(255, 255, 255, 0.9); color: #0E1116; }
 .light .border-white\/5 { border-color: rgba(0, 0, 0, 0.05); }
 .light .border-white\/10 { border-color: rgba(0, 0, 0, 0.08); }
 .light .hover\:bg-white\/5:hover { background-color: rgba(0, 0, 0, 0.03); }
