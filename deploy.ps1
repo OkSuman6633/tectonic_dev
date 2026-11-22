@@ -110,7 +110,7 @@ Write-Host ""
 # Step 4: Build and deploy
 Write-Host "[4/5] Building and deploying (this takes 5-15 minutes)..." -ForegroundColor Yellow
 Write-Host "  Submitting build to Cloud Build..."
-gcloud builds submit --config=cloudbuild.yaml --substitutions=_REGION=$Region,_SERVICE_NAME=$ServiceName
+gcloud builds submit --config=cloudbuild.yaml "--substitutions=_REGION=$Region,_SERVICE_NAME=$ServiceName"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Build failed. Check logs above." -ForegroundColor Red
