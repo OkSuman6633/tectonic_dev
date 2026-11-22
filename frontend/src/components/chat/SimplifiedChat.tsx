@@ -18,7 +18,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAgentStudioStore } from '../../store/useAgentStudioStore';
 import { MarkdownContent } from './MarkdownContent';
 import { ChatbotAvatar } from './ArchitectChat';
-import { useAttachments, AttachmentChips } from './Attachments';
+import { useAttachments, AttachmentChips, AttachButton } from './Attachments';
 import { AgentTargetPicker, MentionSuggestions } from './AgentTargetPicker';
 import { SearchProviderPicker } from './SearchProviderPicker';
 import { DecisionCardGroup } from './DecisionCardGroup';
@@ -204,10 +204,20 @@ export const SimplifiedChat: React.FC = () => {
   const mentionQuery = inputVal.match(/^@([\w./-]*)$/)?.[1];
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden bg-gradient-to-b from-slate-50 via-sky-50/30 to-indigo-50/20 dark:from-[#080d1a] dark:via-[#0d1424] dark:to-[#070b14] text-slate-900 dark:text-[var(--studio-text)] transition-colors">
-      {/* Subtle ambient background glow */}
-      <div className="pointer-events-none absolute -top-32 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-sky-300/35 dark:bg-sky-500/10 blur-[120px]" />
-      <div className="pointer-events-none absolute bottom-20 right-10 h-64 w-64 rounded-full bg-indigo-300/25 dark:bg-indigo-500/10 blur-[100px]" />
+    <div className="relative flex h-full flex-col overflow-hidden bg-gradient-to-br from-[#eaf2ff] via-[#f4edff] to-[#dff3ff] dark:from-[#060913] dark:via-[#0b1121] dark:to-[#070b17] text-slate-900 dark:text-[var(--studio-text)] transition-colors">
+      {/* Ambient iOS-style refractive glow layer */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-24 -left-20 h-72 w-72 rounded-full bg-sky-300/45 dark:bg-sky-500/15 blur-3xl"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute top-1/3 -right-24 h-80 w-80 rounded-full bg-indigo-300/40 dark:bg-indigo-600/15 blur-3xl"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -bottom-24 left-1/4 h-72 w-72 rounded-full bg-cyan-200/50 dark:bg-cyan-500/10 blur-3xl"
+      />
 
       {/* Main Conversation Stream */}
       <div
@@ -226,7 +236,7 @@ export const SimplifiedChat: React.FC = () => {
                 {/* Gemini-style Hero Header */}
                 <div className="relative mb-6">
                   <div className="absolute -inset-2 rounded-full bg-gradient-to-r from-sky-400 to-indigo-500 opacity-25 blur-xl animate-pulse" />
-                  <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-400/20 via-indigo-500/20 to-purple-600/20 border border-slate-200/80 dark:border-white/10 shadow-2xl backdrop-blur-xl">
+                  <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-white/70 dark:bg-white/[0.08] border border-white/85 dark:border-white/15 shadow-[0_10px_30px_-10px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,0.9)] dark:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)] backdrop-blur-2xl backdrop-saturate-150">
                     <ChatbotAvatar className="h-10 w-10" />
                   </div>
                 </div>
@@ -249,7 +259,7 @@ export const SimplifiedChat: React.FC = () => {
                         setInputVal(item.prompt);
                         inputRef.current?.focus();
                       }}
-                      className="group flex flex-col justify-between p-4 rounded-2xl bg-white/80 dark:bg-white/[0.03] hover:bg-white dark:hover:bg-white/[0.07] border border-slate-200/80 dark:border-white/[0.07] hover:border-sky-400/60 dark:hover:border-sky-400/40 transition-all shadow-sm hover:shadow-md dark:shadow-lg dark:hover:shadow-sky-500/10 text-left"
+                      className="group flex flex-col justify-between p-4 rounded-2xl bg-white/70 hover:bg-white/90 dark:bg-white/[0.05] dark:hover:bg-white/[0.09] backdrop-blur-2xl backdrop-saturate-150 border border-white/85 dark:border-white/12 hover:border-sky-500/50 shadow-[0_6px_20px_-8px_rgba(15,23,42,0.1),inset_0_1px_0_rgba(255,255,255,0.9)] dark:shadow-[0_6px_20px_-8px_rgba(0,0,0,0.45)] transition-all text-left"
                     >
                       <div className="flex items-start gap-3">
                         <div className={`p-2 rounded-xl bg-gradient-to-br border ${item.color} shrink-0`}>
@@ -280,7 +290,7 @@ export const SimplifiedChat: React.FC = () => {
                 if (isSystem) {
                   return (
                     <div key={msg.id || idx} className="flex justify-center py-2">
-                      <div className="rounded-full bg-slate-100 dark:bg-white/[0.05] border border-slate-200/80 dark:border-white/10 px-4 py-1 text-xs text-slate-600 dark:text-slate-400 max-w-lg text-center shadow-sm dark:shadow-none">
+                      <div className="rounded-full bg-white/75 dark:bg-white/[0.08] border border-white/85 dark:border-white/15 px-4 py-1 text-xs text-slate-700 dark:text-slate-300 max-w-lg text-center backdrop-blur-xl shadow-sm">
                         <MarkdownContent content={msg.content} isUser={false} />
                       </div>
                     </div>
@@ -297,7 +307,7 @@ export const SimplifiedChat: React.FC = () => {
                   >
                     {!isUser && (
                       <div className="mt-1 shrink-0">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-sky-400/20 to-indigo-500/20 border border-slate-200/80 dark:border-white/10 shadow-sm">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/70 dark:bg-white/[0.08] border border-white/85 dark:border-white/15 shadow-sm backdrop-blur-xl">
                           <ChatbotAvatar className="h-6 w-6" />
                         </div>
                       </div>
@@ -307,7 +317,7 @@ export const SimplifiedChat: React.FC = () => {
                       {/* Message Meta Info */}
                       <div className="flex items-center gap-2 px-1 text-[11px] font-mono text-slate-500 dark:text-slate-400">
                         {msg.agentTarget && (
-                          <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.2 text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold">
+                          <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.2 text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold backdrop-blur-md">
                             {isUser ? '→ ' : ''}@{msg.agentTarget}
                           </span>
                         )}
@@ -317,10 +327,10 @@ export const SimplifiedChat: React.FC = () => {
 
                       {/* Message Bubble Body */}
                       <div
-                        className={`p-4 rounded-2xl break-words [overflow-wrap:anywhere] text-[14px] md:text-[15px] leading-relaxed transition-all shadow-sm md:shadow-md ${
+                        className={`p-4 rounded-[22px] break-words [overflow-wrap:anywhere] text-[14px] md:text-[15px] leading-relaxed transition-all ${
                           isUser
-                            ? 'bg-gradient-to-br from-sky-500 via-sky-600 to-indigo-600 text-white rounded-tr-sm border border-white/20 shadow-sky-500/20'
-                            : 'bg-white dark:bg-white/[0.04] text-slate-800 dark:text-slate-100 rounded-tl-sm border border-slate-200/90 dark:border-white/[0.08] shadow-slate-200/50 dark:shadow-black/30 backdrop-blur-md'
+                            ? 'bg-gradient-to-br from-sky-500 via-blue-600 to-indigo-600 text-white rounded-tr-md shadow-[0_10px_28px_-8px_rgba(14,165,233,0.5)] border border-white/25 dark:border-sky-300/20 backdrop-blur-xl'
+                            : 'bg-white/78 dark:bg-slate-900/65 border border-white/85 dark:border-white/12 text-slate-900 dark:text-slate-100 rounded-tl-md shadow-[0_10px_30px_-10px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,0.9)] dark:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-2xl backdrop-saturate-150'
                         }`}
                       >
                         {msg.content && <MarkdownContent content={msg.content} isUser={isUser} />}
@@ -364,7 +374,7 @@ export const SimplifiedChat: React.FC = () => {
 
                     {isUser && (
                       <div className="mt-1 shrink-0">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-200/80 dark:bg-white/[0.1] border border-slate-300/80 dark:border-white/10 text-slate-700 dark:text-slate-300 shadow-sm">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/70 dark:bg-white/[0.08] border border-white/85 dark:border-white/15 text-slate-700 dark:text-slate-300 shadow-sm backdrop-blur-xl">
                           <User className="h-4 w-4" />
                         </div>
                       </div>
@@ -397,7 +407,7 @@ export const SimplifiedChat: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-white/[0.02] p-3 backdrop-blur-md shadow-sm dark:shadow-none">
+                <div className="rounded-2xl border border-white/85 dark:border-white/12 bg-white/75 dark:bg-slate-900/65 p-3.5 backdrop-blur-2xl backdrop-saturate-150 shadow-[0_10px_30px_-10px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,0.9)] dark:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)]">
                   <StreamingAgentDisplay
                     isActive={isChatLoading || isGeneratingAgent}
                     onPhaseChange={setCurrentAgentPhase}
@@ -418,21 +428,21 @@ export const SimplifiedChat: React.FC = () => {
         </div>
       </div>
 
-      {/* Floating Bottom Section: Follow-ups + Gemini Input Bar */}
-      <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-slate-50 via-slate-50/95 dark:from-[#080d1a] dark:via-[#080d1a]/90 to-transparent pb-4 pt-6 px-4 md:px-8">
-        <div className="mx-auto max-w-3xl">
+      {/* Floating Bottom Section: Follow-ups + Glassmorphic Input Bar */}
+      <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-[#dff3ff] via-[#dff3ff]/95 dark:from-[#070b17] dark:via-[#070b17]/90 to-transparent pb-4 pt-6 px-4 md:px-8 pointer-events-none">
+        <div className="mx-auto max-w-3xl pointer-events-auto">
           {/* Follow-up suggestions */}
           {!isWelcome && !isChatLoading && (
             <div className="mb-2.5 flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
-              <span className="text-[11px] font-mono uppercase text-slate-500 dark:text-slate-400 shrink-0">Next:</span>
+              <span className="text-[11px] font-mono uppercase font-semibold text-slate-600 dark:text-slate-400 shrink-0">Next:</span>
               {followUps(lastAssistant).map((f, i) => (
                 <button
                   key={i}
                   type="button"
                   onClick={f.run}
-                  className="flex h-6 shrink-0 items-center gap-1.5 rounded-full border border-slate-300/80 dark:border-white/10 bg-white dark:bg-white/[0.04] px-2.5 text-[11px] font-medium text-slate-700 dark:text-slate-300 hover:border-sky-400/60 dark:hover:border-sky-400/40 hover:bg-slate-50 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white transition-all shadow-sm"
+                  className="flex h-6 shrink-0 items-center gap-1.5 rounded-full border border-white/90 dark:border-white/15 bg-white/75 dark:bg-white/[0.07] px-2.5 text-[11px] font-medium text-slate-800 dark:text-slate-200 hover:bg-white dark:hover:bg-white/15 hover:text-slate-950 dark:hover:text-white transition-all shadow-sm backdrop-blur-md"
                 >
-                  <f.icon className="h-3 w-3 text-sky-400" />
+                  <f.icon className="h-3 w-3 text-sky-500 dark:text-sky-400" />
                   <span className="truncate">{f.label}</span>
                 </button>
               ))}
@@ -453,15 +463,15 @@ export const SimplifiedChat: React.FC = () => {
             </div>
           )}
 
-          {/* Gemini-Style Floating Input Bar */}
+          {/* Gemini-Style Floating Glass Input Bar */}
           <form
             onSubmit={handleSubmit}
             onDrop={attach.onDrop}
             onDragOver={(e) => e.preventDefault()}
-            className="group relative rounded-3xl border border-slate-300/80 dark:border-white/15 bg-white/95 dark:bg-white/[0.06] hover:border-slate-400 dark:hover:border-white/25 focus-within:border-sky-500 dark:focus-within:border-sky-400/60 focus-within:ring-4 focus-within:ring-sky-500/10 shadow-lg dark:shadow-2xl backdrop-blur-2xl transition-all"
+            className="group relative rounded-3xl border border-white/85 dark:border-white/15 bg-white/75 dark:bg-slate-900/65 hover:border-white dark:hover:border-white/25 focus-within:border-sky-500/70 dark:focus-within:border-sky-400/60 focus-within:ring-4 focus-within:ring-sky-500/15 shadow-[0_12px_36px_-8px_rgba(15,23,42,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] dark:shadow-[0_12px_36px_-8px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-2xl backdrop-saturate-150 transition-all"
           >
             {/* Top Toolbar Inside Bar */}
-            <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-white/[0.06] px-3.5 py-1.5 text-xs">
+            <div className="flex items-center justify-between border-b border-white/80 dark:border-white/[0.08] px-3.5 py-1.5 text-xs">
               <div className="flex items-center gap-2 min-w-0">
                 <AgentTargetPicker />
                 <span className="h-3 w-px bg-slate-300 dark:bg-white/10" />
@@ -471,10 +481,10 @@ export const SimplifiedChat: React.FC = () => {
               <button
                 type="button"
                 onClick={toggleAutopilot}
-                className={`flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider transition-all ${
+                className={`flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider backdrop-blur-md transition-all ${
                   autopilot
-                    ? 'border border-sky-400/50 bg-sky-500/15 text-sky-700 dark:text-sky-300 shadow-[0_0_12px_rgba(56,189,248,0.2)]'
-                    : 'border border-slate-300/80 dark:border-white/10 bg-slate-100 dark:bg-white/[0.04] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                    ? 'border border-sky-500/40 bg-sky-500/15 dark:bg-sky-500/20 text-sky-800 dark:text-sky-200 shadow-[0_0_12px_-4px_rgba(14,165,233,0.65)]'
+                    : 'border border-slate-900/10 dark:border-white/15 bg-white/70 dark:bg-white/[0.06] text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-white dark:hover:bg-white/10'
                 }`}
                 title="Autopilot automatically routes or constructs the needed agent"
               >
@@ -484,23 +494,28 @@ export const SimplifiedChat: React.FC = () => {
               </button>
             </div>
 
-            {/* Attached file chips */}
-            {attach.files.length > 0 && (
-              <div className="px-3.5 pt-2">
+            {/* Attached file chips & errors */}
+            {(attach.files.length > 0 || attach.error) && (
+              <div className="px-3.5 pt-2 space-y-1">
                 <AttachmentChips files={attach.files} onRemove={attach.remove} />
+                {attach.error && (
+                  <div className="text-[11px] font-medium text-amber-700 dark:text-amber-400">
+                    {attach.error}
+                  </div>
+                )}
               </div>
             )}
 
             {/* Input Row */}
             <div className="flex items-end gap-2 px-3 pb-2 pt-2">
-              <button
-                type="button"
-                onClick={() => attach.browse()}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white transition-colors"
-                title="Attach files or documentation"
+              <AttachButton
+                onFiles={attach.add}
+                disabled={isChatLoading}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-600 hover:text-slate-950 hover:bg-slate-900/10 dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/10 transition-colors"
+                title="Attach images or documents (PDF, Word, Excel, PowerPoint, text, code, etc.)"
               >
                 <Paperclip className="h-4 w-4" />
-              </button>
+              </AttachButton>
 
               <textarea
                 ref={inputRef}
@@ -508,6 +523,7 @@ export const SimplifiedChat: React.FC = () => {
                 value={inputVal}
                 onChange={(e) => setInputVal(e.target.value)}
                 onKeyDown={handleKeyDown}
+                onPaste={attach.onPaste}
                 placeholder={
                   chatTarget
                     ? `Message @${chatTarget}...`
@@ -515,13 +531,13 @@ export const SimplifiedChat: React.FC = () => {
                     ? 'Ask anything or describe an agent to build...'
                     : 'Message the Architect...'
                 }
-                className="flex-1 resize-none bg-transparent py-1.5 text-sm md:text-base text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-400 focus:outline-none max-h-[180px] leading-relaxed"
+                className="flex-1 resize-none bg-transparent py-1.5 text-sm md:text-base text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none max-h-[180px] leading-relaxed"
               />
 
               <button
                 type="submit"
                 disabled={(!inputVal.trim() && attach.files.length === 0) || isChatLoading}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-sky-400 to-indigo-500 text-white shadow-lg shadow-sky-500/25 transition-all hover:brightness-110 disabled:opacity-30 disabled:shadow-none"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white shadow-md shadow-sky-500/35 active:scale-95 transition-all disabled:opacity-30 disabled:shadow-none"
                 title="Send message (Enter)"
               >
                 <Send className="h-4 w-4" />
@@ -530,7 +546,7 @@ export const SimplifiedChat: React.FC = () => {
           </form>
 
           {/* Subtext */}
-          <div className="mt-2 text-center text-[10px] text-slate-500 dark:text-slate-400">
+          <div className="mt-2 text-center text-[10px] text-slate-600 dark:text-slate-400">
             <span>Tectonic Architect · Autopilot AI Engine · Real-time 3D Sync</span>
           </div>
         </div>

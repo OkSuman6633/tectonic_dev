@@ -100,10 +100,10 @@ export const UnifiedStudioTab: React.FC<UnifiedStudioTabProps> = ({ onSelectAgen
   return (
     <div
       ref={containerRef}
-      className="relative flex h-full w-full flex-col overflow-hidden bg-slate-50 dark:bg-[#070b14] select-none transition-colors"
+      className="relative flex h-full w-full flex-col overflow-hidden bg-gradient-to-br from-[#eaf2ff] via-[#f4edff] to-[#dff3ff] dark:from-[#060913] dark:via-[#0b1121] dark:to-[#070b17] select-none transition-colors"
     >
       {/* Sub-Header: Studio Context & Split Controls */}
-      <div className="z-20 flex h-10 shrink-0 items-center justify-between border-b border-slate-200/80 dark:border-white/[0.08] bg-white/80 dark:bg-[#0b101e]/80 px-4 backdrop-blur-xl transition-colors">
+      <div className="z-20 flex h-10 shrink-0 items-center justify-between border-b border-white/80 dark:border-white/10 bg-white/65 dark:bg-slate-900/60 px-4 backdrop-blur-2xl backdrop-saturate-150 shadow-[0_4px_20px_-8px_rgba(15,23,42,0.08)] dark:shadow-[0_4px_20px_-8px_rgba(0,0,0,0.5)] transition-colors">
         {/* Left: Branding & Status */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">

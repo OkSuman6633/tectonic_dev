@@ -72,16 +72,26 @@ export const useAttachments = () => {
 };
 
 /** Paperclip button that opens the file picker. */
-export const AttachButton: React.FC<{ onFiles: (files: FileList | null) => void; disabled?: boolean; className?: string }> = ({ onFiles, disabled, className }) => {
+export const AttachButton: React.FC<{
+  onFiles: (files: FileList | null) => void;
+  disabled?: boolean;
+  className?: string;
+  children?: React.ReactNode;
+  title?: string;
+}> = ({ onFiles, disabled, className, children, title }) => {
   const input = useRef<HTMLInputElement>(null);
   return (
     <>
       <input ref={input} type="file" multiple accept={ATTACHMENT_ACCEPT} className="hidden"
         onChange={(e) => { onFiles(e.target.files); e.target.value = ''; }} />
-      <button type="button" onClick={() => input.current?.click()} disabled={disabled}
-        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-30 ${className ?? ''}`}
-        title="Attach images or documents (PDF, Word, Excel, PowerPoint, text): or paste / drop them here">
-        <Paperclip className="h-3.5 w-3.5" />
+      <button
+        type="button"
+        onClick={() => input.current?.click()}
+        disabled={disabled}
+        className={className?.includes('flex') ? className : `flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-30 ${className ?? ''}`}
+        title={title || "Attach images or documents (PDF, Word, Excel, PowerPoint, text): or paste / drop them here"}
+      >
+        {children ?? <Paperclip className="h-3.5 w-3.5" />}
       </button>
     </>
   );
@@ -96,12 +106,21 @@ export const AttachmentChips: React.FC<{ files: ChatAttachment[]; onRemove?: (in
         const Icon = f.mimeType.startsWith('image/') ? ImageIcon : FileText;
         return (
           <span key={`${f.name}-${i}`} title={`${f.name} · ${formatSize(f.size)}`}
-            className={`inline-flex max-w-[220px] items-center gap-1 rounded-lg px-2 py-1 text-[11px] ${onDark ? 'bg-white/15 text-white' : 'bg-slate-100 dark:bg-white/[0.06] border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300'}`}>
-            <Icon className="h-3 w-3 shrink-0" />
+            className={`inline-flex max-w-[240px] items-center gap-1 rounded-lg px-2 py-1 text-[11px] backdrop-blur-md transition-all ${
+              onDark
+                ? 'bg-white/20 text-white border border-white/30 shadow-sm'
+                : 'bg-white/75 dark:bg-white/[0.08] border border-white/85 dark:border-white/15 text-slate-800 dark:text-slate-200 shadow-sm'
+            }`}>
+            <Icon className="h-3 w-3 shrink-0 text-sky-500 dark:text-sky-400" />
             <span className="truncate">{f.name}</span>
-            <span className="shrink-0 opacity-60">{formatSize(f.size)}</span>
+            <span className="shrink-0 opacity-60 font-mono text-[10px]">{formatSize(f.size)}</span>
             {onRemove && (
-              <button type="button" onClick={() => onRemove(i)} className="ml-0.5 shrink-0 rounded hover:text-white" title="Remove">
+              <button
+                type="button"
+                onClick={() => onRemove(i)}
+                className="ml-0.5 shrink-0 rounded p-0.5 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                title="Remove"
+              >
                 <X className="h-3 w-3" />
               </button>
             )}
