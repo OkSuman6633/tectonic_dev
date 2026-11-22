@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
 
 export type WindowId = 'chat' | 'studio_chat' | 'command' | 'blueprint' | 'roster' | 'events' | 'sandbox' | 'inspector' | 'knowledge' | 'finops' | 'promptops' | 'audit' | 'connectors' | 'images';
-export type PresetId = 'build' | 'monitor' | 'debug' | 'platform' | 'studio';
+export type PresetId = 'studio' | 'build' | 'monitor' | 'debug' | 'platform';
 
 export interface Cell {
   x: number;
@@ -25,6 +25,14 @@ interface Preset {
 
 // Windows absent from a preset's layout start closed (dock icon without a dot), with a fallback cell.
 export const PRESETS: Record<PresetId, Preset> = {
+  studio: {
+    label: 'Studio',
+    description: 'Unified Workspace: Gemini-style chat and 3D Blueprint side-by-side',
+    layout: {
+      studio_chat: { x: 0, y: 0, w: 10, h: 24 },
+      blueprint: { x: 10, y: 0, w: 14, h: 24 },
+    },
+  },
   build: {
     label: 'Build',
     description: 'Design agents with the Architect while watching them come to life',
@@ -67,14 +75,6 @@ export const PRESETS: Record<PresetId, Preset> = {
       promptops: { x: 17, y: 0, w: 7, h: 14 },
       audit: { x: 0, y: 14, w: 14, h: 10 },
       command: { x: 14, y: 14, w: 10, h: 10 },
-    },
-  },
-  studio: {
-    label: 'Studio',
-    description: 'Unified Workspace: Gemini-style chat and 3D Blueprint side-by-side',
-    layout: {
-      studio_chat: { x: 0, y: 0, w: 10, h: 24 },
-      blueprint: { x: 10, y: 0, w: 14, h: 24 },
     },
   },
 };
@@ -180,7 +180,7 @@ const safeStorage: StateStorage = {
 export const useWorkspaceStore = create<WorkspaceState>()(
   persist(
     (set, get) => ({
-      ...presetState('build'),
+      ...presetState('studio'),
       focused: null,
       attention: null,
       viewNonce: 0,
@@ -258,7 +258,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         })),
     }),
     {
-      name: 'tectonic.workspace.v3',
+      name: 'tectonic.workspace.v4',
       storage: createJSONStorage(() => safeStorage),
       partialize: (s) => ({ preset: s.preset, layouts: s.layouts, minimized: s.minimized, closed: s.closed }),
       // Drop unknown ids / fill new windows so an old saved layout never breaks the grid.

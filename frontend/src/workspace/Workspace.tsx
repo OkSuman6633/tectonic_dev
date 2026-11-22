@@ -113,8 +113,8 @@ export function Workspace({ onSelectAgent }: { onSelectAgent: (id: string) => vo
           <div className="text-center">
             <LayoutDashboard className="mx-auto mb-2 h-6 w-6 text-[var(--studio-text-muted)]" />
             <p className="text-sm text-[var(--studio-text-secondary)]">No open windows. Pick one from the Dock.</p>
-            <button type="button" onClick={() => applyPreset('build')} className="mt-3 inline-flex h-7 items-center justify-center rounded-lg border border-sky-400/40 bg-sky-400/10 px-3 text-[12px] font-medium leading-none text-sky-300 hover:bg-sky-400/20">
-              Restore the Build layout
+            <button type="button" onClick={() => applyPreset('studio')} className="mt-3 inline-flex h-7 items-center justify-center rounded-lg border border-sky-400/40 bg-sky-400/10 px-3 text-[12px] font-medium leading-none text-sky-300 hover:bg-sky-400/20">
+              Restore the Studio workspace
             </button>
           </div>
         </div>
