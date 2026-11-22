@@ -3,7 +3,7 @@ google-genai>=0.1.0
 # >=2.14: Gemini(client_kwargs=...) carries a user's own key without touching os.environ
 google-adk>=2.14.0,<3
 # litellm 1.106.0-1.106.x has a bug: imports mcp.types on every tool call
-# but mcp is not a base dependency â†’ ModuleNotFoundError: No module named 'mcp'
+# but mcp is not a base dependency -> ModuleNotFoundError: No module named 'mcp'
 # Upstream fix: https://github.com/BerriAI/litellm/issues/46045 (not yet released)
 litellm>=1.50.0,<1.106.0
 # Also install mcp as safety net in case a future litellm version needs it
@@ -41,11 +41,10 @@ opentelemetry-api>=1.20.0
 # Vector Database (for tectonic_runtime modules - optional)
 qdrant-client>=1.12.0
 
-# Dependencies of the platform modules (tectonic_runtime + modules/*/src) — required, not optional:
+# Dependencies of the platform modules (tectonic_runtime + modules/*/src) - required, not optional:
 # without prometheus-client the runtime fails to import and generated agents lose every platform module.
 prometheus-client>=0.20.0
 structlog>=24.0.0
 aiobreaker>=1.2.0
 tenacity>=8.0.0
 greenlet>=3.0.0
-prometheus-client>=0.20.0

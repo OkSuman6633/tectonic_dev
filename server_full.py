@@ -53,6 +53,12 @@ def _clean_env_key(name: str) -> None:
 for _k in ("GOOGLE_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY"):
     _clean_env_key(_k)
 
+# Ensure GOOGLE_API_KEY and GEMINI_API_KEY stay in sync
+if not os.environ.get("GOOGLE_API_KEY") and os.environ.get("GEMINI_API_KEY"):
+    os.environ["GOOGLE_API_KEY"] = os.environ["GEMINI_API_KEY"]
+elif not os.environ.get("GEMINI_API_KEY") and os.environ.get("GOOGLE_API_KEY"):
+    os.environ["GEMINI_API_KEY"] = os.environ["GOOGLE_API_KEY"]
+
 _key = os.environ.get("GOOGLE_API_KEY", "")
 print(f"[STARTUP] GOOGLE_API_KEY present={bool(_key)} length={len(_key)} first6={_key[:6] if _key else 'N/A'}")
 
@@ -338,7 +344,9 @@ async def invoke_module(module: str, operation: str, payload: dict = Body(defaul
     except Exception:
         allowed = set(_runtime.modules)
     if module not in allowed:
-        raise HTTPException(403, {"code": "MODULE_LOCKED", "detail": f"Module '{module}' is not included in your plan."})
+        plan_id = entitlements.effective_plan_id(current_user())
+        detail = entitlements.module_lock_hint(plan_id, module) or f"Module '{module}' is not included in your plan."
+        raise HTTPException(403, {"code": "MODULE_LOCKED", "detail": detail})
     from tectonic_runtime import CallContext
     ctx = CallContext(agent_id="operator", role="operator", session_id="command-center")
     return (await _runtime.invoke(module, operation, payload, ctx)).to_dict()
@@ -361,6 +369,8 @@ async def directory_chat(body: dict = Body(...)):
             str(body.get("target", "")), str(body.get("message", "")),
             session_key=str(body.get("session_key") or "studio"),
             attachments=parts_from_upload(body.get("attachments")))
+    except directory.DirectoryError as exc:
+        raise HTTPException(404, str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(400, str(exc))
     except Exception as exc:
@@ -371,6 +381,8 @@ async def directory_delete(target: str):
     try:
         from agent_builder import directory
         return await directory.delete_agent(target)
+    except directory.DirectoryError as exc:
+        raise HTTPException(400, str(exc)) from exc
     except Exception as exc:
         raise HTTPException(400, str(exc))
 
@@ -381,6 +393,8 @@ async def directory_edit(body: dict = Body(...)):
         return await editor.edit_agent(
             str(body.get("target", "")), str(body.get("request", "")),
             session_key=str(body.get("session_key") or "studio"))
+    except directory.DirectoryError as exc:
+        raise HTTPException(400, str(exc)) from exc
     except Exception as exc:
         raise HTTPException(400, str(exc))
 
@@ -389,6 +403,8 @@ async def directory_edit_undo(body: dict = Body(...)):
     try:
         from agent_builder import editor
         return await editor.undo_last_edit(str(body.get("target", "")))
+    except directory.DirectoryError as exc:
+        raise HTTPException(400, str(exc)) from exc
     except Exception as exc:
         raise HTTPException(400, str(exc))
 
@@ -397,6 +413,8 @@ async def directory_edits(target: str):
     try:
         from agent_builder import editor
         return editor.list_edits(target)
+    except directory.DirectoryError as exc:
+        raise HTTPException(404, str(exc)) from exc
     except Exception as exc:
         raise HTTPException(404, str(exc))
 
@@ -406,20 +424,21 @@ if FRONTEND_DIR.exists():
     if (FRONTEND_DIR / "assets").exists():
         app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIR / "assets")), name="assets")
 
-    _API_PREFIXES = ("api/", "health", "modules", "directory", "studio", "connectors/", "media/",
-                     "run", "apps/", "list-apps", "ws/")
+    _API_PREFIXES = ("api", "auth", "health", "healthz", "modules", "directory", "studio", "connectors", "media",
+                     "run", "apps", "list-apps", "ws")
 
     @app.get("/{path:path}")
     async def serve_spa(request: Request, path: str):
-        if any(path.startswith(p) for p in _API_PREFIXES):
-            raise HTTPException(404)
-        fp = FRONTEND_DIR / path
+        normalized = path.lstrip("/")
+        if any(normalized == p or normalized.startswith(p + "/") for p in _API_PREFIXES):
+            raise HTTPException(404, "Not found")
+        fp = FRONTEND_DIR / normalized
         if fp.exists() and fp.is_file():
             return FileResponse(fp)
         idx = FRONTEND_DIR / "index.html"
         if idx.exists():
             return FileResponse(idx)
-        raise HTTPException(404)
+        raise HTTPException(404, "Frontend index.html not found")
 else:
     @app.get("/")
     async def root():

@@ -39,7 +39,8 @@ $apis = @(
     "cloudbuild.googleapis.com",
     "run.googleapis.com", 
     "secretmanager.googleapis.com",
-    "containerregistry.googleapis.com"
+    "containerregistry.googleapis.com",
+    "artifactregistry.googleapis.com"
 )
 
 foreach ($api in $apis) {
@@ -82,7 +83,9 @@ if (-not $authSecretExists) {
 Write-Host "[3/5] Setting up permissions..." -ForegroundColor Yellow
 $projectNumber = (gcloud projects describe $ProjectId --format="value(projectNumber)")
 $serviceAccount = "$projectNumber-compute@developer.gserviceaccount.com"
+$cloudBuildSa = "$projectNumber@cloudbuild.gserviceaccount.com"
 
+# Grant Cloud Run service account access to secrets
 foreach ($secret in @("google-api-key", "tectonic-auth-secret")) {
     gcloud secrets add-iam-policy-binding $secret `
         --member="serviceAccount:$serviceAccount" `
@@ -90,13 +93,24 @@ foreach ($secret in @("google-api-key", "tectonic-auth-secret")) {
         --quiet 2>$null
 }
 
+# Grant Cloud Build permission to deploy to Cloud Run
+gcloud projects add-iam-policy-binding $ProjectId `
+    --member="serviceAccount:$cloudBuildSa" `
+    --role="roles/run.admin" `
+    --quiet 2>$null
+
+gcloud iam service-accounts add-iam-policy-binding $serviceAccount `
+    --member="serviceAccount:$cloudBuildSa" `
+    --role="roles/iam.serviceAccountUser" `
+    --quiet 2>$null
+
 Write-Host "  Done!" -ForegroundColor Green
 Write-Host ""
 
 # Step 4: Build and deploy
 Write-Host "[4/5] Building and deploying (this takes 5-15 minutes)..." -ForegroundColor Yellow
 Write-Host "  Submitting build to Cloud Build..."
-gcloud builds submit --config=cloudbuild.yaml --substitutions=_REGION=$Region
+gcloud builds submit --config=cloudbuild.yaml --substitutions=_REGION=$Region,_SERVICE_NAME=$ServiceName
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Build failed. Check logs above." -ForegroundColor Red

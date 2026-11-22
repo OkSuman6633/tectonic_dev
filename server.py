@@ -28,8 +28,8 @@ from tectonic_runtime import CallContext, get_runtime
 from tectonic_runtime.simulation import is_running, run_office_simulation
 
 PROJECT_ROOT = Path(__file__).resolve().parent
-HOST = os.getenv("AGENT_BUILDER_HOST", "127.0.0.1")
-PORT = int(os.getenv("AGENT_BUILDER_PORT", "8000"))
+HOST = os.getenv("AGENT_BUILDER_HOST", "0.0.0.0" if os.getenv("K_SERVICE") else "127.0.0.1")
+PORT = int(os.getenv("PORT") or os.getenv("AGENT_BUILDER_PORT", "8000"))
 FRONTEND_DIR = PROJECT_ROOT / "frontend" / "dist"
 
 # Get allowed origins from environment or use defaults
@@ -57,6 +57,11 @@ app = get_fast_api_app(
 app.include_router(telemetry_router)
 # Sign-in (TECTONIC_AUTH=off for a single-user Studio) and each user's own agents under /api/system.
 studio_api.install(app)
+
+@app.get("/health")
+@app.get("/healthz")
+async def health():
+    return {"status": "healthy", "adk": True, "telemetry": True, "runtime": True}
 
 # --- API routes for environment configuration (replaces vite plugin in production) ---
 @app.get("/api/env")
@@ -214,12 +219,15 @@ if FRONTEND_DIR.exists():
     # Serve static assets (JS, CSS, images)
     app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIR / "assets")), name="static-assets")
     
+    _API_PREFIXES = ("api", "auth", "health", "healthz", "modules", "directory", "studio", "connectors", "media",
+                     "run", "apps", "list-apps", "ws")
+
     # Serve other static files from frontend dist
     @app.get("/{full_path:path}")
     async def serve_frontend(request: Request, full_path: str):
         """Serve frontend files. Falls back to index.html for SPA routing."""
-        # Skip API routes
-        if full_path.startswith(("api/", "ws/", "run", "apps/", "list-apps", "directory/", "modules", "connectors/", "media/")):
+        normalized = full_path.lstrip("/")
+        if any(normalized == p or normalized.startswith(p + "/") for p in _API_PREFIXES):
             raise HTTPException(404, "Not found")
         
         file_path = FRONTEND_DIR / full_path
