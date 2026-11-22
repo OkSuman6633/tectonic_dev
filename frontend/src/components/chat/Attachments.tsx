@@ -96,7 +96,7 @@ export const AttachmentChips: React.FC<{ files: ChatAttachment[]; onRemove?: (in
         const Icon = f.mimeType.startsWith('image/') ? ImageIcon : FileText;
         return (
           <span key={`${f.name}-${i}`} title={`${f.name} · ${formatSize(f.size)}`}
-            className={`inline-flex max-w-[220px] items-center gap-1 rounded-lg px-2 py-1 text-[11px] ${onDark ? 'bg-white/15 text-white' : 'bg-white/[0.06] border border-white/10 text-slate-300'}`}>
+            className={`inline-flex max-w-[220px] items-center gap-1 rounded-lg px-2 py-1 text-[11px] ${onDark ? 'bg-white/15 text-white' : 'bg-slate-100 dark:bg-white/[0.06] border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300'}`}>
             <Icon className="h-3 w-3 shrink-0" />
             <span className="truncate">{f.name}</span>
             <span className="shrink-0 opacity-60">{formatSize(f.size)}</span>

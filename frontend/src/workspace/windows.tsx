@@ -1,6 +1,7 @@
 import type { ComponentType, ReactNode } from 'react';
-import { Activity, BookOpenText, Box, CircleDollarSign, Code2, FileClock, ImagePlus, MessageSquareText, Network, Plug, ScrollText, Terminal, Variable, type LucideIcon } from 'lucide-react';
+import { Activity, BookOpenText, Box, CircleDollarSign, Code2, FileClock, ImagePlus, MessageSquareText, Network, Plug, ScrollText, Sparkles, Terminal, Variable, type LucideIcon } from 'lucide-react';
 import { ArchitectChat } from '../components/chat/ArchitectChat';
+import { SimplifiedChat } from '../components/chat/SimplifiedChat';
 import { AgentGraph } from '../components/command/AgentGraph';
 import { Office3D } from '../components/office/Office3D';
 import { LiveAgentRunner } from '../components/sandbox/LiveAgentRunner';
@@ -107,6 +108,7 @@ function EventsCount() {
 
 export const WINDOWS: Record<WindowId, WindowDef> = {
   chat: { title: 'Architect', icon: MessageSquareText, accent: '#2DD4FF', minW: 5, minH: 8, render: () => <ArchitectChat />, Status: ChatStatus, DockBadge: BuilderBusyDot },
+  studio_chat: { title: 'Studio Chat', icon: Sparkles, accent: '#2DD4FF', minW: 5, minH: 8, render: () => <SimplifiedChat />, Status: ChatStatus, DockBadge: BuilderBusyDot },
   command: { title: 'Command Center', icon: Network, accent: '#2DD4FF', minW: 6, minH: 6, render: () => <AgentGraph />, Status: LiveStatus, DockBadge: WorkingBadge },
   blueprint: { title: 'Blueprint · 3D Office', icon: Box, accent: '#A78BFA', minW: 6, minH: 6, render: () => <Office3D />, Status: OfficeStatus, DockBadge: WorkingBadge },
   roster: { title: 'Agent Roster', icon: Activity, accent: '#34D399', minW: 4, minH: 5, render: ({ onSelectAgent }) => <AgentActivitySidebar onSelectAgent={onSelectAgent} />, DockBadge: WorkingBadge },

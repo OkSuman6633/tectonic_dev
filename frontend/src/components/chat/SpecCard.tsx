@@ -29,8 +29,8 @@ export const SpecCard: React.FC<{ spec: ArchitectureSpec }> = ({ spec }) => {
   ];
 
   return (
-    <div className="mt-3 rounded-xl border border-indigo-400/30 bg-slate-900/80 overflow-hidden">
-      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-white/10 bg-indigo-500/[0.06] min-w-0">
+    <div className="mt-3 rounded-xl border border-indigo-200 dark:border-indigo-400/30 bg-white dark:bg-slate-900/80 shadow-sm dark:shadow-none overflow-hidden">
+      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-slate-200 dark:border-white/10 bg-indigo-50/70 dark:bg-indigo-500/[0.06] min-w-0">
         <div className="flex items-center gap-1 overflow-x-auto no-scrollbar min-w-0 flex-1" role="tablist">
           {tabs.map((t) => (
             <button
@@ -40,7 +40,7 @@ export const SpecCard: React.FC<{ spec: ArchitectureSpec }> = ({ spec }) => {
               aria-selected={tab === t.id}
               onClick={() => setTab(t.id)}
               className={`flex items-center gap-1 text-[12px] font-medium px-2 py-1 rounded-md transition-colors ${
-                tab === t.id ? 'bg-indigo-500/20 text-indigo-200' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                tab === t.id ? 'bg-indigo-100 text-indigo-900 dark:bg-indigo-500/20 dark:text-indigo-200 shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-white/5'
               }`}
             >
               {t.icon}
@@ -51,17 +51,17 @@ export const SpecCard: React.FC<{ spec: ArchitectureSpec }> = ({ spec }) => {
         <button
           type="button"
           onClick={copy}
-          className="flex items-center gap-1 text-[12px] font-medium px-2 py-1 rounded-md text-slate-400 hover:text-white hover:bg-white/5"
+          className="flex items-center gap-1 text-[12px] font-medium px-2 py-1 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/5 transition-colors"
           title="Copy"
         >
-          {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+          {copied ? <Check className="w-3 h-3 text-emerald-500 dark:text-emerald-400" /> : <Copy className="w-3 h-3" />}
           {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
       {spec.enabledModules.length > 0 && (
         <div className="flex flex-wrap gap-1 px-3 pt-2">
           {spec.enabledModules.map((m) => (
-            <span key={m} className="typo-code px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-300 border border-sky-500/20">
+            <span key={m} className="typo-code px-1.5 py-0.5 rounded bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-500/20">
               {m}
             </span>
           ))}
@@ -69,8 +69,8 @@ export const SpecCard: React.FC<{ spec: ArchitectureSpec }> = ({ spec }) => {
       )}
       <div className="p-3 max-h-[420px] overflow-auto">
         {tab === 'spec' && <MarkdownContent content={spec.markdown} />}
-        {tab === 'prompt' && <pre className="typo-code whitespace-pre-wrap text-slate-200">{spec.leadSystemPrompt}</pre>}
-        {tab === 'json' && <pre className="typo-code text-slate-200">{json}</pre>}
+        {tab === 'prompt' && <pre className="typo-code whitespace-pre-wrap text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-transparent p-2 rounded-lg">{spec.leadSystemPrompt}</pre>}
+        {tab === 'json' && <pre className="typo-code text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-transparent p-2 rounded-lg">{json}</pre>}
       </div>
     </div>
   );

@@ -6,10 +6,10 @@ import { accountLabel } from '../../services/connectorsApi';
 import type { ConnectorNoticeView } from '../../types/connectors';
 
 const COPY: Record<ConnectorNoticeView['notice']['kind'], { title: (l: string) => string; tone: string }> = {
-  not_connected: { title: (l) => `${l} is not connected`, tone: 'border-amber-500/30 bg-amber-950/20 text-amber-200' },
-  connection_failed: { title: (l) => `${l} connection failed`, tone: 'border-rose-500/30 bg-rose-950/20 text-rose-200' },
-  fetch_failed: { title: (l) => `Could not fetch ${l} data`, tone: 'border-rose-500/30 bg-rose-950/20 text-rose-200' },
-  no_data: { title: (l) => `No ${l} data found`, tone: 'border-sky-500/30 bg-sky-950/20 text-sky-200' },
+  not_connected: { title: (l) => `${l} is not connected`, tone: 'border-amber-500/30 bg-amber-50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-200' },
+  connection_failed: { title: (l) => `${l} connection failed`, tone: 'border-rose-500/30 bg-rose-50 dark:bg-rose-950/20 text-rose-800 dark:text-rose-200' },
+  fetch_failed: { title: (l) => `Could not fetch ${l} data`, tone: 'border-rose-500/30 bg-rose-50 dark:bg-rose-950/20 text-rose-800 dark:text-rose-200' },
+  no_data: { title: (l) => `No ${l} data found`, tone: 'border-sky-500/30 bg-sky-50 dark:bg-sky-950/20 text-sky-800 dark:text-sky-200' },
 };
 
 /**
@@ -35,7 +35,7 @@ export const ConnectorNoticeCard: React.FC<{ view: ConnectorNoticeView; onContin
         <Icon className="mt-0.5 h-4 w-4 shrink-0" />
         <div className="min-w-0 flex-1">
           <div className="font-semibold">{copy.title(label)}</div>
-          <div className="mt-0.5 text-[11px] leading-snug text-slate-300">
+          <div className="mt-0.5 text-[11px] leading-snug text-slate-700 dark:text-slate-300">
             {needsConnection
               ? <>{notice.agent} needs {label} data. Connect it in <strong>External Tools</strong> — the agent continues without it until then.</>
               : notice.message}
@@ -61,7 +61,7 @@ export const ConnectorNoticeCard: React.FC<{ view: ConnectorNoticeView; onContin
             </>
           ) : (
             <button type="button" onClick={() => { reveal('connectors'); load(); }}
-              className="flex items-center gap-1 rounded-lg bg-white/10 px-2.5 py-1 text-[11px] font-medium text-slate-100 hover:bg-white/15">
+              className="flex items-center gap-1 rounded-lg bg-slate-200/80 hover:bg-slate-200 text-slate-800 dark:bg-white/10 dark:text-slate-100 dark:hover:bg-white/15 px-2.5 py-1 text-[11px] font-medium transition-colors">
               <Plug className="h-3 w-3" /> Open External Tools
             </button>
           )}

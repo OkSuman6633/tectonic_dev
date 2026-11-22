@@ -60,17 +60,17 @@ const ImageTile: React.FC<{ image: GeneratedImage; single: boolean }> = ({ image
 
   if (failed) {
     return (
-      <div className="flex items-center gap-2 p-3 rounded-xl border border-white/10 bg-white/[0.03] text-[11px] text-slate-400">
+      <div className="flex items-center gap-2 p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/[0.03] text-[11px] text-slate-600 dark:text-slate-400">
         <ImageOff className="w-4 h-4 shrink-0" />
         Image unavailable (it was deleted, or belongs to another account).
       </div>
     );
   }
   if (!src) {
-    return <div className={`rounded-xl bg-white/[0.05] animate-pulse ${single ? 'h-64' : 'aspect-square'}`} aria-label="Loading image" />;
+    return <div className={`rounded-xl bg-slate-200 dark:bg-white/[0.05] animate-pulse ${single ? 'h-64' : 'aspect-square'}`} aria-label="Loading image" />;
   }
   return (
-    <div className="relative group rounded-xl overflow-hidden border border-white/10 bg-black/20">
+    <div className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-black/20">
       <button type="button" onClick={() => setOpen(true)} className="block w-full" title="Open full size">
         <img src={src} alt="Generated image" className={`w-full ${single ? 'max-h-[420px] object-contain' : 'aspect-square object-cover'}`} />
       </button>

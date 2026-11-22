@@ -128,39 +128,39 @@ export const DecisionCardGroup: React.FC<DecisionCardGroupProps> = ({ decisionGr
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: 'easeOut' }}
       className={`mt-4 rounded-xl border p-4 shadow-sm backdrop-blur-md transition-all ${isSubmitted
-        ? 'bg-slate-900/70 border-emerald-500/30'
-        : 'bg-slate-900/80 border-sky-500/30'
+        ? 'bg-emerald-50/70 dark:bg-slate-900/70 border-emerald-500/30'
+        : 'bg-slate-50/90 dark:bg-slate-900/80 border-sky-500/30'
         }`}
     >
       {/* Header Bar */}
-      <div className="flex items-start justify-between gap-2 border-b border-white/10 pb-3 mb-3 min-w-0">
+      <div className="flex items-start justify-between gap-2 border-b border-slate-200/80 dark:border-white/10 pb-3 mb-3 min-w-0">
         <div className="flex items-start gap-2 min-w-0 flex-1">
           <div className="p-1.5 rounded-lg bg-sky-500/10 border border-sky-500/20 shrink-0 mt-0.5">
             <Sparkles className="w-4 h-4 text-sky-400 animate-pulse" />
           </div>
           <div className="min-w-0 flex-1">
-            <h4 className="typo-panel-heading text-slate-100 flex items-center gap-2 flex-wrap">
+            <h4 className="typo-panel-heading text-slate-900 dark:text-slate-100 flex items-center gap-2 flex-wrap">
               <span className="truncate">{activeGroup.title}</span>
               {isSubmitted && (
-                <span className="typo-status px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 shrink-0">
+                <span className="typo-status px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1 shrink-0">
                   <Check className="w-3 h-3" />
                   Choices Submitted
                 </span>
               )}
             </h4>
             {activeGroup.step?.key === 'plan' && (
-              <p className="typo-secondary text-sky-300/80 mt-1">
+              <p className="typo-secondary text-sky-700 dark:text-sky-300/80 mt-1">
                 Tick the steps you want to decide yourself. The AI decides the rest and keeps going without stopping.
               </p>
             )}
             {activeGroup.step && activeGroup.step.key !== 'plan' && (
               <div className="flex items-center gap-2 mt-1">
-                <span className="typo-status uppercase tracking-wider text-sky-300/80 shrink-0">{activeGroup.step.phase}</span>
+                <span className="typo-status uppercase tracking-wider text-sky-700 dark:text-sky-300/80 shrink-0">{activeGroup.step.phase}</span>
                 <div className="flex gap-0.5" aria-label={`Step ${activeGroup.step.number} of ${activeGroup.step.total}`}>
                   {Array.from({ length: activeGroup.step.total }, (_, i) => (
                     <span
                       key={i}
-                      className={`h-1 w-3.5 rounded-full ${i < activeGroup.step!.number - 1 ? 'bg-emerald-400/70' : i === activeGroup.step!.number - 1 ? 'bg-sky-400' : 'bg-white/10'
+                      className={`h-1 w-3.5 rounded-full ${i < activeGroup.step!.number - 1 ? 'bg-emerald-400/70' : i === activeGroup.step!.number - 1 ? 'bg-sky-400' : 'bg-slate-200 dark:bg-white/10'
                         }`}
                     />
                   ))}
@@ -168,7 +168,7 @@ export const DecisionCardGroup: React.FC<DecisionCardGroupProps> = ({ decisionGr
               </div>
             )}
             {activeGroup.description && (
-              <p className="typo-secondary text-slate-400 mt-0.5">{activeGroup.description}</p>
+              <p className="typo-secondary text-slate-600 dark:text-slate-400 mt-0.5">{activeGroup.description}</p>
             )}
           </div>
         </div>
@@ -178,10 +178,10 @@ export const DecisionCardGroup: React.FC<DecisionCardGroupProps> = ({ decisionGr
           <button
             onClick={handleProceedDefaults}
             type="button"
-            className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-indigo-500/15 text-indigo-300 hover:bg-indigo-500/25 border border-indigo-500/30 transition-all shadow-sm active:scale-95 font-medium shrink-0"
+            className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-500/25 border border-indigo-200 dark:border-indigo-500/30 transition-all shadow-sm active:scale-95 font-medium shrink-0"
             title="Automatically accept all AI recommended defaults"
           >
-            <Zap className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+            <Zap className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 shrink-0" />
             <span className="whitespace-nowrap">Defaults</span>
           </button>
         )}
@@ -193,24 +193,24 @@ export const DecisionCardGroup: React.FC<DecisionCardGroupProps> = ({ decisionGr
           return (
             <div
               key={question.id}
-              className="rounded-lg bg-white/[0.03] border border-white/5 p-2.5 hover:border-white/10 transition-colors"
+              className="rounded-lg bg-white dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/5 p-2.5 hover:border-slate-300 dark:hover:border-white/10 shadow-sm dark:shadow-none transition-colors"
             >
               <div className="flex items-center justify-between mb-2 min-w-0 gap-2">
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <div className="p-1 rounded bg-white/5 shrink-0">
+                  <div className="p-1 rounded bg-slate-100 dark:bg-white/5 shrink-0">
                     {getQuestionIcon(question.id)}
                   </div>
-                  <span className="typo-agent-name text-slate-200 truncate">
-                    <span className="text-sky-400 font-mono mr-1.5">{qIdx + 1}.</span>
+                  <span className="typo-agent-name text-slate-800 dark:text-slate-200 truncate">
+                    <span className="text-sky-600 dark:text-sky-400 font-mono mr-1.5">{qIdx + 1}.</span>
                     {question.title}
                   </span>
                 </div>
                 {question.multiSelect && (
-                  <span className="typo-metadata text-slate-400 shrink-0">choose any</span>
+                  <span className="typo-metadata text-slate-500 dark:text-slate-400 shrink-0">choose any</span>
                 )}
               </div>
               {question.description && (
-                <p className="typo-secondary -mt-1 mb-2 text-slate-400">{question.description}</p>
+                <p className="typo-secondary -mt-1 mb-2 text-slate-600 dark:text-slate-400">{question.description}</p>
               )}
 
               {/* Checkbox Options List */}
@@ -295,15 +295,15 @@ export const DecisionCardGroup: React.FC<DecisionCardGroupProps> = ({ decisionGr
                     transition={{ duration: 0.2 }}
                     className="overflow-hidden mt-2"
                   >
-                    <div className="flex items-center gap-2 p-2 rounded-md bg-purple-950/30 border border-purple-500/30">
-                      <Edit3 className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                    <div className="flex items-center gap-2 p-2 rounded-md bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-500/30">
+                      <Edit3 className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />
                       <input
                         type="text"
                         disabled={isSubmitted}
                         value={question.customValue}
                         onChange={(e) => setCustomDecisionValue(question.id, e.target.value)}
                         placeholder={`Specify custom ${question.title.toLowerCase()} requirement...`}
-                        className="w-full bg-transparent text-xs text-white placeholder-slate-500 focus:outline-none"
+                        className="w-full bg-transparent text-xs text-purple-950 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none"
                       />
                     </div>
                   </motion.div>
@@ -316,8 +316,8 @@ export const DecisionCardGroup: React.FC<DecisionCardGroupProps> = ({ decisionGr
 
       {/* Extra Preferences Box */}
       {!isSubmitted && (
-        <div className="mt-4 pt-3 border-t border-white/10">
-          <label className="text-xs font-medium text-slate-300 mb-1 flex items-center gap-1.5">
+        <div className="mt-4 pt-3 border-t border-slate-200/80 dark:border-white/10">
+          <label className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1.5">
             <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
             <span>Additional Business Rules or Details (Optional)</span>
           </label>
@@ -326,14 +326,14 @@ export const DecisionCardGroup: React.FC<DecisionCardGroupProps> = ({ decisionGr
             value={activeGroup.extraNotes || ''}
             onChange={(e) => setExtraNotes(e.target.value)}
             placeholder="e.g. Enforce biometric verification or maximum 5 retries..."
-            className="w-full text-xs px-3 py-2 rounded-lg bg-slate-950/80 border border-white/10 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500/50 transition-colors"
+            className="w-full text-xs px-3 py-2 rounded-lg bg-white dark:bg-slate-950/80 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-sky-500/50 transition-colors shadow-sm dark:shadow-none"
           />
         </div>
       )}
 
       {/* Actions Bar */}
-      <div className="mt-4 pt-3 flex items-center justify-between gap-2.5 border-t border-white/10 flex-wrap">
-        <span className="text-[10px] text-slate-400 truncate max-w-full">
+      <div className="mt-4 pt-3 flex items-center justify-between gap-2.5 border-t border-slate-200/80 dark:border-white/10 flex-wrap">
+        <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-full">
           {isSubmitted ? 'Preferences submitted to agent architect' : 'Select options, then submit'}
         </span>
 
@@ -343,9 +343,9 @@ export const DecisionCardGroup: React.FC<DecisionCardGroupProps> = ({ decisionGr
               type="button"
               disabled={isChatLoading || isGeneratingAgent}
               onClick={handleProceedDefaults}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 text-xs transition-colors shrink-0"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-200/80 dark:bg-white/5 dark:hover:bg-white/10 dark:text-slate-300 dark:hover:text-white dark:border-white/10 text-xs transition-colors shrink-0 font-medium"
             >
-              <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <Zap className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
               <span>Defaults</span>
             </button>
 

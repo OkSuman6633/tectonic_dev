@@ -266,7 +266,11 @@ export const AgentTargetPicker: React.FC = () => {
 };
 
 /** Suggestions while typing "@…" at the start of a message. */
-export const MentionSuggestions: React.FC<{ query: string; onPick: (id: string) => void }> = ({ query, onPick }) => {
+export const MentionSuggestions: React.FC<{
+  query: string;
+  onPick?: (id: string) => void;
+  onSelect?: (agent: DirectoryAgent | { id: string }) => void;
+}> = ({ query, onPick, onSelect }) => {
   const agentDirectory = useAgentStudioStore((s) => s.agentDirectory);
   const q = query.toLowerCase();
   const hits = agentDirectory
@@ -284,7 +288,8 @@ export const MentionSuggestions: React.FC<{ query: string; onPick: (id: string) 
             type="button"
             onMouseDown={(e) => {
               e.preventDefault();
-              onPick(a.id);
+              onPick?.(a.id);
+              onSelect?.(a);
             }}
             className="w-full text-left px-2.5 py-2 rounded-xl hover:bg-slate-900/[0.06] dark:hover:bg-white/[0.07] flex items-center gap-2 transition-colors"
           >

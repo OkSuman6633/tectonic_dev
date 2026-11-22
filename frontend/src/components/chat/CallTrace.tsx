@@ -22,16 +22,16 @@ export const CallTrace: React.FC<{ steps: TraceStep[] }> = ({ steps }) => {
   const toolCount = steps.filter((s) => s.type === 'tool').length;
 
   return (
-    <div className="mt-2.5 rounded-lg border border-white/5 bg-black/10 text-[12px]">
+    <div className="mt-2.5 rounded-lg border border-slate-200/80 dark:border-white/5 bg-slate-100/70 dark:bg-black/10 text-[12px]">
       <button
         type="button"
         onClick={() => setOpen(!open)}
         aria-expanded={open}
-        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-left text-slate-400 hover:text-slate-200"
+        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-left text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
       >
         {open ? <ChevronDown className="w-3 h-3 shrink-0" /> : <ChevronRight className="w-3 h-3 shrink-0" />}
-        <span className="typo-status shrink-0">Call trace</span>
-        <span className="typo-code truncate text-sky-300/80">{route.join(' → ')}</span>
+        <span className="typo-status shrink-0 font-medium">Call trace</span>
+        <span className="typo-code truncate text-sky-700 dark:text-sky-300/80 font-medium">{route.join(' → ')}</span>
         <span className="typo-metadata ml-auto shrink-0 text-slate-500">{toolCount} call{toolCount === 1 ? '' : 's'}</span>
       </button>
       {open && (
@@ -39,18 +39,18 @@ export const CallTrace: React.FC<{ steps: TraceStep[] }> = ({ steps }) => {
           {steps.map((s, i) => (
             <li key={i} className={`flex items-start gap-1.5 ${s.nested ? 'pl-4 border-l border-sky-500/20 ml-1' : ''}`}>
               {s.type === 'agent' || (s.name && AGENT_TOOLS.has(s.name)) ? (
-                <Bot className="w-3 h-3 mt-1 shrink-0 text-indigo-300" />
+                <Bot className="w-3 h-3 mt-1 shrink-0 text-indigo-600 dark:text-indigo-300" />
               ) : (
-                <Wrench className="w-3 h-3 mt-1 shrink-0 text-slate-500" />
+                <Wrench className="w-3 h-3 mt-1 shrink-0 text-slate-400 dark:text-slate-500" />
               )}
               {s.type === 'agent' ? (
-                <span className="text-slate-200">
-                  <span className="font-mono text-indigo-200">{s.agent}</span>
+                <span className="text-slate-700 dark:text-slate-200">
+                  <span className="font-mono text-indigo-700 dark:text-indigo-200 font-semibold">{s.agent}</span>
                   {s.detail && <span className="font-sans text-slate-500"> · {s.detail}</span>}
                 </span>
               ) : (
                 <span className="min-w-0 flex-1">
-                  <span className="font-mono text-slate-200">{s.name}</span>
+                  <span className="font-mono text-slate-700 dark:text-slate-200">{s.name}</span>
                   {s.args && s.args !== '{}' && <span className="font-mono text-slate-500 break-all"> {s.args}</span>}
                 </span>
               )}

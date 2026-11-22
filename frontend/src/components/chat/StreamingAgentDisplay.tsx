@@ -134,49 +134,49 @@ export const StreamingAgentDisplay: React.FC<Props> = ({ isActive, onPhaseChange
   return (
     <div className="space-y-3">
       {/* Agent Pipeline */}
-      <div className="flex items-center gap-1 p-2 bg-slate-800/40 rounded-lg overflow-x-auto">
+      <div className="flex items-center gap-1 p-2 bg-slate-100 dark:bg-slate-800/40 border border-slate-200/80 dark:border-transparent rounded-lg overflow-x-auto">
         {STAGES.map((stage, i) => {
           const Icon = stage.icon;
           const status = statuses[i];
           return (
             <React.Fragment key={stage.id}>
               <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-all ${status === 'active' ? 'bg-sky-500/20 border border-sky-500/50' :
-                status === 'done' ? 'bg-emerald-500/10' : 'bg-white/5'}`}>
-                <Icon className={`w-3 h-3 ${status === 'active' ? 'text-sky-400 animate-pulse' : status === 'done' ? 'text-emerald-400' : 'text-slate-600'}`} />
-                <span className={`text-[12px] font-medium whitespace-nowrap ${status === 'active' ? 'text-sky-300' : status === 'done' ? 'text-emerald-300' : 'text-slate-600'}`}>{stage.name}</span>
+                status === 'done' ? 'bg-emerald-500/10' : 'bg-slate-200/60 dark:bg-white/5'}`}>
+                <Icon className={`w-3 h-3 ${status === 'active' ? 'text-sky-600 dark:text-sky-400 animate-pulse' : status === 'done' ? 'text-emerald-500 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-600'}`} />
+                <span className={`text-[12px] font-medium whitespace-nowrap ${status === 'active' ? 'text-sky-700 dark:text-sky-300' : status === 'done' ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-600 dark:text-slate-500'}`}>{stage.name}</span>
               </div>
-              {i < STAGES.length - 1 && <ChevronRight className={`w-3 h-3 flex-shrink-0 ${status === 'done' ? 'text-emerald-500' : 'text-slate-700'}`} />}
+              {i < STAGES.length - 1 && <ChevronRight className={`w-3 h-3 flex-shrink-0 ${status === 'done' ? 'text-emerald-500' : 'text-slate-400 dark:text-slate-700'}`} />}
             </React.Fragment>
           );
         })}
       </div>
 
       {/* Current Agent Status */}
-      <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-sky-500/10 to-indigo-500/10 rounded-lg border border-sky-500/20">
+      <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-sky-500/10 to-indigo-500/10 rounded-lg border border-sky-500/30">
         <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center animate-pulse">
           {React.createElement(current.icon, { className: 'w-5 h-5 text-white' })}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="typo-agent-name text-sky-300">{current.name}</div>
-          <div className="typo-code text-slate-400 truncate">{statusLine}<span className="animate-pulse">▋</span></div>
+          <div className="typo-agent-name text-sky-700 dark:text-sky-300 font-semibold">{current.name}</div>
+          <div className="typo-code text-slate-600 dark:text-slate-400 truncate">{statusLine}<span className="animate-pulse">▋</span></div>
         </div>
-        <Activity className="w-5 h-5 text-sky-400 animate-pulse" />
+        <Activity className="w-5 h-5 text-sky-500 dark:text-sky-400 animate-pulse" />
       </div>
 
       {/* Live step timeline: what actually ran in this turn */}
       {steps.length > 0 && (
-        <div ref={timelineRef} className="max-h-48 overflow-y-auto rounded-lg border border-white/5 bg-white/[0.02] p-2">
-          <ol className="relative space-y-1.5 border-l border-white/10 ml-1.5 pl-3">
+        <div ref={timelineRef} className="max-h-48 overflow-y-auto rounded-lg border border-slate-200 dark:border-white/5 bg-slate-50/80 dark:bg-white/[0.02] p-2">
+          <ol className="relative space-y-1.5 border-l border-slate-300 dark:border-white/10 ml-1.5 pl-3">
             {steps.map((c) => {
               const secs = c.status === 'running' ? Math.max(0, now - c.startedAt) : (c.durationMs ?? 0) / 1000;
               return (
                 <li key={c.callId} className="relative flex items-center gap-2 text-[12px]">
                   <span className="absolute -left-[19px] flex h-3.5 w-3.5 items-center justify-center rounded-full bg-studio-card">
-                    {c.status === 'running' ? <Loader2 className="h-3 w-3 animate-spin text-sky-400" />
-                      : c.status === 'error' ? <XCircle className="h-3 w-3 text-red-400" />
-                        : <CheckCircle2 className="h-3 w-3 text-emerald-400" />}
+                    {c.status === 'running' ? <Loader2 className="h-3 w-3 animate-spin text-sky-500 dark:text-sky-400" />
+                      : c.status === 'error' ? <XCircle className="h-3 w-3 text-red-500 dark:text-red-400" />
+                        : <CheckCircle2 className="h-3 w-3 text-emerald-500 dark:text-emerald-400" />}
                   </span>
-                  <span className={`truncate ${c.status === 'running' ? 'text-sky-200' : c.status === 'error' ? 'text-red-300' : 'text-slate-300'}`}>
+                  <span className={`truncate ${c.status === 'running' ? 'text-sky-700 dark:text-sky-200 font-medium' : c.status === 'error' ? 'text-red-700 dark:text-red-300' : 'text-slate-700 dark:text-slate-300'}`}>
                     {labelFor(c)}
                   </span>
                   <span className="typo-code ml-auto shrink-0 text-slate-500">{secs > 0 ? elapsed(secs) : ''}</span>
@@ -188,13 +188,13 @@ export const StreamingAgentDisplay: React.FC<Props> = ({ isActive, onPhaseChange
       )}
 
       {/* Live event stream (same feed as the Command Center ticker) */}
-      <div ref={logRef} className="typo-code h-20 p-2 bg-slate-900/50 rounded-lg border border-white/5 overflow-y-auto space-y-0.5 scrollbar-thin">
+      <div ref={logRef} className="typo-code h-20 p-2 bg-slate-100 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-white/5 overflow-y-auto space-y-0.5 scrollbar-thin">
         {recent.map((l, i) => (
-          <div key={l.seq} className={`truncate ${i === recent.length - 1 ? 'text-sky-400' : 'text-slate-500'}`}>
+          <div key={l.seq} className={`truncate ${i === recent.length - 1 ? 'text-sky-600 dark:text-sky-400 font-medium' : 'text-slate-600 dark:text-slate-500'}`}>
             [{new Date(l.timestamp * 1000).toLocaleTimeString()}] {l.text}
           </div>
         ))}
-        {recent.length === 0 && <div className="text-slate-600 animate-pulse">Waiting for agent telemetry…</div>}
+        {recent.length === 0 && <div className="text-slate-500 dark:text-slate-600 animate-pulse">Waiting for agent telemetry…</div>}
       </div>
     </div>
   );

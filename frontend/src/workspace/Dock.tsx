@@ -6,6 +6,7 @@ import { ALL_WINDOWS, useWorkspaceStore, type WindowId } from './useWorkspaceSto
 /** App-icon style tiles (macOS dock look): gradient squircle + white glyph. */
 const TILES: Record<WindowId, string> = {
   chat: 'linear-gradient(160deg, #5AC8FA 0%, #3B82F6 55%, #6366F1 100%)',
+  studio_chat: 'linear-gradient(160deg, #38BDF8 0%, #818CF8 50%, #C084FC 100%)',
   command: 'linear-gradient(160deg, #67E8F9 0%, #06B6D4 50%, #0E7490 100%)',
   blueprint: 'linear-gradient(160deg, #C4B5FD 0%, #8B5CF6 55%, #6D28D9 100%)',
   roster: 'linear-gradient(160deg, #6EE7B7 0%, #10B981 55%, #047857 100%)',

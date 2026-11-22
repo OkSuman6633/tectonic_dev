@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
 
-export type WindowId = 'chat' | 'command' | 'blueprint' | 'roster' | 'events' | 'sandbox' | 'inspector' | 'knowledge' | 'finops' | 'promptops' | 'audit' | 'connectors' | 'images';
-export type PresetId = 'build' | 'monitor' | 'debug' | 'platform';
+export type WindowId = 'chat' | 'studio_chat' | 'command' | 'blueprint' | 'roster' | 'events' | 'sandbox' | 'inspector' | 'knowledge' | 'finops' | 'promptops' | 'audit' | 'connectors' | 'images';
+export type PresetId = 'build' | 'monitor' | 'debug' | 'platform' | 'studio';
 
 export interface Cell {
   x: number;
@@ -15,7 +15,7 @@ export interface Cell {
 export const GRID_COLS = 24;
 export const GRID_ROWS = 24;
 
-export const ALL_WINDOWS: WindowId[] = ['chat', 'command', 'blueprint', 'roster', 'events', 'sandbox', 'inspector', 'knowledge', 'finops', 'promptops', 'audit', 'connectors', 'images'];
+export const ALL_WINDOWS: WindowId[] = ['chat', 'studio_chat', 'command', 'blueprint', 'roster', 'events', 'sandbox', 'inspector', 'knowledge', 'finops', 'promptops', 'audit', 'connectors', 'images'];
 
 interface Preset {
   label: string;
@@ -69,6 +69,14 @@ export const PRESETS: Record<PresetId, Preset> = {
       command: { x: 14, y: 14, w: 10, h: 10 },
     },
   },
+  studio: {
+    label: 'Studio',
+    description: 'Unified Workspace: Gemini-style chat and 3D Blueprint side-by-side',
+    layout: {
+      studio_chat: { x: 0, y: 0, w: 10, h: 24 },
+      blueprint: { x: 10, y: 0, w: 14, h: 24 },
+    },
+  },
 };
 
 /**
@@ -78,6 +86,7 @@ export const PRESETS: Record<PresetId, Preset> = {
  */
 const FALLBACK: Record<WindowId, Cell> = {
   chat: { x: 0, y: 0, w: 6, h: 24 },
+  studio_chat: { x: 0, y: 0, w: 10, h: 24 },
   command: { x: 6, y: 0, w: 9, h: 14 },
   blueprint: { x: 15, y: 0, w: 9, h: 14 },
   roster: { x: 15, y: 14, w: 9, h: 10 },

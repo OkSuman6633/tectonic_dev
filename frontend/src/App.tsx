@@ -19,6 +19,7 @@ import { useAgentStudioStore, type StudioTab } from './store/useAgentStudioStore
 import { useTelemetryStore } from './store/useTelemetryStore';
 import { Workspace } from './workspace/Workspace';
 import { Dock } from './workspace/Dock';
+import { UnifiedStudioTab } from './components/studio/UnifiedStudioTab';
 import { PRESETS, useWorkspaceStore, type PresetId, type WindowId } from './workspace/useWorkspaceStore';
 import { refreshAllViews } from './workspace/refreshAllViews';
 import { ModelSettingsModal } from './components/settings/ModelSettingsModal';
@@ -89,6 +90,7 @@ export const App: React.FC = () => {
   const selectTelemetryAgent = useTelemetryStore((s) => s.selectAgent);
 
   const reveal = useWorkspaceStore((s) => s.reveal);
+  const currentPreset = useWorkspaceStore((s) => s.preset);
 
   const focusAgent = (id: string) => {
     selectTelemetryAgent(id);
@@ -323,9 +325,15 @@ export const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Draggable, resizable window workspace */}
-      <Workspace onSelectAgent={focusAgent} />
-      <Dock onSelectAgent={focusAgent} />
+      {/* Either dedicated Unified Studio tab or draggable multi-window workspace */}
+      {currentPreset === 'studio' ? (
+        <UnifiedStudioTab onSelectAgent={focusAgent} />
+      ) : (
+        <>
+          <Workspace onSelectAgent={focusAgent} />
+          <Dock onSelectAgent={focusAgent} />
+        </>
+      )}
 
       {/* Builder model (Claude or Gemini) and provider API keys */}
       {showEnvModal && <ModelSettingsModal onClose={() => setShowEnvModal(false)} />}
