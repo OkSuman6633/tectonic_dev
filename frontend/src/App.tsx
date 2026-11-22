@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Settings,
@@ -100,6 +100,20 @@ export const App: React.FC = () => {
   }, [tabNonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [agentDropdownOpen, setAgentDropdownOpen] = useState(false);
+  const agentDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!agentDropdownOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (agentDropdownRef.current && !agentDropdownRef.current.contains(event.target as Node)) {
+        setAgentDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [agentDropdownOpen]);
   const [planName, setPlanName] = useState<string | null>(null);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const signedIn = getUser();
@@ -181,7 +195,7 @@ export const App: React.FC = () => {
           </button>
 
           {/* Created Agents Selector Dropdown */}
-          <div className="relative">
+          <div ref={agentDropdownRef} className="relative">
             <button
               onClick={() => setAgentDropdownOpen(!agentDropdownOpen)}
               className="flex h-7 max-w-[240px] items-center gap-1.5 rounded-full bg-white/[0.08] px-3 text-[12px] font-medium leading-none text-[var(--studio-text-secondary)] shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.08)] transition-colors hover:bg-white/[0.13] hover:text-[var(--studio-text)]"
