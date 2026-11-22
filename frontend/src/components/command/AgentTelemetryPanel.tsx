@@ -2,6 +2,7 @@ import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'reac
 import { AnimatePresence, motion } from 'framer-motion';
 import { Highlight, themes, type Language } from 'prism-react-renderer';
 import { Brain, CheckCircle2, ChevronRight, Database, Loader2, ScrollText, TerminalSquare, Wrench, X, XCircle } from 'lucide-react';
+import { useIsLightTheme } from '../../hooks/useIsLightTheme';
 import { useTelemetryStore, type SelectionOrigin } from '../../store/useTelemetryStore';
 import type { ToolCallRecord, TraceSegment } from '../../types/telemetry';
 import { JsonTree } from './JsonTree';
@@ -15,10 +16,15 @@ const EMPTY_CALLS: ToolCallRecord[] = [];
 // ---- Trace viewer -------------------------------------------------------------------------
 
 function Code({ code, language }: { code: string; language: Language }) {
+  const isLight = useIsLightTheme();
   return (
-    <Highlight code={code.replace(/\n$/, '')} language={language} theme={themes.vsDark}>
+    <Highlight code={code.replace(/\n$/, '')} language={language} theme={isLight ? themes.vsLight : themes.vsDark}>
       {({ tokens, getLineProps, getTokenProps }) => (
-        <pre className="typo-code my-1 overflow-x-auto rounded-md border border-white/5 bg-black/30 px-2.5 py-2">
+        <pre
+          className={`typo-code my-1 overflow-x-auto rounded-md border px-2.5 py-2 ${
+            isLight ? 'border-slate-200/90 bg-white/90 text-slate-800' : 'border-white/5 bg-black/30'
+          }`}
+        >
           {tokens.map((line, i) => (
             <div key={i} {...getLineProps({ line })}>
               {line.map((token, k) => <span key={k} {...getTokenProps({ token })} />)}
@@ -62,25 +68,36 @@ function renderProse(text: string, keyBase: number): ReactNode[] {
   return [<span key={`p${keyBase}`} className="whitespace-pre-wrap">{text}</span>];
 }
 
-const Segment = memo(function Segment({ segment }: { segment: TraceSegment }) {
+const Segment = memo(function Segment({ segment, isLight }: { segment: TraceSegment; isLight: boolean }) {
   switch (segment.kind) {
     case 'thought':
       return (
-        <div className="my-1.5 border-l-2 border-amber-500/40 pl-2.5 italic text-amber-200/70">
-          <span className="mr-1.5 not-italic font-semibold text-amber-400/80 text-[9.5px] uppercase tracking-wider">thought</span>
+        <div
+          className={`my-1.5 border-l-2 pl-2.5 italic ${
+            isLight ? 'border-amber-500/70 text-amber-900/90' : 'border-amber-500/40 text-amber-200/70'
+          }`}
+        >
+          <span
+            className={`mr-1.5 not-italic font-semibold text-[9.5px] uppercase tracking-wider ${
+              isLight ? 'text-amber-700' : 'text-amber-400/80'
+            }`}
+          >
+            thought
+          </span>
           <span className="whitespace-pre-wrap">{segment.text}</span>
         </div>
       );
     case 'tool':
-      return <div className="my-1 whitespace-pre-wrap text-sky-300">{segment.text}</div>;
+      return <div className={`my-1 whitespace-pre-wrap ${isLight ? 'text-sky-700 font-medium' : 'text-sky-300'}`}>{segment.text}</div>;
     case 'result':
-      return <div className="my-1 whitespace-pre-wrap text-slate-500">{segment.text}</div>;
+      return <div className={`my-1 whitespace-pre-wrap ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>{segment.text}</div>;
     default:
       return <div className="my-1 text-[var(--studio-text)]">{renderText(segment.text)}</div>;
   }
 });
 
 function TraceViewer({ agentId, live }: { agentId: string; live: boolean }) {
+  const isLight = useIsLightTheme();
   const trace = useTelemetryStore((s) => s.traces[agentId]) ?? EMPTY_TRACE;
   const scroller = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
@@ -97,14 +114,16 @@ function TraceViewer({ agentId, live }: { agentId: string; live: boolean }) {
         const el = e.currentTarget;
         pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
       }}
-      className="typo-code h-full overflow-y-auto bg-black/45 px-3.5 py-3"
+      className={`typo-code h-full overflow-y-auto px-3.5 py-3 ${
+        isLight ? 'bg-slate-100/80 text-slate-800' : 'bg-black/45'
+      }`}
     >
       {trace.length === 0 ? (
-        <div className="text-slate-600">$ awaiting output from {agentId}…</div>
+        <div className={isLight ? 'text-slate-500' : 'text-slate-600'}>$ awaiting output from {agentId}…</div>
       ) : (
-        trace.map((seg, i) => <Segment key={i} segment={seg} />)
+        trace.map((seg, i) => <Segment key={i} segment={seg} isLight={isLight} />)
       )}
-      {live && <span className="ml-0.5 inline-block h-3.5 w-1.5 translate-y-0.5 animate-pulse bg-amber-400/80" />}
+      {live && <span className={`ml-0.5 inline-block h-3.5 w-1.5 translate-y-0.5 animate-pulse ${isLight ? 'bg-amber-600/80' : 'bg-amber-400/80'}`} />}
     </div>
   );
 }
@@ -205,6 +224,12 @@ function StateInspector({ agentId }: { agentId: string }) {
             tokens: agent.tokens,
             tool_calls: agent.toolCallCount,
             spawned_at: formatClock(agent.createdAt),
+            tools: agent.tools ?? 'Not reported by telemetry',
+            permissions: agent.permissions ?? 'Not reported by backend',
+            version: agent.version ?? 'Not reported by backend',
+            execution_history: calls.length > 0
+              ? calls.map((call) => ({ call_id: call.callId, tool: call.toolName, status: call.status, duration_ms: call.durationMs ?? null }))
+              : 'No execution history reported',
           }}
           defaultExpandDepth={2}
         />
@@ -267,7 +292,7 @@ export function AgentTelemetryPanel({ host = 'graph' }: { host?: SelectionOrigin
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: STATE_STYLES[agent.state].color, boxShadow: `0 0 8px ${STATE_STYLES[agent.state].color}` }} />
               <h2 className="typo-panel-heading min-w-0 flex-1 truncate text-[var(--studio-text)]">{agent.role}</h2>
-              <button type="button" onClick={() => selectAgent(null)} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-white/5 hover:text-white" title="Close (Esc)">
+              <button type="button" onClick={() => selectAgent(null)} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-white/5 hover:text-[var(--studio-text)]" title="Close (Esc)">
                 <X className="h-4 w-4" />
               </button>
             </div>

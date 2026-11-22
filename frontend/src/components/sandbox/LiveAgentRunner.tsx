@@ -1,21 +1,27 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AttachButton, AttachmentChips, useAttachments } from '../chat/Attachments';
 import {
-  Send,
+  AlertTriangle,
   Bot,
-  User,
-  ShieldAlert,
-  Wrench,
-  Code,
-  Terminal,
-  Clock,
+  Check,
   ChevronDown,
-  Plus,
+  Clock,
+  Code,
   Cpu,
+  Key,
   Pencil,
   Play,
+  Plug,
+  Plus,
   RotateCw,
-  Plug
+  Save,
+  Send,
+  ShieldAlert,
+  Sparkles,
+  Terminal,
+  User,
+  Wrench,
+  X
 } from 'lucide-react';
 import { useAgentStudioStore } from '../../store/useAgentStudioStore';
 import { MarkdownContent } from '../chat/MarkdownContent';
@@ -28,6 +34,13 @@ const EDIT_SUGGESTIONS = [
   'Reply in short bullet points',
   'Ask for confirmation before changing or deleting any record',
   'Greet the user by name and keep a friendly, professional tone',
+];
+
+/** Gemini engines offered when configuring a generated agent's own .env. */
+const AVAILABLE_GEMINI_MODELS = [
+  { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash', tag: 'Fast', description: "Google's fast multimodal model." },
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', tag: 'Reasoning', description: "Google's reasoning model." },
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', tag: 'Low latency', description: "Google's low-latency model." },
 ];
 
 export const LiveAgentRunner: React.FC = () => {
@@ -47,7 +60,12 @@ export const LiveAgentRunner: React.FC = () => {
     isEditingAgent,
     editSelectedAgent,
     undoLastAgentEdit,
-    continueAfterConnect
+    continueAfterConnect,
+    envConfig,
+    selectedAgentEnv,
+    showAgentEnvModal,
+    setShowAgentEnvModal,
+    saveSelectedAgentEnv
   } = useAgentStudioStore();
   const revealWindow = useWorkspaceStore((s) => s.reveal);
   const [showModelSettings, setShowModelSettings] = useState(false);
@@ -65,6 +83,13 @@ export const LiveAgentRunner: React.FC = () => {
   const undoableId = lastEdit?.edit?.outcome === 'success' && !lastEdit.edit.undone ? lastEdit.id : null;
   const [showRawJson, setShowRawJson] = useState(false);
   const [agentDropdownOpen, setAgentDropdownOpen] = useState(false);
+  const [modalApiKey, setModalApiKey] = useState('');
+  const [modalModel, setModalModel] = useState('gemini-3.6-flash');
+  const [isCustomModel, setIsCustomModel] = useState(false);
+  const [isSavingKey, setIsSavingKey] = useState(false);
+  const [keySavedToast, setKeySavedToast] = useState(false);
+  const [keySaveError, setKeySaveError] = useState('');
+  const [pendingEditApproval, setPendingEditApproval] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -82,15 +107,41 @@ export const LiveAgentRunner: React.FC = () => {
     const files = editing ? [] : attach.files;  // attachments are for running the agent, not for edit requests
     if ((!inputVal.trim() && files.length === 0) || busy) return;
     const msg = inputVal;
+    if (editing && !pendingEditApproval) {
+      setPendingEditApproval(true);
+      return;
+    }
     setInputVal('');
     attach.clear();
-    if (editing) editSelectedAgent(msg);
+    if (editing) {
+      setPendingEditApproval(false);
+      editSelectedAgent(msg);
+    }
     else sendSandboxMessage(msg, { attachments: files });
   };
 
   const handleQuickTest = (prompt: string) => {
     if (busy) return;
     sendSandboxMessage(prompt);
+  };
+
+  const handleSaveAgentKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAgent) return;
+    setIsSavingKey(true);
+    setKeySaveError('');
+    try {
+      await saveSelectedAgentEnv(selectedAgent.name, modalApiKey, modalModel);
+      setKeySavedToast(true);
+      setTimeout(() => {
+        setKeySavedToast(false);
+        setShowAgentEnvModal(false);
+      }, 1200);
+    } catch (err) {
+      setKeySaveError(err instanceof Error ? err.message : 'Failed to save agent key.');
+    } finally {
+      setIsSavingKey(false);
+    }
   };
 
   const agentDisplayName = selectedAgent ? selectedAgent.name : 'agent_builder';
@@ -192,6 +243,22 @@ export const LiveAgentRunner: React.FC = () => {
               <Cpu className="w-3.5 h-3.5 text-sky-400" />
               <span>{workflowModel}</span>
               <span className="text-[10px] text-sky-400/70">· Builder model</span>
+            </button>
+          )}
+
+          {/* Configure the selected agent's own .env (Gemini key + model) */}
+          {selectedAgent && (
+            <button
+              onClick={() => setShowAgentEnvModal(true)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono border transition-all shadow-sm ${
+                selectedAgentEnv?.hasKey
+                  ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                  : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/30 animate-pulse'
+              }`}
+              title={`Configure .env for ${selectedAgent.name}`}
+            >
+              <Key className="w-3.5 h-3.5 shrink-0" />
+              <span>{selectedAgentEnv?.hasKey ? '.env: Configured ✓' : '.env: Missing Key ⚠️'}</span>
             </button>
           )}
 
@@ -514,6 +581,12 @@ export const LiveAgentRunner: React.FC = () => {
             {attach.error && <div className="text-[11px] text-amber-300">{attach.error}</div>}
           </div>
         )}
+        {editing && pendingEditApproval && (
+          <div className="mb-2 flex items-start gap-2 rounded-lg border border-amber-500/25 bg-amber-500/[0.07] px-3 py-2 text-[12px] text-amber-700 dark:text-amber-300">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>Human approval required: submit again to apply this agent change, verify it, and start a new sandbox run.</span>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           {/* Run the agent, or describe a change to it (applied, verified, then re-run) */}
           <div className="flex shrink-0 items-center rounded-xl bg-studio-surface/90 border border-white/10 p-0.5">
@@ -562,6 +635,193 @@ export const LiveAgentRunner: React.FC = () => {
 
       {showModelSettings && (
         <ModelSettingsModal onClose={() => { setShowModelSettings(false); loadStudioSettings(); }} />
+      )}
+
+      {/* Dedicated Modal for Configuring Particular Agent's .env */}
+      {showAgentEnvModal && selectedAgent && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-2xl bg-studio-card border border-studio-border p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center shadow-md">
+                  <Key className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-100">
+                    Configure Model & API Key for {selectedAgent.name}
+                  </h3>
+                  <span className="text-[10px] text-sky-400 font-mono">
+                    Direct .env Configuration • Pure File I/O
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAgentEnvModal(false)}
+                className="p-1 rounded text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Select the Gemini model engine and configure the Google API Key for <strong className="text-emerald-300 font-mono">{selectedAgent.name}</strong>. Settings are saved directly to <code className="text-sky-300 font-mono">generated_agents/{selectedAgent.name}/.env</code>.
+            </p>
+
+            <form onSubmit={handleSaveAgentKey} className="space-y-4 text-xs">
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-slate-300 font-medium flex items-center gap-1.5">
+                    <span>GOOGLE_API_KEY</span>
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      {selectedAgentEnv?.hasKey ? 'Configured ✓' : 'Missing ⚠️'}
+                    </span>
+                  </label>
+                  {envConfig?.apiKey && envConfig.apiKey !== modalApiKey && (
+                    <button
+                      type="button"
+                      onClick={() => setModalApiKey(envConfig.apiKey)}
+                      className="text-[10px] text-sky-400 hover:text-sky-300 font-mono flex items-center gap-1 bg-sky-500/10 hover:bg-sky-500/20 px-2 py-0.5 rounded border border-sky-500/30 transition-colors"
+                      title="Auto-fill with master API key from root .env"
+                    >
+                      <Sparkles className="w-3 h-3 text-sky-400" />
+                      <span>Use Workspace Master Key</span>
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="password"
+                  value={modalApiKey}
+                  onChange={(e) => setModalApiKey(e.target.value)}
+                  placeholder="Paste your Google AI Studio API Key..."
+                  className="w-full text-xs font-mono px-3 py-2 rounded-lg bg-studio-surface border border-white/10 text-slate-200 focus:outline-none focus:border-sky-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-slate-300 font-medium">
+                    CHOOSE GEMINI MODEL
+                  </label>
+                  <span className="text-[10px] text-emerald-400 font-mono">
+                    Active: {modalModel}
+                  </span>
+                </div>
+
+                <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+                  {AVAILABLE_GEMINI_MODELS.map((m) => {
+                    const isSelected = modalModel === m.id && !isCustomModel;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => {
+                          setModalModel(m.id);
+                          setIsCustomModel(false);
+                        }}
+                        className={`w-full text-left p-2.5 rounded-xl border transition-all flex items-start justify-between ${isSelected
+                          ? 'bg-sky-500/20 border-sky-400 text-sky-100 shadow-md shadow-sky-500/10'
+                          : 'bg-studio-surface/80 hover:bg-white/5 border-white/5 text-slate-300'
+                          }`}
+                      >
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold font-mono text-xs">{m.name}</span>
+                            <span
+                              className={`text-[9px] uppercase px-1.5 py-0.2 rounded font-mono ${isSelected ? 'bg-sky-400 text-slate-950 font-bold' : 'bg-white/10 text-slate-400'
+                                }`}
+                            >
+                              {m.tag}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 leading-snug">
+                            {m.description}
+                          </p>
+                        </div>
+                        {isSelected && <Check className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />}
+                      </button>
+                    );
+                  })}
+
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomModel(true)}
+                    className={`w-full text-left p-2.5 rounded-xl border transition-all flex items-center justify-between ${isCustomModel
+                      ? 'bg-purple-500/20 border-purple-400 text-purple-200'
+                      : 'bg-studio-surface/80 hover:bg-white/5 border-white/5 text-slate-400'
+                      }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Cpu className="w-3.5 h-3.5 text-purple-400" />
+                      <span className="font-mono text-xs">Custom Gemini Model...</span>
+                    </div>
+                    {isCustomModel && <Check className="w-4 h-4 text-purple-400" />}
+                  </button>
+                </div>
+
+                {isCustomModel && (
+                  <div className="mt-2 animate-in fade-in duration-150">
+                    <input
+                      type="text"
+                      value={modalModel}
+                      onChange={(e) => setModalModel(e.target.value)}
+                      placeholder="e.g. gemini-3.6-flash-exp, gemini-experimental, etc."
+                      className="w-full text-xs font-mono px-3 py-2 rounded-lg bg-studio-surface border border-purple-500/50 text-slate-200 focus:outline-none focus:border-purple-400"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="p-3 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-300 text-[11px] leading-relaxed">
+                <div className="flex items-center justify-between mb-1">
+                  <strong>Target File:</strong>
+                  <code className="font-mono text-[10px] text-slate-200">generated_agents/{selectedAgent.name}/.env</code>
+                </div>
+                <div className="font-mono text-[10px] text-slate-300/80 bg-slate-950/60 p-2 rounded border border-white/5 space-y-0.5">
+                  <div>GOOGLE_API_KEY={modalApiKey ? `${modalApiKey.slice(0, 8)}...` : '<not set>'}</div>
+                  <div>GEMINI_MODEL={modalModel}</div>
+                </div>
+              </div>
+
+              {keySaveError && (
+                <div role="alert" className="flex items-start gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 p-2.5 text-[11px] text-rose-300">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <span>{keySaveError}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setShowAgentEnvModal(false)}
+                  className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-xs transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingKey || !modalApiKey.trim()}
+                  className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold shadow-md transition-all ${keySavedToast
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/20 disabled:opacity-40'
+                    }`}
+                >
+                  {keySavedToast ? (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Saved & Ready!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-3.5 h-3.5" />
+                      <span>{isSavingKey ? 'Saving...' : 'Save to .env & Run Agent'}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

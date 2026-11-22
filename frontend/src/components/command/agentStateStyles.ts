@@ -10,9 +10,28 @@ export interface StateStyle {
 
 export const STATE_STYLES: Record<AgentState, StateStyle> = {
   idle: { label: 'Ready', color: '#34D399', glow: 'rgba(52,211,153,0.28)', text: 'text-emerald-400', pulse: false },
+  running: { label: 'Running', color: '#60A5FA', glow: 'rgba(96,165,250,0.4)', text: 'text-blue-400', pulse: true },
   thinking: { label: 'Thinking', color: '#FBBF24', glow: 'rgba(251,191,36,0.38)', text: 'text-amber-400', pulse: true },
-  tool_execution: { label: 'Calling tool', color: '#60A5FA', glow: 'rgba(96,165,250,0.4)', text: 'text-blue-400', pulse: true },
-  error: { label: 'Error', color: '#FB7185', glow: 'rgba(251,113,133,0.4)', text: 'text-rose-400', pulse: false },
+  waiting: { label: 'Waiting', color: '#A78BFA', glow: 'rgba(167,139,250,0.38)', text: 'text-violet-400', pulse: true },
+  tool_execution: { label: 'Running', color: '#60A5FA', glow: 'rgba(96,165,250,0.4)', text: 'text-blue-400', pulse: true },
+  error: { label: 'Failed', color: '#FB7185', glow: 'rgba(251,113,133,0.4)', text: 'text-rose-400', pulse: false },
+  failed: { label: 'Failed', color: '#FB7185', glow: 'rgba(251,113,133,0.4)', text: 'text-rose-400', pulse: false },
+  disabled: { label: 'Disabled', color: '#94A3B8', glow: 'rgba(148,163,184,0.24)', text: 'text-slate-400', pulse: false },
+  offline: { label: 'Offline', color: '#64748B', glow: 'rgba(100,116,139,0.24)', text: 'text-slate-500', pulse: false },
+};
+
+export const normalizeAgentState = (state: AgentState | string): StateStyle => {
+  if (state in STATE_STYLES) return STATE_STYLES[state as AgentState];
+  return STATE_STYLES.offline;
+};
+
+export const formatDuration = (durationMs: number): string => {
+  if (!Number.isFinite(durationMs) || durationMs < 0) return '—';
+  if (durationMs < 1000) return `${Math.round(durationMs)} ms`;
+  if (durationMs < 60_000) return `${(durationMs / 1000).toFixed(2)} s`;
+  const minutes = Math.floor(durationMs / 60_000);
+  const seconds = (durationMs % 60_000) / 1000;
+  return `${minutes}m ${seconds.toFixed(2)}s`;
 };
 
 export const formatClock = (epochSeconds: number): string =>

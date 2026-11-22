@@ -17,17 +17,41 @@ export const LEVEL_STYLE: Record<LogLevel, { tag: string; className: string }> =
 
 const Line = memo(function Line({ entry, onSelect }: { entry: LogEntry; onSelect: (id: string) => void }) {
   const style = LEVEL_STYLE[entry.level];
+  const [open, setOpen] = useState(false);
   return (
-    <button
-      type="button"
-      title={entry.text}
-      onClick={() => entry.agentId && onSelect(entry.agentId)}
-      className="typo-code flex w-full min-w-0 items-baseline gap-2 truncate px-3 py-[3px] text-left transition-colors hover:bg-white/[0.03]"
-    >
-      <span className="shrink-0 tabular-nums text-[var(--studio-text-muted)]">{formatClock(entry.timestamp)}</span>
-      <span className={`w-14 shrink-0 text-[12px] font-medium tracking-wider ${style.className}`}>{style.tag}</span>
-      <span className="truncate text-[var(--studio-text-secondary)]">{entry.text}</span>
-    </button>
+    <div className="border-b border-white/[0.025]">
+      <button
+        type="button"
+        title={entry.text}
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        className="typo-code flex w-full min-w-0 items-baseline gap-2 px-3 py-[5px] text-left transition-colors hover:bg-white/[0.03]"
+      >
+        <span className="shrink-0 tabular-nums text-[var(--studio-text-muted)]">{formatClock(entry.timestamp)}</span>
+        <span className={`w-14 shrink-0 text-[12px] font-medium tracking-wider ${style.className}`}>{style.tag}</span>
+        <span className="min-w-0 flex-1 truncate text-[var(--studio-text-secondary)]">{entry.text}</span>
+        {entry.durationMs != null && <span className="shrink-0 font-mono text-sky-300">{entry.durationMs} ms</span>}
+        {entry.traceId && <span className="hidden max-w-[150px] shrink-0 truncate font-mono text-violet-300 xl:inline" title={entry.traceId}>{entry.traceId}</span>}
+      </button>
+      {open && (
+        <div className="typo-code space-y-1 px-12 pb-2 text-[11px] text-[var(--studio-text-muted)]">
+          {entry.agentId && (
+            <button type="button" onClick={() => onSelect(entry.agentId!)} className="text-sky-300 hover:underline">
+              Agent: {entry.agentId}
+            </button>
+          )}
+          {entry.traceId && <div>Trace: <span className="break-all font-mono text-violet-300">{entry.traceId}</span></div>}
+          {entry.handoffFrom && entry.handoffTo && <div>Handoff: <span className="text-sky-300">{entry.handoffFrom}</span> → <span className="text-sky-300">{entry.handoffTo}</span></div>}
+          {entry.durationMs != null && <div>Duration: {entry.durationMs} ms</div>}
+          {entry.retryHistory?.length ? (
+            <div>Retry history: {entry.retryHistory.map((retry) => `#${retry.attempt} ${retry.status}`).join(' → ')}</div>
+          ) : (
+            <div>No retry history reported by the backend.</div>
+          )}
+          {entry.structured != null && <pre className="max-h-48 overflow-auto rounded-md border border-white/[0.06] bg-black/20 p-2 whitespace-pre-wrap break-all">{JSON.stringify(entry.structured, null, 2)}</pre>}
+        </div>
+      )}
+    </div>
   );
 });
 

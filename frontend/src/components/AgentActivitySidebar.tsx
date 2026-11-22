@@ -60,6 +60,11 @@ export const AgentActivitySidebar: React.FC<{ onSelectAgent: (id: string) => voi
                   {style.label}
                   {agent.tokens.total > 0 && <span className="font-mono font-normal text-[var(--studio-text-muted)]"> · {formatCount(agent.tokens.total)} tok</span>}
                 </div>
+                <div className="mt-0.5 flex items-center gap-2 truncate font-mono text-[10px] text-[var(--studio-text-muted)]">
+                  <span>{agent.model || 'Model not reported'}</span>
+                  <span>· {agent.toolCallCount} tool calls</span>
+                  {agent.stub && <span>· snapshot incomplete</span>}
+                </div>
               </div>
             </button>
           );

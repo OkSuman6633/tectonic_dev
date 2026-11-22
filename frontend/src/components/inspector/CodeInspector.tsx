@@ -3,6 +3,7 @@ import {
   FileCode,
   Copy,
   Check,
+  AlertTriangle,
   Save,
   Cpu,
   ShieldCheck,
@@ -31,6 +32,8 @@ export const CodeInspector: React.FC = () => {
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
   const [agentDropdownOpen, setAgentDropdownOpen] = useState<boolean>(false);
+  const [saveError, setSaveError] = useState<string>('');
+  const [pendingSaveApproval, setPendingSaveApproval] = useState<boolean>(false);
 
   // When files load or change, select first file
   useEffect(() => {
@@ -63,16 +66,23 @@ export const CodeInspector: React.FC = () => {
 
   const handleSave = async () => {
     if (!activeFile || isSaving) return;
+    if (!pendingSaveApproval) {
+      setPendingSaveApproval(true);
+      setSaveError('');
+      return;
+    }
     setIsSaving(true);
+    setSaveError('');
     try {
       await saveAgentFile(activeFile, fileContent);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2500);
     } catch (err) {
       console.error(err);
-      alert('Failed to save file: ' + err);
+      setSaveError(err instanceof Error ? err.message : 'Failed to save file.');
     } finally {
       setIsSaving(false);
+      setPendingSaveApproval(false);
     }
   };
 
@@ -172,7 +182,7 @@ export const CodeInspector: React.FC = () => {
                 ? 'bg-emerald-600 dark:bg-emerald-500 text-white shadow-emerald-500/20'
                 : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/20 disabled:opacity-40'
               }`}
-            title="Save file changes directly to disk and update agent"
+            title={pendingSaveApproval ? 'Confirm that this file change is approved' : 'Save file changes directly to disk and update agent'}
           >
             {saveSuccess ? (
               <>
@@ -182,7 +192,7 @@ export const CodeInspector: React.FC = () => {
             ) : (
               <>
                 <Save className="h-3.5 w-3.5" />
-                <span>{isSaving ? 'Saving...' : 'Save & Update'}</span>
+                <span>{isSaving ? 'Saving...' : pendingSaveApproval ? 'Confirm & Update' : 'Save & Update'}</span>
               </>
             )}
           </button>
@@ -190,6 +200,14 @@ export const CodeInspector: React.FC = () => {
       </div>
 
       {/* Main Content: Split Code Editor & Agent Info Card */}
+      {(pendingSaveApproval || saveError) && (
+        <div className={`flex items-start gap-2 border-b px-3 py-2 text-[12px] ${saveError ? 'border-rose-500/20 bg-rose-500/[0.06] text-rose-700 dark:text-rose-300' : 'border-amber-500/20 bg-amber-500/[0.06] text-amber-700 dark:text-amber-300'}`}>
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>
+            {saveError || 'Approval required: confirm “Confirm & Update” to write this change to the agent and apply it.'}
+          </span>
+        </div>
+      )}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 overflow-hidden">
         {/* Code Content Editor View */}
         <div className="flex flex-col overflow-y-auto border-r border-slate-200 dark:border-white/10 bg-slate-50/80 dark:bg-slate-950/90 p-3 lg:col-span-2 transition-colors">
