@@ -10,7 +10,7 @@ from .sub_agents.code_generator.agent import code_generator_agent
 from .sub_agents.guardrails.agent import guardrails
 from .sub_agents.intent_detection.agent import intent_detection_agent
 from .sub_agents.requirement_understanding.agent import requirement_understanding_agent
-from .tools.agent_access import ask_agent, delete_agent, edit_agent, list_agents, undo_agent_edit
+from .tools.agent_access import ask_agent, delete_agent, discover_agents, edit_agent, list_agents, undo_agent_edit
 from .tools.build_pipeline import (
     apply_decisions,
     build_status,
@@ -80,6 +80,7 @@ root_agent = LlmAgent(
         review_design,
         review_code,
         list_agents,
+        discover_agents,
         ask_agent,
         edit_agent,
         undo_agent_edit,

@@ -91,9 +91,9 @@ _PLANS: dict[str, dict[str, Any]] = {
         "max_model_tier": "economy",
         "allow_byok": False,
         "max_agents": 1,
-        "max_sub_agents": 1,
-        "max_iterations": 15,
-        "max_concurrent_runs": 1,
+        "max_sub_agents": 3,
+        "max_iterations": 30,
+        "max_concurrent_runs": 2,
         "monthly_tokens": 500_000,
         "max_tokens_per_run": 50_000,
         "max_seats": 1,
@@ -128,9 +128,9 @@ _PLANS: dict[str, dict[str, Any]] = {
         "max_model_tier": "flagship",
         "allow_byok": True,
         "max_agents": 10,
-        "max_sub_agents": 3,
-        "max_iterations": 40,
-        "max_concurrent_runs": 5,
+        "max_sub_agents": 8,
+        "max_iterations": 80,
+        "max_concurrent_runs": 10,
         "monthly_tokens": 5_000_000,
         "max_tokens_per_run": 200_000,
         "max_seats": 1,
@@ -172,9 +172,9 @@ _PLANS: dict[str, dict[str, Any]] = {
         "max_model_tier": "preview",
         "allow_byok": True,
         "max_agents": 500,
-        "max_sub_agents": 5,
-        "max_iterations": 100,
-        "max_concurrent_runs": 25,
+        "max_sub_agents": 15,
+        "max_iterations": 200,
+        "max_concurrent_runs": 50,
         "monthly_tokens": 50_000_000,
         "max_tokens_per_run": 500_000,
         "max_seats": 100,
@@ -229,6 +229,94 @@ _PLANS: dict[str, dict[str, Any]] = {
         "connectors": ["google_analytics", "meta_ads", "http"],
     },
 }
+
+# --- plan sources -------------------------------------------------------------------------------
+# The per-plan JSON files in <repo>/plans/ (or $TECTONIC_PLANS_DIR) are the source of truth for the
+# lock/unlock status of every module and tool. ``_PLANS`` above is only the fallback used when the
+# JSON files are unavailable (e.g. a partial checkout); it is kept in sync with the same numbers.
+
+_PLANS_DIR_ENV = "TECTONIC_PLANS_DIR"
+
+
+def _plans_dir() -> Path | None:
+    """The directory holding plans/*.json, if present."""
+    override = os.environ.get(_PLANS_DIR_ENV)
+    candidates = ([Path(override)] if override else []) + [Path(__file__).resolve().parent.parent / "plans"]
+    for candidate in candidates:
+        try:
+            if candidate.is_dir():
+                return candidate
+        except OSError:  # pragma: no cover - permission / path error
+            continue
+    return None
+
+
+def _normalize_plan(raw: dict[str, Any]) -> dict[str, Any]:
+    """Normalise a plan dict (in-code fallback or JSON file) into the internal shape.
+
+    ``modules`` keeps only *unlocked* modules (name → status), preserving the original behaviour of
+    ``module_allowed``. Locked modules move to ``locked_modules`` so the lock/unlock status of every
+    module is explicit and queryable. ``tools`` becomes a name → {"locked": bool} map.
+    """
+    plan = dict(raw)
+    modules = plan.get("modules", {})
+    unlocked: dict[str, str] = {}
+    locked: dict[str, dict[str, Any]] = {}
+    for name, entry in modules.items():
+        if isinstance(entry, str):
+            unlocked[name] = entry
+        elif isinstance(entry, dict):
+            if entry.get("locked"):
+                locked[name] = {"status": entry.get("status", "beta"),
+                                "unlock_hint": entry.get("unlock_hint")}
+            else:
+                unlocked[name] = entry.get("status", "ga")
+        else:
+            unlocked[name] = str(entry or "ga")
+    plan["modules"] = unlocked
+    plan["locked_modules"] = locked
+    tools = plan.get("tools")
+    if isinstance(tools, dict):
+        plan["tools"] = {name: (t if isinstance(t, dict) else {"locked": bool(t)})
+                         for name, t in tools.items()}
+    else:
+        plan["tools"] = {
+            "web_search": {"locked": False},
+            "agent_access": {"locked": False},
+            "build_pipeline": {"locked": False},
+            "file_manager": {"locked": False},
+            "memory": {"locked": False},
+            "review": {"locked": False},
+            "interview": {"locked": False},
+            "image_generation": {"locked": "image_generation" not in unlocked},
+            "connectors": {"locked": "external_connectors" not in unlocked},
+        }
+    return plan
+
+
+def _load_json_plans() -> dict[str, dict[str, Any]]:
+    """Read plans/{starter,pro,business,enterprise}.json (the lock/unlock source of truth)."""
+    directory = _plans_dir()
+    if directory is None:
+        return {}
+    loaded: dict[str, dict[str, Any]] = {}
+    for pid in PLAN_IDS:
+        try:
+            raw = json.loads((directory / f"{pid}.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(raw, dict):
+            loaded[pid] = _normalize_plan(raw)
+    return loaded
+
+
+_PLANS = {pid: _normalize_plan(plan) for pid, plan in _PLANS.items()}
+_PLANS.update(_load_json_plans())
+
+# Every module known across all plans (Enterprise unlocks them all), used for lock status.
+_ALL_MODULES: set[str] = set()
+for _plan in _PLANS.values():
+    _ALL_MODULES.update(_plan.get("modules", {}))
 
 
 def plans_catalog() -> list[dict[str, Any]]:
@@ -448,6 +536,68 @@ def allowed_connectors(plan_id: str) -> list[str]:
     return list(plan_definition(plan_id)["connectors"])
 
 
+# --- lock/unlock status (module & tool availability by plan) -------------------------------------
+# Orchestration asks these before using a module or tool instead of building an agent. A locked
+# feature returns a clear "not available on your plan" message naming the plans that unlock it.
+def _display(name: str) -> str:
+    return name.replace("_", " ").strip().title()
+
+
+def lock_message(plan_id: str, kind: str, name: str) -> str:
+    """The standard 'not available on your plan' message an agent or the UI can show."""
+    plan = plan_definition(plan_id)
+    label = _display(name)
+    unlocking: list[str] = []
+    for pid in PLAN_IDS:
+        other = plan_definition(pid)
+        if kind == "module":
+            unlocked = name in other["modules"]
+        else:
+            entry = other.get("tools", {}).get(name)
+            unlocked = isinstance(entry, dict) and not entry.get("locked", True)
+        if unlocked:
+            unlocking.append(other["name"])
+    if len(unlocking) == 1:
+        suffix = f"Upgrade to {unlocking[0]} to use it."
+    elif unlocking:
+        suffix = f"Upgrade to {', '.join(unlocking[:-1])} or {unlocking[-1]} to use it."
+    else:
+        suffix = "Upgrade to unlock it."
+    return f"{label} is not available on the {plan['name']} plan. {suffix}"
+
+
+def locked_modules(plan_id: str) -> set[str]:
+    """Module names the plan does not include."""
+    return set(_ALL_MODULES) - set(plan_definition(plan_id)["modules"])
+
+
+def module_lock_hint(plan_id: str, module_name: str) -> str | None:
+    """The upgrade message for a locked module, or None when the plan allows it."""
+    plan = plan_definition(plan_id)
+    if module_name in plan["modules"]:
+        return None
+    explicit = plan.get("locked_modules", {}).get(module_name, {}).get("unlock_hint")
+    return explicit or lock_message(plan_id, "module", module_name)
+
+
+def tool_allowed(plan_id: str, tool_name: str) -> bool:
+    """May this plan use this tool? Unknown tools are locked (fail closed)."""
+    entry = plan_definition(plan_id).get("tools", {}).get(tool_name)
+    return isinstance(entry, dict) and not entry.get("locked", True)
+
+
+def locked_tools(plan_id: str) -> set[str]:
+    return {name for name, entry in plan_definition(plan_id).get("tools", {}).items()
+            if isinstance(entry, dict) and entry.get("locked")}
+
+
+def tool_lock_hint(plan_id: str, tool_name: str) -> str | None:
+    """The upgrade message for a locked tool, or None when the plan allows it."""
+    if tool_allowed(plan_id, tool_name):
+        return None
+    return lock_message(plan_id, "tool", tool_name)
+
+
 def allow_byok(plan_id: str) -> bool:
     return bool(plan_definition(plan_id)["allow_byok"])
 
@@ -514,6 +664,8 @@ def plan_status(user_id: str | None) -> dict[str, Any]:
         "allowed_models": allowed_models(plan_id),
         "allowed_modules": sorted(allowed_modules(plan_id)),
         "allowed_connectors": allowed_connectors(plan_id),
+        "locked_modules": sorted(locked_modules(plan_id)),
+        "locked_tools": sorted(locked_tools(plan_id)),
         "allow_byok": p["allow_byok"],
         "usage": {
             "monthly_tokens": monthly_tokens(user_id),

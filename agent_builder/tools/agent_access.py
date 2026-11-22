@@ -19,6 +19,26 @@ def list_agents() -> dict:
     return {"status": "success", "agents": agents}
 
 
+def discover_agents(query: str) -> dict:
+    """Semantically search the user's generated agents for one that can handle this request.
+
+    Call this BEFORE deciding a task is new. It ranks generated agents (projects and sub-agents) by
+    how well their name, description and tools match the query, and tells you how to route:
+
+    - route="existing" → reuse the best match with ask_agent(agent=<best id>, message=...).
+    - route="none" → no generated agent fits; answer yourself or fall back to the Agent Builder.
+
+    Args:
+        query: The user's request, in their words.
+
+    Returns:
+        dict with status, route, best (the top match) and matches (ranked candidates with scores).
+    """
+    from .. import discovery
+
+    return {"status": "success", **discovery.discover(query)}
+
+
 async def ask_agent(agent: str, message: str, tool_context: ToolContext) -> dict:
     """Send a message to an existing agent and get its answer. Use it whenever the user wants to USE an
     agent that already exists (a generated project, one of its sub-agents, or a Builder specialist)

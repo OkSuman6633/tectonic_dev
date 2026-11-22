@@ -37,8 +37,35 @@ def _ctx(tool_context: Optional[ToolContext], team: str | None = None) -> CallCo
     )
 
 
+def _module_lock_hint(ctx: CallContext, module: str) -> str | None:
+    """The 'not available on your plan' message for a locked module, or None when allowed.
+
+    In-loop tools fail open: the gate only applies once the signed-in account has actually chosen
+    a plan (the API entry already defaults uncommitted accounts to Starter for the UI). Without the
+    entitlements package, or with no identifiable user, nothing is gated.
+    """
+    user = getattr(ctx, "tenant_id", None)
+    if not user or user == "default":
+        return None
+    try:
+        from agent_builder import entitlements
+    except Exception:  # pragma: no cover - entitlements unavailable
+        return None
+    try:
+        plan_id = entitlements.get_plan_id(user)
+        if not plan_id:
+            return None
+        return entitlements.module_lock_hint(plan_id, module)
+    except Exception:  # pragma: no cover - fail open
+        return None
+
+
 async def _call(module: str, op: str, payload: dict[str, Any], tool_context: Optional[ToolContext]) -> dict[str, Any]:
-    return (await get_runtime().invoke(module, op, payload, _ctx(tool_context))).to_dict()
+    ctx = _ctx(tool_context)
+    hint = _module_lock_hint(ctx, module)
+    if hint:
+        return {"status": "error", "error": hint}
+    return (await get_runtime().invoke(module, op, payload, ctx)).to_dict()
 
 
 def _parse_json(raw: str, name: str) -> Any:
@@ -269,6 +296,9 @@ async def core_generate_image(prompt: str, aspect_ratio: str = "1:1", number_of_
         markdown images into your reply), on error the reason to tell the user.
     """
     ctx = _ctx(tool_context)
+    hint = _module_lock_hint(ctx, "image_generation")
+    if hint:
+        return {"status": "error", "error": hint}
     refs = [i.strip() for i in (edit_image_ids or "").split(",") if i.strip()]
     if use_attached_images:
         attached = _attached_image_ids(tool_context, ctx)

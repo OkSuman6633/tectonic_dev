@@ -95,6 +95,60 @@ def test_connector_gating():
     assert entitlements.connector_allowed("pro", "google_analytics")
 
 
+# --- broadened orchestration limits & lock/unlock status ----------------------------------------
+def test_broadened_orchestration_limits():
+    assert entitlements.plan_definition("starter")["max_sub_agents"] == 3
+    assert entitlements.plan_definition("starter")["max_iterations"] == 30
+    assert entitlements.plan_definition("starter")["max_concurrent_runs"] == 2
+    assert entitlements.plan_definition("pro")["max_sub_agents"] == 8
+    assert entitlements.plan_definition("pro")["max_iterations"] == 80
+    assert entitlements.plan_definition("business")["max_sub_agents"] == 15
+    assert entitlements.plan_definition("business")["max_iterations"] == 200
+    assert entitlements.plan_definition("business")["max_concurrent_runs"] == 50
+    assert entitlements.plan_definition("enterprise")["max_sub_agents"] == 0  # 0 = negotiated/unlimited
+
+
+def test_module_lock_hints():
+    hint = entitlements.module_lock_hint("starter", "image_generation")
+    assert hint and "Starter" in hint and "Upgrade" in hint and "Pro" in hint
+    assert entitlements.module_lock_hint("starter", "guardrails") is None
+    assert entitlements.module_lock_hint("pro", "image_generation") is None
+    assert entitlements.module_lock_hint("enterprise", "image_generation") is None
+
+
+def test_tool_lock_status():
+    assert entitlements.tool_allowed("starter", "web_search")
+    assert not entitlements.tool_allowed("starter", "image_generation")
+    assert not entitlements.tool_allowed("starter", "connectors")
+    assert entitlements.tool_allowed("pro", "image_generation")
+    assert entitlements.tool_allowed("pro", "connectors")
+    assert "image_generation" in entitlements.locked_tools("starter")
+    assert "image_generation" not in entitlements.locked_tools("pro")
+    hint = entitlements.tool_lock_hint("starter", "connectors")
+    assert hint and "Starter" in hint and "Upgrade" in hint
+
+
+def test_locked_modules_exclude_allowed():
+    assert "guardrails" not in entitlements.locked_modules("starter")
+    assert "long_term_memory" in entitlements.locked_modules("starter")
+    assert not entitlements.locked_modules("enterprise")
+
+
+async def test_plan_status_surfaces_lock_status(monkeypatch):
+    monkeypatch.setattr("agent_builder.directory.projects", lambda: [])
+    from agent_builder import studio_api
+
+    token = workspace.set_user(USER)
+    try:
+        entitlements.set_plan_id(USER, "starter")
+        status = await studio_api.current_plan()
+        assert "image_generation" in status["locked_modules"]
+        assert "image_generation" in status["locked_tools"]
+        assert "guardrails" not in status["locked_modules"]
+    finally:
+        workspace.reset_user(token)
+
+
 # --- monthly token usage ----------------------------------------------------------------------
 def test_record_and_read_monthly_tokens():
     assert entitlements.monthly_tokens(USER) == 0
@@ -127,9 +181,9 @@ def test_run_token_cap():
 
 
 def test_iteration_cap():
-    entitlements.set_plan_id(USER, "starter")  # 15 iterations
+    entitlements.set_plan_id(USER, "starter")  # 30 iterations (broadened from 15)
     entitlements.begin_run(USER)
-    for _ in range(14):
+    for _ in range(29):
         entitlements.note_iteration()
     assert not entitlements.iterations_exhausted()
     entitlements.note_iteration()
@@ -164,13 +218,13 @@ def test_project_report_what_was_built_vs_starter_limits(monkeypatch, tmp_path):
         {"kind": "project", "name": "root", "tools": ["web_search", "file_manager"]},
         {"kind": "sub_agent", "name": "worker", "tools": ["memory"]},
     ])
-    entitlements.set_plan_id(USER, "starter")  # max_sub_agents=1, no connectors
+    entitlements.set_plan_id(USER, "starter")  # max_sub_agents=3, no connectors
     r = entitlements.project_report(USER, "demo")
     assert r["plan_name"] == "Starter" and r["project"] == "demo"
     assert r["built"]["agents"] == 2 and r["built"]["sub_agents"] == 1
     assert r["built"]["tools"] == ["file_manager", "memory", "web_search"]
     assert r["built"]["files"] == 1
-    assert r["limits"]["max_agents"] == 1 and r["limits"]["max_sub_agents"] == 1
+    assert r["limits"]["max_agents"] == 1 and r["limits"]["max_sub_agents"] == 3
     assert r["compliance"]["sub_agents_within_limit"] is True
     assert r["compliance"]["agents_within_limit"] is True  # one project total, limit 1
     assert r["allowed_connectors"] == []
@@ -182,8 +236,10 @@ def test_project_report_flags_limit_breach(monkeypatch, tmp_path):
         {"kind": "project", "name": "root", "tools": []},
         {"kind": "sub_agent", "name": "a", "tools": []},
         {"kind": "sub_agent", "name": "b", "tools": []},
+        {"kind": "sub_agent", "name": "c", "tools": []},
+        {"kind": "sub_agent", "name": "d", "tools": []},
     ])
-    entitlements.set_plan_id(USER, "starter")  # max_sub_agents=1
+    entitlements.set_plan_id(USER, "starter")  # max_sub_agents=3
     r = entitlements.project_report(USER, "demo")
     assert r["compliance"]["sub_agents_within_limit"] is False
 

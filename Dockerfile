@@ -32,6 +32,8 @@ RUN pip install --no-cache-dir -r requirements.txt && \
 
 # Copy the full application code
 COPY agent_builder/ ./agent_builder/
+# Per-plan lock/unlock JSON files — the source of truth for module/tool availability by tier.
+COPY plans/ ./plans/
 COPY server_full.py ./server.py
 
 # Shared platform runtime: the Builder and every generated agent get guardrails, memory, RAG, vector DB,

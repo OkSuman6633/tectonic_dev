@@ -189,7 +189,7 @@ async def test_adk_tools_attribute_calls_to_the_calling_agent(rt, events):
     names = {getattr(f, "__name__", None) or f.name for f in worker_tools(team="demo")}
     assert {"core_guardrails_check", "core_recall", "core_share_knowledge", "core_call_tool"} <= names
     assert {"core_remember", "core_recall", "core_share_with_project", "core_provision_team", "core_ingest_knowledge",
-            "core_publish_prompt", "core_verify_audit"} <= {f.__name__ for f in builder_tools()}
+            "core_publish_prompt", "core_verify_audit"} <= {getattr(f, "__name__", None) or f.name for f in builder_tools()}
 
 
 async def test_adk_tools_build_valid_function_declarations():

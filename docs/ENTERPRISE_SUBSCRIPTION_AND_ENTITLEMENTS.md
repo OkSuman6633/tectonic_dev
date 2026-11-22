@@ -231,9 +231,9 @@ Legend:
 | Max agents (per account/tenant) 🔢 | 1 | 10 | 500 | Negotiated |
 | Single-agent build | ✅ | ✅ | ✅ | ✅ |
 | Multi-agent / sub-agent orchestration | — | ✅ `AgentTool` | ✅ | ✅ |
-| Max sub-agents per run 🔢 | 1 | 3 | 5 | Negotiated |
-| Max tool-call / reasoning iterations 🔢 | 15 | 40 | 100 | Negotiated |
-| Concurrent runs 🔢 | 1 | 5 | 25 | Negotiated |
+| Max sub-agents per run 🔢 | 3 | 8 | 15 | Negotiated |
+| Max tool-call / reasoning iterations 🔢 | 30 | 80 | 200 | Negotiated |
+| Concurrent runs 🔢 | 2 | 10 | 50 | Negotiated |
 | Conversational agent editing | ✅ `editor.edit_agent` | ✅ | ✅ | ✅ |
 | Agent versioning / rollback | 🛣️ | 🛣️ | 🛣️ | 🛣️ |
 | Autopilot / guided-interview builder | ✅ `build_pipeline` | ✅ | ✅ | ✅ |
@@ -336,6 +336,13 @@ Entitlements are **configuration-driven**. A single `PlanEntitlement` Pydantic m
 truth; JSON files (or a future `plans` table served by `multi-tenancy` / `billing-and-metering`) hold
 the tier defaults and per-tenant Enterprise overrides. Nothing in agent logic reads a hardcoded tier.
 
+> **Implemented since the first draft:** the per-plan lock/unlock files now exist at
+> [`plans/{starter,pro,business,enterprise}.json`](plans) and are loaded by
+> [`agent_builder/entitlements.py`](agent_builder/entitlements.py) at import time (see
+> [`docs/orchrestation limit to broden.md`](orchrestation%20limit%20to%20broden.md) for the full
+> broadened orchestration-limits PRD). Orchestration-depth defaults below have been broadened
+> accordingly (sub-agents 3/8/15, iterations 30/80/200, concurrent runs 2/10/50).
+
 ### 3.1 Pydantic model (Pydantic v2, matching the project's `pydantic>=2.0`)
 
 ```python
@@ -371,8 +378,8 @@ class RateLimit(BaseModel):
 class TokenQuota(BaseModel):
     monthly_tokens: int = Field(default=5_000_000, gt=0)
     max_tokens_per_run: int = Field(default=200_000, gt=0)
-    max_iterations: int = Field(default=40, gt=0)
-    max_sub_agents: int = Field(default=3, ge=0)
+    max_iterations: int = Field(default=80, gt=0)
+    max_sub_agents: int = Field(default=8, ge=0)
     rate_limit: RateLimit = RateLimit()
     overage: OverageMode = OverageMode.throttle
 
@@ -402,7 +409,7 @@ class PlanEntitlement(BaseModel):
 
     # Dimension 3 — orchestration depth
     max_agents: int = Field(default=10, gt=0)
-    max_concurrent_runs: int = Field(default=5, gt=0)
+    max_concurrent_runs: int = Field(default=10, gt=0)
     allow_multi_agent: bool = True
 
     # Dimension 4 — modules, tools & connectors
@@ -462,14 +469,14 @@ class PlanEntitlement(BaseModel):
 {
   "plan_id": "starter", "plan_name": "Starter", "tier": 0,
   "compute": {
-    "monthly_tokens": 500000, "max_tokens_per_run": 50000, "max_iterations": 15,
-    "max_sub_agents": 1,
+    "monthly_tokens": 500000, "max_tokens_per_run": 50000, "max_iterations": 30,
+    "max_sub_agents": 3,
     "rate_limit": { "rpm": 5, "tpm": 50000 },
     "overage": "hard_cap"
   },
   "model_tiers": ["economy"],
   "allow_byok": false,
-  "max_agents": 1, "max_concurrent_runs": 1, "allow_multi_agent": false,
+  "max_agents": 1, "max_concurrent_runs": 2, "allow_multi_agent": false,
   "modules": {
     "guardrails": {"status": "ga"},
     "intent_detection": {"status": "ga"},
@@ -490,14 +497,14 @@ class PlanEntitlement(BaseModel):
 {
   "plan_id": "pro", "plan_name": "Pro", "tier": 1,
   "compute": {
-    "monthly_tokens": 5000000, "max_tokens_per_run": 200000, "max_iterations": 40,
-    "max_sub_agents": 3,
+    "monthly_tokens": 5000000, "max_tokens_per_run": 200000, "max_iterations": 80,
+    "max_sub_agents": 8,
     "rate_limit": { "rpm": 60, "tpm": 500000 },
     "overage": "credit_top_up"
   },
   "model_tiers": ["economy", "balanced", "flagship", "reasoning"],
   "allow_byok": true,
-  "max_agents": 10, "max_concurrent_runs": 5, "allow_multi_agent": true,
+  "max_agents": 10, "max_concurrent_runs": 10, "allow_multi_agent": true,
   "modules": {
     "guardrails": {"status": "ga"}, "intent_detection": {"status": "ga"},
     "short_term_memory": {"status": "ga"}, "long_term_memory": {"status": "ga"},
@@ -519,14 +526,14 @@ class PlanEntitlement(BaseModel):
 {
   "plan_id": "business", "plan_name": "Business", "tier": 2,
   "compute": {
-    "monthly_tokens": 50000000, "max_tokens_per_run": 500000, "max_iterations": 100,
-    "max_sub_agents": 5,
+    "monthly_tokens": 50000000, "max_tokens_per_run": 500000, "max_iterations": 200,
+    "max_sub_agents": 15,
     "rate_limit": { "rpm": 300, "tpm": 2000000 },
     "overage": "credit_top_up"
   },
   "model_tiers": ["economy", "balanced", "flagship", "reasoning", "preview"],
   "allow_byok": true,
-  "max_agents": 500, "max_concurrent_runs": 25, "allow_multi_agent": true,
+  "max_agents": 500, "max_concurrent_runs": 50, "allow_multi_agent": true,
   "modules": {
     "guardrails": {"status": "ga"}, "intent_detection": {"status": "ga"},
     "short_term_memory": {"status": "ga"}, "long_term_memory": {"status": "ga"},

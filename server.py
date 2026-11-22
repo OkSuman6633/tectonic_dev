@@ -110,7 +110,9 @@ async def invoke_module(module: str, operation: str, payload: dict = Body(defaul
     if module not in runtime.modules:
         raise HTTPException(404, f"unknown module {module!r}")
     if module not in _allowed_modules():
-        raise HTTPException(403, {"code": "MODULE_LOCKED", "detail": f"Module '{module}' is not included in your plan."})
+        plan_id = entitlements.effective_plan_id(current_user())
+        detail = entitlements.module_lock_hint(plan_id, module) or f"Module '{module}' is not included in your plan."
+        raise HTTPException(403, {"code": "MODULE_LOCKED", "detail": detail})
     result = await runtime.invoke(module, operation, payload, OPERATOR)
     return result.to_dict()
 
