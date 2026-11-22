@@ -1,6 +1,6 @@
 // Wire contract for ws://<host>/ws/telemetry — mirrors agent_builder/telemetry.py.
 
-export type AgentState = 'idle' | 'thinking' | 'tool_execution' | 'error';
+export type AgentState = 'idle' | 'running' | 'thinking' | 'waiting' | 'tool_execution' | 'error' | 'failed' | 'disabled' | 'offline';
 
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 export type JsonObject = { [key: string]: JsonValue };
@@ -171,6 +171,9 @@ export interface AgentMeta {
   lastActiveAt: number; // epoch seconds
   tokens: { prompt: number; completion: number; total: number };
   toolCallCount: number;
+  tools?: string[];
+  permissions?: string[];
+  version?: string;
   /** Seen in another agent's event before its own AGENT_CREATED arrived. */
   stub?: boolean;
 }
@@ -228,6 +231,13 @@ export interface LogEntry {
   level: LogLevel;
   agentId?: string;
   text: string;
+  traceId?: string;
+  durationMs?: number;
+  handoffFrom?: string;
+  handoffTo?: string;
+  structured?: JsonValue;
+  errorCode?: string;
+  retryHistory?: { attempt: number; status: 'success' | 'error' | 'running'; timestamp: number; detail?: string }[];
 }
 
 export interface Packet {

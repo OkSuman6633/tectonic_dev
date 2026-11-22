@@ -173,6 +173,21 @@ const compactJson = (value: unknown, limit = 160): string => {
   return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
 };
 
+const fetchWithTimeout = async (url: string, init: RequestInit = {}, timeoutMs = 60_000): Promise<Response> => {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error(`The request timed out after ${Math.round(timeoutMs / 1000)} seconds. Check the backend and retry; no duplicate action was submitted by the Studio.`);
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timer);
+  }
+};
+
 export interface ConfirmPayload {
   decisions: Record<string, string>;
   customValues: Record<string, string>;
@@ -294,7 +309,7 @@ class ApiService {
 
   /** Validates the model and keys (a Claude key is checked with Anthropic), saves them and switches the Builder. */
   public async saveStudioSettings(model: string, keys: { anthropicApiKey?: string; googleApiKey?: string }): Promise<StudioSettings> {
-    const res = await fetch('/studio/settings', {
+    const res = await fetchWithTimeout('/studio/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model, anthropic_api_key: keys.anthropicApiKey || null, google_api_key: keys.googleApiKey || null }),
@@ -396,7 +411,7 @@ class ApiService {
       }
     };
 
-    const res = await fetch('/run', {
+    const res = await fetchWithTimeout('/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -586,7 +601,7 @@ class ApiService {
 
   /** Talk to one agent directly (a generated project, its sub-agent, or a Builder specialist). */
   public async chatWithAgent(target: string, message: string, sessionKey: string, attachments: ChatAttachment[] = []): Promise<AgentChatResult> {
-    const res = await fetch('/directory/chat', {
+    const res = await fetchWithTimeout('/directory/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -641,7 +656,7 @@ class ApiService {
 
   // --- Conversational agent editing ---
   public async editAgent(target: string, request: string, sessionKey: string): Promise<AgentEditResult> {
-    const res = await fetch('/directory/edit', {
+    const res = await fetchWithTimeout('/directory/edit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ target, request, session_key: sessionKey }),
@@ -652,7 +667,7 @@ class ApiService {
   }
 
   public async undoAgentEdit(target: string): Promise<AgentUndoResult> {
-    const res = await fetch('/directory/edit/undo', {
+    const res = await fetchWithTimeout('/directory/edit/undo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ target }),
@@ -924,7 +939,7 @@ class ApiService {
       }
     };
 
-    const res = await fetch('/run', {
+    const res = await fetchWithTimeout('/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -1053,7 +1068,7 @@ class ApiService {
   }
 
   public async saveAgentFile(agentName: string, filePath: string, content: string): Promise<{ success: boolean; message: string }> {
-    const res = await fetch(`/api/system/agents/${agentName}/files`, {
+    const res = await fetchWithTimeout(`/api/system/agents/${agentName}/files`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ filePath, content })

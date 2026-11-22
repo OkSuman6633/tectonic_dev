@@ -71,6 +71,13 @@ export const LiveAgentRunner: React.FC = () => {
   const undoableId = lastEdit?.edit?.outcome === 'success' && !lastEdit.edit.undone ? lastEdit.id : null;
   const [showRawJson, setShowRawJson] = useState(false);
   const [agentDropdownOpen, setAgentDropdownOpen] = useState(false);
+  const [modalApiKey, setModalApiKey] = useState('');
+  const [modalModel, setModalModel] = useState('gemini-3.6-flash');
+  const [isCustomModel, setIsCustomModel] = useState(false);
+  const [isSavingKey, setIsSavingKey] = useState(false);
+  const [keySavedToast, setKeySavedToast] = useState(false);
+  const [keySaveError, setKeySaveError] = useState('');
+  const [pendingEditApproval, setPendingEditApproval] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -88,15 +95,41 @@ export const LiveAgentRunner: React.FC = () => {
     const files = editing ? [] : attach.files;  // attachments are for running the agent, not for edit requests
     if ((!inputVal.trim() && files.length === 0) || busy) return;
     const msg = inputVal;
+    if (editing && !pendingEditApproval) {
+      setPendingEditApproval(true);
+      return;
+    }
     setInputVal('');
     attach.clear();
-    if (editing) editSelectedAgent(msg);
+    if (editing) {
+      setPendingEditApproval(false);
+      editSelectedAgent(msg);
+    }
     else sendSandboxMessage(msg, { attachments: files });
   };
 
   const handleQuickTest = (prompt: string) => {
     if (busy) return;
     sendSandboxMessage(prompt);
+  };
+
+  const handleSaveAgentKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAgent) return;
+    setIsSavingKey(true);
+    setKeySaveError('');
+    try {
+      await saveSelectedAgentEnv(selectedAgent.name, modalApiKey, modalModel);
+      setKeySavedToast(true);
+      setTimeout(() => {
+        setKeySavedToast(false);
+        setShowAgentEnvModal(false);
+      }, 1200);
+    } catch (err) {
+      setKeySaveError(err instanceof Error ? err.message : 'Failed to save agent key.');
+    } finally {
+      setIsSavingKey(false);
+    }
   };
 
   const agentDisplayName = selectedAgent ? selectedAgent.name : 'agent_builder';
@@ -540,6 +573,12 @@ export const LiveAgentRunner: React.FC = () => {
             {attach.error && <div className="typo-status text-amber-600 dark:text-amber-300">{attach.error}</div>}
           </div>
         )}
+        {editing && pendingEditApproval && (
+          <div className="mb-2 flex items-start gap-2 rounded-lg border border-amber-500/25 bg-amber-500/[0.07] px-3 py-2 text-[12px] text-amber-700 dark:text-amber-300">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>Human approval required: submit again to apply this agent change, verify it, and start a new sandbox run.</span>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           {/* Run the agent, or describe a change to it (applied, verified, then re-run) */}
           <div className="flex h-9 shrink-0 items-center rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.04] p-0.5 shadow-sm dark:shadow-none">
@@ -731,6 +770,13 @@ export const LiveAgentRunner: React.FC = () => {
                   <div>GEMINI_MODEL={modalModel}</div>
                 </div>
               </div>
+
+              {keySaveError && (
+                <div role="alert" className="flex items-start gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 p-2.5 text-[11px] text-rose-300">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <span>{keySaveError}</span>
+                </div>
+              )}
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
                 <button

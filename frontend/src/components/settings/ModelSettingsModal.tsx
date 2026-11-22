@@ -37,7 +37,11 @@ const KeyField: React.FC<{
           placeholder={placeholder}
           autoComplete="off"
           spellCheck={false}
-          className="h-9 w-full rounded-lg border border-white/10 bg-studio-surface pl-3 pr-10 font-mono text-[12px] leading-none text-slate-200 focus:border-sky-500 focus:outline-none disabled:opacity-50"
+          className={`h-9 w-full rounded-lg border pl-3 pr-10 font-mono text-[12px] leading-none focus:border-sky-500 focus:outline-none disabled:opacity-50 ${
+            isLight
+              ? 'border-slate-300/90 bg-white text-slate-800 placeholder:text-slate-400 shadow-inner'
+              : 'border-white/10 bg-studio-surface text-slate-200 placeholder:text-slate-500'
+          }`}
         />
         <button type="button" onClick={() => setShow(!show)} className="absolute right-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded text-slate-500 hover:bg-white/5 hover:text-slate-300" title={show ? 'Hide' : 'Show'}>
           {show ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
@@ -227,12 +231,30 @@ export const ModelSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="max-h-[92vh] w-full max-w-xl space-y-4 overflow-y-auto rounded-xl border border-studio-border bg-studio-card p-5 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-white/10 pb-3">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-orange-500 via-sky-500 to-indigo-600 shadow-md">
-              <Cpu className="h-4 w-4 text-white" />
+    <div className={`fixed inset-0 z-50 flex items-center justify-center p-3 backdrop-blur-md sm:p-5 ${isLight ? 'bg-slate-900/35' : 'bg-black/75'}`}>
+      <div
+        className={`key-settings-in max-h-[94dvh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-[24px] border p-4 sm:space-y-5 sm:p-6 ${
+          isLight
+            ? 'border-emerald-600/20 bg-[linear-gradient(145deg,rgba(255,255,255,0.98),rgba(246,249,252,0.98)_52%,rgba(240,252,248,0.98))] shadow-[0_32px_80px_-24px_rgba(15,23,42,0.22),0_0_50px_-28px_rgba(16,185,129,0.25)]'
+            : 'border-emerald-300/15 bg-[linear-gradient(145deg,rgba(24,30,34,0.98),rgba(17,19,28,0.98)_52%,rgba(17,25,26,0.98))] shadow-[0_32px_100px_-28px_rgba(0,0,0,0.9),0_0_60px_-32px_rgba(52,211,153,0.5)]'
+        }`}
+      >
+        <div
+          className={`relative isolate overflow-hidden rounded-[20px] border p-4 sm:p-5 ${
+            isLight
+              ? 'border-emerald-600/20 bg-[linear-gradient(115deg,rgba(16,185,129,0.12),rgba(255,255,255,0.85)_52%,rgba(6,184,230,0.09))]'
+              : 'border-emerald-200/15 bg-[linear-gradient(115deg,rgba(52,211,153,0.11),rgba(255,255,255,0.035)_52%,rgba(45,212,255,0.08))]'
+          }`}
+        >
+          <div aria-hidden="true" className={`pointer-events-none absolute -right-10 -top-20 h-52 w-52 rounded-full blur-3xl ${isLight ? 'bg-emerald-400/20' : 'bg-emerald-300/10'}`} />
+          <div className="relative flex items-start gap-4 sm:gap-5">
+            <div className="key-logo-float relative mt-0.5 h-[80px] w-[80px] shrink-0 sm:h-[92px] sm:w-[92px]">
+              <span aria-hidden="true" className={`key-logo-halo absolute -inset-3 rounded-[28px] blur-xl ${isLight ? 'bg-emerald-400/25' : 'bg-emerald-300/20'}`} />
+              <img
+                src="/tectonic-key-shield.png"
+                alt="Green shield with a silver key"
+                className="absolute left-1/2 top-1/2 h-[180px] w-[180px] max-w-none -translate-x-1/2 -translate-y-1/2 object-contain drop-shadow-[0_12px_24px_rgba(16,185,129,0.42)] sm:h-[200px] sm:w-[200px]"
+              />
             </div>
             <div>
 
@@ -274,8 +296,10 @@ export const ModelSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose 
         <form onSubmit={submit} className="space-y-4 text-[13px]">
           {groups.map(({ provider, models }) => models.length > 0 && (
             <div key={provider}>
-              <div className={`mb-1.5 typo-panel-heading ${PROVIDERS[provider].accent}`}>{PROVIDERS[provider].title}</div>
-              <div className="grid grid-cols-2 gap-2">{models.map(card)}</div>
+              <div className={`mb-1.5 typo-panel-heading ${isLight ? PROVIDERS[provider].accentLight : PROVIDERS[provider].accentDark}`}>
+                {PROVIDERS[provider].title}
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{models.map(card)}</div>
             </div>
           ))}
 
@@ -287,7 +311,11 @@ export const ModelSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose 
               onChange={(e) => setModel(e.target.value)}
               placeholder="claude-opus-5-5 or gemini-2.5-pro"
               spellCheck={false}
-              className="h-9 w-full rounded-lg border border-white/10 bg-studio-surface px-3 font-mono text-[12px] leading-none text-slate-200 focus:border-sky-500 focus:outline-none"
+              className={`h-9 w-full rounded-lg border px-3 font-mono text-[12px] leading-none focus:border-sky-500 focus:outline-none ${
+                isLight
+                  ? 'border-slate-300/90 bg-white text-slate-800 placeholder:text-slate-400 shadow-inner'
+                  : 'border-white/10 bg-studio-surface text-slate-200 placeholder:text-slate-500'
+              }`}
             />
             {!known && model.trim() && (
               <p className="mt-1 typo-metadata text-slate-500">Custom model · provider: {claude ? 'Anthropic (Claude)' : 'Google (Gemini)'}</p>
@@ -306,6 +334,7 @@ export const ModelSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose 
             value={anthropicKey}
             onChange={setAnthropicKey}
             locked={keysLocked}
+            isLight={isLight}
             help={keysLocked ? <>Shared by every user: ask an admin to change it.</> : <>From the Anthropic Console → API keys. Checked with Anthropic before it is saved.</>}
           />
           <KeyField
@@ -317,17 +346,18 @@ export const ModelSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose 
             value={googleKey}
             onChange={setGoogleKey}
             locked={keysLocked}
+            isLight={isLight}
             help={keysLocked ? <>Shared by every user: ask an admin to change it.</> : <>Also used by generated agents and the platform's knowledge features, whichever Builder model you pick.</>}
           />
 
           {error && (
-            <div className="flex items-start gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-[11px] text-rose-200">
+            <div className={`flex items-start gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-[11px] ${isLight ? 'text-rose-700' : 'text-rose-200'}`}>
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-2 border-t border-white/10 pt-3">
+          <div className="flex flex-col-reverse items-stretch justify-end gap-2 border-t border-white/10 pt-4 sm:flex-row sm:items-center">
             <button type="button" onClick={onClose} className="inline-flex h-9 items-center justify-center rounded-lg bg-white/5 px-3.5 text-xs font-medium leading-none text-slate-300 transition-colors hover:bg-white/10">
               Cancel
             </button>
@@ -335,7 +365,7 @@ export const ModelSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose 
               type="submit"
               disabled={saving || !model.trim() || needsKey}
               title={needsKey ? `Add your ${claude ? 'Anthropic' : 'Google'} API key first` : undefined}
-              className={`inline-flex h-9 max-w-full items-center justify-center gap-1.5 truncate rounded-lg px-4 text-xs font-semibold leading-none text-white shadow-md transition-all disabled:opacity-50 ${saved ? 'bg-emerald-500' : 'bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-400 hover:to-indigo-400'}`}
+              className={`inline-flex min-h-10 max-w-full items-center justify-center gap-1.5 truncate rounded-xl px-4 text-xs font-semibold leading-none text-white shadow-[0_8px_24px_-10px_rgba(56,189,248,0.8)] transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 ${saved ? 'bg-emerald-500' : 'bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-400 hover:to-indigo-400'}`}
             >
               {saved ? <><Check className="h-3.5 w-3.5" />{saved}</>
                 : saving ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Checking & switching…</>

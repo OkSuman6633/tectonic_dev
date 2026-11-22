@@ -219,7 +219,25 @@
     50% { transform: translate3d(-3%, 2%, 0) scale(1.05); }
     100% { transform: translate3d(2%, -2%, 0) scale(1.02); }
   }
+  @keyframes key-settings-enter {
+    from { opacity: 0; transform: translate3d(0, 12px, 0) scale(0.985); }
+    to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  }
+  @keyframes key-logo-float {
+    0%, 100% { transform: translate3d(0, 0, 0) rotate(-1deg); }
+    50% { transform: translate3d(0, -5px, 0) rotate(1deg); }
+  }
+  @keyframes key-logo-glow {
+    0%, 100% { opacity: 0.48; transform: scale(0.92); }
+    50% { opacity: 0.9; transform: scale(1.08); }
+  }
+  .key-settings-in { animation: key-settings-enter 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+  .key-logo-float { animation: key-logo-float 4s ease-in-out infinite; }
+  .key-logo-halo { animation: key-logo-glow 3.2s ease-in-out infinite; }
   @media (prefers-reduced-motion: reduce) { body::before { animation: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .key-settings-in, .key-logo-float, .key-logo-halo { animation: none; }
+  }
   ::selection { background: rgba(45, 212, 255, 0.28); }
   .tabular-nums, .font-mono { font-variant-numeric: tabular-nums; }
 
@@ -277,6 +295,7 @@
 }
 
 /* Light mode specific overrides */
+.light .text-slate-50,
 .light .text-slate-100 { color: var(--studio-text); }
 .light .text-slate-200 { color: #1e293b; }
 .light .text-slate-300 { color: #334155; }
@@ -301,6 +320,13 @@
 .light select { background-color: rgba(255, 255, 255, 0.9); color: #0E1116; }
 .light .border-white\/5 { border-color: rgba(0, 0, 0, 0.05); }
 .light .border-white\/10 { border-color: rgba(0, 0, 0, 0.08); }
+.light .border-white\/\[0\.06\] { border-color: rgba(15, 23, 42, 0.08); }
+.light .bg-black\/10,
+.light .bg-black\/15,
+.light .bg-black\/20,
+.light .bg-black\/25,
+.light .bg-black\/30 { background-color: rgba(15, 23, 42, 0.045); }
+.light .bg-black\/45 { background-color: rgba(241, 245, 249, 0.92); }
 .light .hover\:bg-white\/5:hover { background-color: rgba(0, 0, 0, 0.03); }
 .light .hover\:bg-white\/10:hover { background-color: rgba(0, 0, 0, 0.06); }
 

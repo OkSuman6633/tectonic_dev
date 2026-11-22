@@ -105,7 +105,7 @@ export function ModuleTelemetryPanel({ host = 'graph' }: { host?: SelectionOrigi
               <span className="inline-flex h-[18px] shrink-0 items-center rounded border border-studio-border px-1.5 font-mono text-[10px] uppercase leading-none tracking-wider text-[var(--studio-text-muted)]">
                 {mod.category}
               </span>
-              <button type="button" onClick={() => selectModule(null)} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-white/5 hover:text-white" title="Close (Esc)">
+              <button type="button" onClick={() => selectModule(null)} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-white/5 hover:text-[var(--studio-text)]" title="Close (Esc)">
                 <X className="h-4 w-4" />
               </button>
             </div>

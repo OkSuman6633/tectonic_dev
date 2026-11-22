@@ -132,7 +132,21 @@ function reduce(prev: TelemetryData, events: TelemetryEvent[], now: number): Tel
     return d[key];
   };
   const log = (e: TelemetryEvent, level: LogEntry['level'], text: string, agentId?: string) => {
-    own('logs').push({ id: nextLogId++, seq: e.seq, timestamp: e.timestamp, level, agentId, text });
+    const traceId =
+      e.type === 'RUN_STARTED' || e.type === 'RUN_COMPLETED' ? e.invocation_id
+        : e.type === 'TOOL_CALL_START' || e.type === 'TOOL_CALL_END' ? e.call_id
+          : undefined;
+    const handoff = e.type === 'A2A_MESSAGE'
+      ? { handoffFrom: e.from_id, handoffTo: e.to_id }
+      : {};
+    const durationMs =
+      e.type === 'TOOL_CALL_END' || e.type === 'MODULE_CALL_END' ? e.duration_ms
+        : undefined;
+    own('logs').push({
+      id: nextLogId++, seq: e.seq, timestamp: e.timestamp, level, agentId, text,
+      traceId, durationMs: durationMs ?? undefined, ...handoff,
+      structured: e as unknown as JsonObject,
+    });
   };
   const bump = (id: string, amount: number) => {
     const activity = own('activity');
