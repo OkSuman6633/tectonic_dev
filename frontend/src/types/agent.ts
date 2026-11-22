@@ -182,7 +182,7 @@ export interface ChatMessage {
   architectureSpec?: ArchitectureSpec;
   /** Directory id of the agent this message was sent to / answered by (absent: the Builder). */
   agentTarget?: string;
-  /** Agent name that answered (shown instead of "Meta-Agent Builder"). */
+  /** Agent name that answered (shown instead of "Agent Builder"). */
   agentName?: string;
   trace?: TraceStep[];
   /** The reply was recovered from the server session after a page refresh. */

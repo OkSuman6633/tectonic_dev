@@ -394,7 +394,7 @@ export const ArchitectChat: React.FC = () => {
               <div className={`max-w-[85%] min-w-0 flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
                 <div className={`flex items-center gap-1.5 mb-1 flex-wrap ${isUser ? 'justify-end' : 'justify-start'}`}>
                   <span className="typo-agent-name font-semibold text-slate-900 dark:text-slate-100">
-                    {isUser ? 'You (Architect)' : direct ? msg.agentName : 'Meta-Agent Builder'}
+                    {isUser ? 'You (Architect)' : direct ? msg.agentName : 'Agent Builder'}
                   </span>
                   {msg.agentTarget && (
                     <span className="text-[12px] font-mono font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 border border-emerald-500/30 backdrop-blur-md">
