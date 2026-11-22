@@ -173,18 +173,51 @@ const compactJson = (value: unknown, limit = 160): string => {
   return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
 };
 
-const fetchWithTimeout = async (url: string, init: RequestInit = {}, timeoutMs = 60_000): Promise<Response> => {
+const fetchWithTimeout = async (
+  url: string,
+  init: RequestInit = {},
+  timeoutMs = 0,
+  externalSignal?: AbortSignal
+): Promise<Response> => {
   const controller = new AbortController();
-  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  let timer: number | undefined;
+
+  // Only enforce timeout if timeoutMs > 0 (0 = wait for response to come without timeout)
+  if (timeoutMs > 0) {
+    timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  }
+
+  const onExternalAbort = () => {
+    controller.abort();
+  };
+
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      controller.abort();
+    } else {
+      externalSignal.addEventListener('abort', onExternalAbort, { once: true });
+    }
+  }
+
   try {
     return await fetch(url, { ...init, signal: controller.signal });
-  } catch (error) {
-    if (controller.signal.aborted) {
+  } catch (error: any) {
+    if (externalSignal?.aborted) {
+      const abortError = new Error('Execution stopped by user.');
+      abortError.name = 'AbortError';
+      throw abortError;
+    }
+    if (controller.signal.aborted && timeoutMs > 0) {
       throw new Error(`The request timed out after ${Math.round(timeoutMs / 1000)} seconds. Check the backend and retry; no duplicate action was submitted by the Studio.`);
     }
     throw error;
   } finally {
-    window.clearTimeout(timer);
+    if (timer !== undefined) {
+      window.clearTimeout(timer);
+    }
+    if (externalSignal) {
+      externalSignal.removeEventListener('abort', onExternalAbort);
+    }
   }
 };
 
@@ -390,8 +423,29 @@ class ApiService {
     }
   }
 
+  /** Tell backend to immediately abort all active agent execution flows (LLM calls, tool runs). */
+  public async stopExecution(sessionId?: string, appName: string = 'agent_builder'): Promise<{ status: string; cancelled?: number }> {
+    try {
+      const res = await fetch('/api/run/stop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, appName }),
+      });
+      if (res.ok) return await res.json();
+    } catch (e) {
+      console.warn('Backend stop call failed:', e);
+    }
+    return { status: 'stopped' };
+  }
+
   // --- Agent Builder Chat (Real ADK Backend) ---
-  public async sendBuilderChat(message: string, sessionId: string, attachments: ChatAttachment[] = [], userId: string = 'default_user'): Promise<ChatResponse> {
+  public async sendBuilderChat(
+    message: string,
+    sessionId: string,
+    attachments: ChatAttachment[] = [],
+    userId: string = 'default_user',
+    signal?: AbortSignal
+  ): Promise<ChatResponse> {
     if (this.isMockMode) {
       await new Promise(r => setTimeout(r, 600));
       return {
@@ -411,11 +465,16 @@ class ApiService {
       }
     };
 
-    const res = await fetchWithTimeout('/run', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+    const res = await fetchWithTimeout(
+      '/run',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      },
+      0, // Wait for response to come - no 60s timeout
+      signal
+    );
 
     if (!res.ok) {
       const errText = await res.text();
@@ -600,15 +659,26 @@ class ApiService {
   }
 
   /** Talk to one agent directly (a generated project, its sub-agent, or a Builder specialist). */
-  public async chatWithAgent(target: string, message: string, sessionKey: string, attachments: ChatAttachment[] = []): Promise<AgentChatResult> {
-    const res = await fetchWithTimeout('/directory/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        target, message, session_key: sessionKey,
-        attachments: attachments.filter((a) => a.data).map((a) => ({ name: a.name, mimeType: a.mimeType, data: a.data })),
-      }),
-    });
+  public async chatWithAgent(
+    target: string,
+    message: string,
+    sessionKey: string,
+    attachments: ChatAttachment[] = [],
+    signal?: AbortSignal
+  ): Promise<AgentChatResult> {
+    const res = await fetchWithTimeout(
+      '/directory/chat',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          target, message, session_key: sessionKey,
+          attachments: attachments.filter((a) => a.data).map((a) => ({ name: a.name, mimeType: a.mimeType, data: a.data })),
+        }),
+      },
+      0, // Wait for response to come - no 60s timeout
+      signal
+    );
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.detail || `Agent call failed (${res.status})`);
     const images = imagesFromResult('ask_agent', { status: 'success', images: data.images });
@@ -655,12 +725,22 @@ class ApiService {
   }
 
   // --- Conversational agent editing ---
-  public async editAgent(target: string, request: string, sessionKey: string): Promise<AgentEditResult> {
-    const res = await fetchWithTimeout('/directory/edit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ target, request, session_key: sessionKey }),
-    });
+  public async editAgent(
+    target: string,
+    request: string,
+    sessionKey: string,
+    signal?: AbortSignal
+  ): Promise<AgentEditResult> {
+    const res = await fetchWithTimeout(
+      '/directory/edit',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target, request, session_key: sessionKey }),
+      },
+      0, // Wait for response to come - no 60s timeout
+      signal
+    );
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.detail || `Edit failed (${res.status})`);
     return data as AgentEditResult;
@@ -912,7 +992,8 @@ class ApiService {
     sessionId: string,
     message: string,
     attachments: ChatAttachment[] = [],
-    userId: string = 'default_user'
+    userId: string = 'default_user',
+    signal?: AbortSignal
   ): Promise<RuntimeChatResponse> {
     if (this.isMockMode) {
       await new Promise(r => setTimeout(r, 600));
@@ -939,11 +1020,16 @@ class ApiService {
       }
     };
 
-    const res = await fetchWithTimeout('/run', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+    const res = await fetchWithTimeout(
+      '/run',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      },
+      0, // Wait for response to come - no 60s timeout
+      signal
+    );
 
     if (!res.ok) {
       const errText = await res.text();
@@ -1016,7 +1102,8 @@ class ApiService {
   public async confirmDecisions(
     sessionId: string,
     payload: ConfirmPayload,
-    userId: string = 'default_user'
+    userId: string = 'default_user',
+    signal?: AbortSignal
   ): Promise<{ success: boolean; files: Record<string, string>; message: string }> {
     // Send formatted response to agent_builder to generate the project
     const choicesSummary = Object.entries(payload.decisions)
@@ -1025,7 +1112,7 @@ class ApiService {
 
     const prompt = `Proceed with following finalized choices:\n${choicesSummary}\n${payload.extraNotes ? `Notes: ${payload.extraNotes}\n` : ''}Please build and generate the complete agent files now.`;
 
-    const chatResp = await this.sendBuilderChat(prompt, sessionId, [], userId);
+    const chatResp = await this.sendBuilderChat(prompt, sessionId, [], userId, signal);
 
     // Refresh generated agents
     const agents = await this.fetchCreatedAgents();

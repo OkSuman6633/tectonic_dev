@@ -280,7 +280,14 @@ async def run_agent(target: str, message: str, session_key: str = "default",
     trace: list[dict] = [{"type": "agent", "agent": entry["name"], "detail": f"{entry['kind'].replace('_', ' ')} · {entry['id']}"}]
     started = time.perf_counter()
     images: list[dict] = []
-    reply = await drive(runner, session_id_for(session_key, entry["id"]), message, trace, attachments, images)
+    session_id = session_id_for(session_key, entry["id"])
+    try:
+        from .execution_manager import manager
+        manager.register_task(session_id)
+        manager.register_task(session_key)
+    except Exception:
+        pass
+    reply = await drive(runner, session_id, message, trace, attachments, images)
     return {"status": "success", "target": entry["id"], "agent": entry["name"], "kind": entry["kind"],
             "project": entry["project"], "reply": reply or ("(no text reply)" if not images else ""), "trace": trace,
             "images": images,

@@ -155,6 +155,17 @@ def _evict_app(app_name: str) -> None:
 directory.on_evict(_evict_app)
 
 
+@app.post("/api/run/stop")
+@app.post("/run/abort")
+async def server_stop_run(body: dict = Body(default_factory=dict)) -> dict:
+    from agent_builder.execution_manager import manager
+
+    session_id = body.get("sessionId") or body.get("session_id")
+    app_name = body.get("appName") or body.get("app_name") or "agent_builder"
+    count = await manager.abort_execution(session_id=session_id, app_name=app_name)
+    return {"status": "stopped", "cancelled": count}
+
+
 @app.get("/directory/agents")
 async def directory_agents() -> dict:
     return {"agents": directory.list_entries()}
@@ -164,9 +175,12 @@ async def directory_agents() -> dict:
 async def directory_chat(body: dict = Body(...)) -> dict:
     try:
         from agent_builder.attachments import parts_from_upload
+        from agent_builder.execution_manager import manager
 
+        sess_key = str(body.get("session_key") or "studio")
+        manager.register_task(sess_key)
         return await directory.run_agent(str(body.get("target", "")), str(body.get("message", "")),
-                                         session_key=str(body.get("session_key") or "studio"),
+                                         session_key=sess_key,
                                          attachments=parts_from_upload(body.get("attachments")))
     except directory.DirectoryError as exc:
         raise HTTPException(404, str(exc)) from exc
@@ -178,6 +192,12 @@ async def directory_chat(body: dict = Body(...)) -> dict:
 async def directory_edit(body: dict = Body(...)) -> dict:
     """Conversational edit of a generated agent: {target, request, session_key} → summary, diffs, status."""
     try:
+        from agent_builder.execution_manager import manager
+
+        sess_key = str(body.get("session_key") or "studio")
+        manager.register_task(sess_key)
+        return await editor.edit_agent(str(body.get("target", "")), str(body.get("request", "")),
+                                       session_key=sess_key)
         return await editor.edit_agent(str(body.get("target", "")), str(body.get("request", "")),
                                        session_key=str(body.get("session_key") or "studio"))
     except directory.DirectoryError as exc:

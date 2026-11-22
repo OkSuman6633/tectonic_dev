@@ -79,6 +79,19 @@ def _server_key() -> bool:
     return bool(os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY"))
 
 
+# --- execution control: immediate stop of active agent runs --------------------------------------
+@router.post("/api/run/stop")
+@router.post("/run/abort")
+async def stop_run(body: dict = Body(default_factory=dict)):
+    """Immediately stop all in-flight execution flows (LLM calls, tool runs, sub-agents)."""
+    from .execution_manager import manager
+
+    session_id = body.get("sessionId") or body.get("session_id")
+    app_name = body.get("appName") or body.get("app_name") or "agent_builder"
+    count = await manager.abort_execution(session_id=session_id, app_name=app_name)
+    return {"status": "stopped", "cancelled": count}
+
+
 # --- accounts ------------------------------------------------------------------------------------
 @router.get("/auth/config")
 async def auth_config():

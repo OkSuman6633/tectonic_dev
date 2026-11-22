@@ -123,6 +123,8 @@ interface AgentStudioState {
   /** `display` is what the chat shows (e.g. human-readable choices without the DECISIONS_JSON payload). */
   /** `attachments`: images / documents sent with the message (to the Builder or the targeted agent). */
   sendArchitectMessage: (content: string, display?: string, attachments?: ChatAttachment[]) => Promise<void>;
+  /** Abort ongoing LLM synthesis / generation immediately and release the chat box. */
+  stopExecution: () => void;
 
   // Extracted Spec & Live Architecture Preview
   spec: ExtractedAgentSpec;
@@ -255,6 +257,7 @@ const PAGE_LOADED_AT = Date.now();
 const STALL_SECONDS = 5 * 60; // an unfinished turn with no new server event for this long was interrupted
 const RECOVERY_POLL_MS = 4000;
 const RECOVERY_LIMIT_MS = 30 * 60_000;
+let activeChatAbortController: AbortController | null = null;
 
 const stamp = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 const newId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -907,6 +910,12 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
       attachments: attachments.length ? attachments.map(({ name, mimeType, size }) => ({ name, mimeType, size })) : undefined,
     };
 
+    if (activeChatAbortController) {
+      activeChatAbortController.abort();
+    }
+    activeChatAbortController = new AbortController();
+    const signal = activeChatAbortController.signal;
+
     set((state) => ({
       chatMessages: [...state.chatMessages, userMsg],
       isChatLoading: true,
@@ -917,7 +926,8 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
     if (target) {
       try {
         const targetNotices = await noticeCursor();
-        const result = await api.chatWithAgent(target.id, text, sid, attachments);
+        const result = await api.chatWithAgent(target.id, text, sid, attachments, signal);
+        if (signal.aborted) return;
         set((state) => ({
           chatMessages: [...state.chatMessages, {
             id: newId('msg'),
@@ -934,6 +944,7 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
         }));
         if (result.project && targetNotices !== null) await get().syncConnectorNotices('chat', result.project, targetNotices, result.target);
       } catch (err: any) {
+        if (signal.aborted || err.name === 'AbortError') return;
         set((state) => ({
           chatMessages: [...state.chatMessages, {
             id: newId('msg-err'),
@@ -946,6 +957,10 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
           isChatLoading: false,
           isStreaming: false,
         }));
+      } finally {
+        if (activeChatAbortController?.signal === signal) {
+          activeChatAbortController = null;
+        }
       }
       return;
     }
@@ -958,8 +973,9 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
       // The Agent Builder: builds and edits agents, and routes requests for existing ones through ask_agent.
       let resp: ChatResponse;
       try {
-        resp = await api.sendBuilderChat(content, sid, attachments);
+        resp = await api.sendBuilderChat(content, sid, attachments, 'default_user', signal);
       } catch (err) {
+        if (signal.aborted || (err as any)?.name === 'AbortError') return;
         if (!(err instanceof SessionMissingError)) throw err;
         // The server no longer has this session (its data was reset): continue in a new one.
         sid = await api.createSession('agent_builder');
@@ -970,11 +986,13 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
           chatMessages: [...lockStaleCards(state.chatMessages, null), systemChat('The Builder session was no longer on the server; continuing in a new session.')],
           pendingTurns: { ...state.pendingTurns, builder: { sessionId: sid!, text: content, userMsgId: userMsg.id, sentAt } },
         }));
-        resp = await api.sendBuilderChat(content, sid, attachments);
+        resp = await api.sendBuilderChat(content, sid, attachments, 'default_user', signal);
       }
+      if (signal.aborted) return;
       if (get().builderSessionId !== sid) return; // a new Builder session was started meanwhile
       await applyBuilderResponse(resp, userMsg.id, false, builderNotices);
     } catch (err: any) {
+      if (signal.aborted || err.name === 'AbortError') return;
       console.error(err);
       if (get().builderSessionId !== sid) return;
       const errMsg: ChatMessage = {
@@ -989,10 +1007,49 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
         isStreaming: false
       }));
     } finally {
+      if (activeChatAbortController?.signal === signal) {
+        activeChatAbortController = null;
+      }
       set((state) => (state.pendingTurns.builder?.userMsgId === userMsg.id
         ? { pendingTurns: { ...state.pendingTurns, builder: undefined } }
         : {}));
     }
+  },
+
+  stopExecution: () => {
+    // 1. Immediately abort client-side fetch connection
+    if (activeChatAbortController) {
+      activeChatAbortController.abort();
+      activeChatAbortController = null;
+    }
+
+    // 2. Immediately instruct the backend to cancel all active execution flows, LLM calls, and tasks
+    const sid = get().builderSessionId;
+    api.stopExecution(sid || undefined).catch((e) => console.warn('Stop backend error:', e));
+
+    // 3. Immediately reset UI loading state and free the chat box
+    set((state) => {
+      const nextPending = { ...state.pendingTurns };
+      delete nextPending.builder;
+      delete nextPending.sandbox;
+      delete nextPending.edit;
+      return {
+        isChatLoading: false,
+        isStreaming: false,
+        isGeneratingAgent: false,
+        isEditingAgent: false,
+        pendingTurns: nextPending,
+        chatMessages: [
+          ...state.chatMessages,
+          {
+            id: newId('msg-stopped'),
+            sender: 'assistant' as const,
+            content: '⏹️ *Execution stopped by user. The chat is free to retry or ask next query.*',
+            timestamp: stamp(),
+          }
+        ]
+      };
+    });
   },
 
   updateDecisionOption: (questionId: string, optionId: string) => {
@@ -1113,6 +1170,12 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
     const { currentDecisionGroup, spec, builderSessionId } = get();
     if (!currentDecisionGroup) return;
 
+    if (activeChatAbortController) {
+      activeChatAbortController.abort();
+    }
+    activeChatAbortController = new AbortController();
+    const signal = activeChatAbortController.signal;
+
     set({ isGeneratingAgent: true, isStreaming: true, currentAgentPhase: 'orchestrator' });
 
     let sid = builderSessionId;
@@ -1132,12 +1195,18 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
     });
 
     try {
-      const resp = await api.confirmDecisions(sid, {
-        decisions: decisionsMap,
-        customValues: customMap,
-        extraNotes: currentDecisionGroup.extraNotes,
-        spec
-      });
+      const resp = await api.confirmDecisions(
+        sid,
+        {
+          decisions: decisionsMap,
+          customValues: customMap,
+          extraNotes: currentDecisionGroup.extraNotes,
+          spec
+        },
+        'default_user',
+        signal
+      );
+      if (signal.aborted) return;
 
       // Convert generated files to pending files for streaming display
       const pendingFilesArray = Object.entries(resp.files || {}).map(([path, content]) => ({
@@ -1150,6 +1219,7 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
       const totalChars = pendingFilesArray.reduce((sum, f) => sum + f.content.length, 0);
       const streamingTime = Math.min(Math.max(totalChars * 0.015, 3000), 15000);
       await new Promise(r => setTimeout(r, streamingTime));
+      if (signal.aborted) return;
 
       // Mark current decision card as locked/submitted
       const updatedMessages = get().chatMessages.map((m) => {
@@ -1182,8 +1252,13 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
         pendingFiles: []
       });
     } catch (err: any) {
+      if (signal.aborted || err.name === 'AbortError') return;
       console.error(err);
       set({ isGeneratingAgent: false, isStreaming: false, pendingFiles: [] });
+    } finally {
+      if (activeChatAbortController?.signal === signal) {
+        activeChatAbortController = null;
+      }
     }
   },
 

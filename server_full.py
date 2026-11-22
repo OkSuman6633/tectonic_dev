@@ -343,6 +343,16 @@ async def invoke_module(module: str, operation: str, payload: dict = Body(defaul
     ctx = CallContext(agent_id="operator", role="operator", session_id="command-center")
     return (await _runtime.invoke(module, operation, payload, ctx)).to_dict()
 
+@app.post("/api/run/stop")
+@app.post("/run/abort")
+async def server_stop_run(body: dict = Body(default_factory=dict)):
+    from agent_builder.execution_manager import manager
+
+    session_id = body.get("sessionId") or body.get("session_id")
+    app_name = body.get("appName") or body.get("app_name") or "agent_builder"
+    count = await manager.abort_execution(session_id=session_id, app_name=app_name)
+    return {"status": "stopped", "cancelled": count}
+
 @app.get("/directory/agents")
 async def directory_agents():
     try:
@@ -357,9 +367,12 @@ async def directory_chat(body: dict = Body(...)):
     try:
         from agent_builder import directory
         from agent_builder.attachments import parts_from_upload
+        from agent_builder.execution_manager import manager
+        sess_key = str(body.get("session_key") or "studio")
+        manager.register_task(sess_key)
         return await directory.run_agent(
             str(body.get("target", "")), str(body.get("message", "")),
-            session_key=str(body.get("session_key") or "studio"),
+            session_key=sess_key,
             attachments=parts_from_upload(body.get("attachments")))
     except ValueError as exc:
         raise HTTPException(400, str(exc))
