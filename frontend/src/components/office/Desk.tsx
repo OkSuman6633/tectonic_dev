@@ -2,10 +2,10 @@ import { memo, useRef, useState } from 'react';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import { Html, RoundedBox } from '@react-three/drei';
 import { useReducedMotion } from 'framer-motion';
-import type { Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, Sprite, SpriteMaterial } from 'three';
+import { DoubleSide, type Group, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, type Sprite, type SpriteMaterial } from 'three';
 import { useTelemetryStore } from '../../store/useTelemetryStore';
 import { ROLE_STYLES, STATE_STYLES, agentRole, formatCount } from '../command/agentStateStyles';
-import { Halo } from './glow';
+import { Halo, HoloScreen } from './glow';
 import type { Vec3 } from './officeLayout';
 
 export interface OfficePalette {
@@ -18,32 +18,25 @@ export interface OfficePalette {
 }
 
 export const DARK_PALETTE: OfficePalette = {
-  floor: '#091B3A',
-  deskTop: '#163159',
-  deskLeg: '#244A7E',
-  chair: '#0E2242',
-  wall: '#0D2345',
-  monitor: '#050C1B',
+  floor: '#06122B',
+  deskTop: '#0E1F3E',
+  deskLeg: '#172E58',
+  chair: '#0A162E',
+  wall: '#091834',
+  monitor: '#040C1C',
 };
-export const LIGHT_PALETTE: OfficePalette = {
-  floor: '#E6EEF8',
-  deskTop: '#F8FAFC',
-  deskLeg: '#B6C5D8',
-  chair: '#CBD7E6',
-  wall: '#D5E0EE',
-  monitor: '#132033',
-};
+export const LIGHT_PALETTE: OfficePalette = DARK_PALETTE;
 
 const ACTIVE = new Set(['thinking', 'tool_execution', 'running', 'waiting']);
 
 function Monitor({
   x,
-  z = -0.26,
+  z = -0.24,
   rotY = 0,
   width,
   screenRef,
   color,
-  roleColor,
+  isIdle,
 }: {
   x: number;
   z?: number;
@@ -51,50 +44,55 @@ function Monitor({
   width: number;
   screenRef: React.Ref<MeshStandardMaterial>;
   color: string;
-  roleColor: string;
+  isIdle: boolean;
 }) {
+  // Reference image features vivid emerald-green & cyan glowing dual monitors at every workstation
+  const screenGlow = isIdle ? (x < 0 ? '#2CE5A7' : '#2DD4FF') : color;
+
   return (
-    <group position={[x, 1.12, z]} rotation={[0, rotY, 0]}>
-      {/* Main display chassis */}
+    <group position={[x, 1.04, z]} rotation={[0, rotY, 0]}>
+      {/* Slim dark bezel chassis */}
       <mesh castShadow>
-        <boxGeometry args={[width, 0.54, 0.045]} />
-        <meshStandardMaterial color="#050B16" roughness={0.32} metalness={0.55} />
+        <boxGeometry args={[width, 0.44, 0.036]} />
+        <meshStandardMaterial color="#050D1E" roughness={0.3} metalness={0.65} />
       </mesh>
-      {/* Top holographic rim accent */}
-      <mesh position={[0, 0.275, 0.01]}>
-        <boxGeometry args={[width - 0.06, 0.016, 0.025]} />
-        <meshBasicMaterial color={roleColor} transparent opacity={0.75} toneMapped={false} />
+      {/* Glowing luminous monitor glass */}
+      <mesh position={[0, 0, 0.022]}>
+        <planeGeometry args={[width - 0.045, 0.37]} />
+        <meshStandardMaterial
+          ref={screenRef}
+          color="#06222E"
+          emissive={screenGlow}
+          emissiveIntensity={1.1}
+          toneMapped={false}
+        />
       </mesh>
-      {/* Active illuminated display glass */}
-      <mesh position={[0, 0, 0.026]}>
-        <planeGeometry args={[width - 0.06, 0.45]} />
-        <meshStandardMaterial ref={screenRef} color="#040A18" emissive={color} emissiveIntensity={0.65} toneMapped={false} />
+      {/* Miniature glowing UI code lines across screen */}
+      {[-0.09, 0, 0.09].map((ly, i) => (
+        <mesh key={i} position={[-0.04 + (i % 2) * 0.03, ly, 0.026]}>
+          <planeGeometry args={[width * (0.62 - i * 0.1), 0.028]} />
+          <meshBasicMaterial color="#E0FFF4" transparent opacity={0.75} toneMapped={false} />
+        </mesh>
+      ))}
+      {/* Slender monitor stand */}
+      <mesh position={[0, -0.29, -0.01]}>
+        <boxGeometry args={[0.045, 0.18, 0.045]} />
+        <meshStandardMaterial color="#1A325C" metalness={0.72} roughness={0.28} />
       </mesh>
-      {/* Subtle floating holographic HUD layer in front of screen */}
-      <mesh position={[0, 0.02, 0.055]}>
-        <planeGeometry args={[width * 0.76, 0.26]} />
-        <meshBasicMaterial color={color} transparent opacity={0.18} toneMapped={false} depthWrite={false} />
-      </mesh>
-      {/* Articulated metallic monitor arm */}
-      <mesh position={[0, -0.36, -0.02]} castShadow>
-        <boxGeometry args={[0.07, 0.24, 0.07]} />
-        <meshStandardMaterial color="#1E3554" metalness={0.65} roughness={0.3} />
-      </mesh>
-      <mesh position={[0, -0.47, 0.01]}>
-        <cylinderGeometry args={[0.11, 0.14, 0.03, 16]} />
-        <meshStandardMaterial color="#152844" metalness={0.7} roughness={0.28} />
+      <mesh position={[0, -0.37, 0.01]}>
+        <cylinderGeometry args={[0.08, 0.1, 0.022, 14]} />
+        <meshStandardMaterial color="#102242" metalness={0.75} roughness={0.28} />
       </mesh>
     </group>
   );
 }
 
 /**
- * Detailed humanoid robot stationed at each agent workstation.
- * Includes articulated head, visor, chest core, torso, shoulders, arms, forearms, and legs.
+ * Glossy white-and-cyan stylized 3D robot seated in an ergonomic dark swivel chair at each workstation,
+ * matching the signature cute white AI worker robots in the Neon AI Operations Campus reference image.
  */
-function StationedAgentRobot({
+function SeatedAgentRobot({
   isBuilder,
-  roleColor,
   statusColor,
   robotGroup,
   headGroup,
@@ -105,7 +103,6 @@ function StationedAgentRobot({
   thinkRingGroup,
 }: {
   isBuilder: boolean;
-  roleColor: string;
   statusColor: string;
   robotGroup: React.Ref<Group>;
   headGroup: React.Ref<Group>;
@@ -115,152 +112,145 @@ function StationedAgentRobot({
   visorMat: React.Ref<MeshBasicMaterial>;
   thinkRingGroup: React.Ref<Group>;
 }) {
-  const armor = isBuilder ? '#DCEBFF' : '#C8D9F0';
-  const darkJoint = '#102038';
-  const chassisTrim = '#34537A';
-  const scale = isBuilder ? 1.06 : 0.96;
+  const whiteShell = '#F5FAFF';
+  const darkJoint = '#0E2040';
+  const accentCyan = '#00E5FF';
+  const scale = isBuilder ? 1.16 : 1.12;
 
   return (
-    <group ref={robotGroup} position={[0, 0, 0.62]} rotation={[0, Math.PI, 0]} scale={scale}>
-      {/* Articulated Legs (seated/standing hybrid operational stance) */}
-      {[-0.13, 0.13].map((lx) => (
-        <group key={lx} position={[lx, 0, 0]}>
-          {/* Boot / foot base */}
-          <mesh position={[0, 0.05, 0.04]} castShadow>
-            <boxGeometry args={[0.11, 0.08, 0.18]} />
-            <meshStandardMaterial color={chassisTrim} metalness={0.65} roughness={0.32} />
-          </mesh>
-          {/* Lower leg */}
-          <mesh position={[0, 0.24, 0]} castShadow>
-            <capsuleGeometry args={[0.048, 0.24, 6, 12]} />
-            <meshStandardMaterial color={armor} metalness={0.5} roughness={0.3} />
+    <group ref={robotGroup} position={[0, 0.06, 0.44]} rotation={[0, Math.PI, 0]} scale={scale}>
+      {/* Seated Legs: thighs forward, calves down toward desk */}
+      {[-0.1, 0.1].map((lx) => (
+        <group key={lx} position={[lx, 0.42, 0.02]}>
+          {/* Thigh extending forward toward desk */}
+          <mesh position={[0, 0, 0.13]} rotation={[Math.PI / 2.1, 0, 0]} castShadow>
+            <capsuleGeometry args={[0.048, 0.18, 6, 12]} />
+            <meshStandardMaterial color={whiteShell} metalness={0.25} roughness={0.22} />
           </mesh>
           {/* Knee joint */}
-          <mesh position={[0, 0.4, 0.01]}>
-            <sphereGeometry args={[0.052, 12, 12]} />
-            <meshStandardMaterial color={darkJoint} metalness={0.7} roughness={0.35} />
+          <mesh position={[0, -0.02, 0.24]}>
+            <sphereGeometry args={[0.048, 12, 12]} />
+            <meshStandardMaterial color={darkJoint} metalness={0.6} roughness={0.3} />
           </mesh>
-          {/* Upper leg */}
-          <mesh position={[0, 0.54, -0.02]} rotation={[0.18, 0, 0]} castShadow>
-            <capsuleGeometry args={[0.055, 0.22, 6, 12]} />
-            <meshStandardMaterial color={armor} metalness={0.5} roughness={0.3} />
+          {/* Lower shin extending downward */}
+          <mesh position={[0, -0.17, 0.25]} castShadow>
+            <capsuleGeometry args={[0.044, 0.2, 6, 12]} />
+            <meshStandardMaterial color={whiteShell} metalness={0.25} roughness={0.22} />
+          </mesh>
+          {/* Foot */}
+          <mesh position={[0, -0.32, 0.28]} castShadow>
+            <boxGeometry args={[0.095, 0.065, 0.14]} />
+            <meshStandardMaterial color={whiteShell} metalness={0.3} roughness={0.24} />
           </mesh>
         </group>
       ))}
 
-      {/* Pelvis / Waist Core */}
-      <mesh position={[0, 0.68, -0.03]} castShadow>
-        <cylinderGeometry args={[0.15, 0.13, 0.12, 16]} />
-        <meshStandardMaterial color={darkJoint} metalness={0.65} roughness={0.35} />
+      {/* Pelvis / Seated hip core */}
+      <mesh position={[0, 0.46, 0]} castShadow>
+        <cylinderGeometry args={[0.13, 0.14, 0.12, 16]} />
+        <meshStandardMaterial color={darkJoint} metalness={0.55} roughness={0.32} />
       </mesh>
 
-      {/* Main Armored Torso */}
-      <group position={[0, 0.96, -0.02]}>
-        <RoundedBox args={[0.38, 0.44, 0.24]} radius={0.07} smoothness={3} castShadow>
-          <meshStandardMaterial color={armor} metalness={0.52} roughness={0.26} />
+      {/* Rounded glossy white torso */}
+      <group position={[0, 0.72, 0]}>
+        <RoundedBox args={[0.34, 0.38, 0.22]} radius={0.09} smoothness={3} castShadow>
+          <meshStandardMaterial color={whiteShell} metalness={0.25} roughness={0.2} />
         </RoundedBox>
-        {/* Shoulder pauldrons */}
-        {[-0.23, 0.23].map((sx) => (
-          <mesh key={sx} position={[sx, 0.15, 0]} castShadow>
-            <sphereGeometry args={[0.085, 16, 16]} />
-            <meshStandardMaterial color={chassisTrim} metalness={0.65} roughness={0.28} />
+        {/* Shoulder caps */}
+        {[-0.2, 0.2].map((sx) => (
+          <mesh key={sx} position={[sx, 0.12, 0]} castShadow>
+            <sphereGeometry args={[0.072, 14, 14]} />
+            <meshStandardMaterial color={whiteShell} metalness={0.28} roughness={0.22} />
           </mesh>
         ))}
-        {/* Role collar accent */}
-        <mesh position={[0, 0.22, 0]}>
-          <torusGeometry args={[0.11, 0.018, 10, 24]} />
-          <meshBasicMaterial color={roleColor} toneMapped={false} />
+        {/* Glowing cyan collar accent */}
+        <mesh position={[0, 0.19, 0]}>
+          <torusGeometry args={[0.09, 0.015, 8, 22]} />
+          <meshBasicMaterial color={accentCyan} toneMapped={false} />
         </mesh>
-        {/* Illuminated Chest Reactor Core (faces desk and also has dorsal status spine) */}
-        <mesh position={[0, 0.04, 0.125]}>
-          <circleGeometry args={[0.075, 24]} />
+        {/* Front glowing chest core */}
+        <mesh position={[0, 0.03, 0.115]}>
+          <circleGeometry args={[0.058, 20]} />
           <meshBasicMaterial ref={chestMat} color={statusColor} toneMapped={false} />
         </mesh>
-        {/* Dorsal status indicator strip (visible from isometric camera behind robot) */}
-        <mesh position={[0, 0.04, -0.125]}>
-          <boxGeometry args={[0.16, 0.22, 0.018]} />
-          <meshStandardMaterial color="#071020" metalness={0.7} roughness={0.25} />
+        {/* Back glowing cyan spine dot visible from isometric rear-quarter camera */}
+        <mesh position={[0, 0.03, -0.115]}>
+          <boxGeometry args={[0.11, 0.15, 0.014]} />
+          <meshStandardMaterial color="#091B3A" metalness={0.7} roughness={0.24} />
         </mesh>
-        <mesh position={[0, 0.04, -0.136]}>
-          <planeGeometry args={[0.09, 0.16]} />
+        <mesh position={[0, 0.03, -0.124]}>
+          <planeGeometry args={[0.055, 0.11]} />
           <meshBasicMaterial color={statusColor} toneMapped={false} />
         </mesh>
       </group>
 
-      {/* Articulated Left Arm */}
-      <group ref={leftArmGroup} position={[-0.24, 1.1, -0.02]} rotation={[0.55, 0, -0.12]}>
-        <mesh position={[0, -0.13, 0]} castShadow>
-          <capsuleGeometry args={[0.042, 0.18, 6, 12]} />
-          <meshStandardMaterial color={armor} metalness={0.48} roughness={0.3} />
+      {/* Articulated Left Arm typing forward on desk */}
+      <group ref={leftArmGroup} position={[-0.21, 0.84, 0.02]} rotation={[0.55, 0, -0.1]}>
+        <mesh position={[0, -0.11, 0]} castShadow>
+          <capsuleGeometry args={[0.04, 0.16, 6, 12]} />
+          <meshStandardMaterial color={whiteShell} metalness={0.25} roughness={0.22} />
         </mesh>
-        <mesh position={[0, -0.26, 0.1]} rotation={[0.85, 0, 0]} castShadow>
-          <capsuleGeometry args={[0.038, 0.18, 6, 12]} />
-          <meshStandardMaterial color={chassisTrim} metalness={0.62} roughness={0.28} />
-        </mesh>
-      </group>
-
-      {/* Articulated Right Arm */}
-      <group ref={rightArmGroup} position={[0.24, 1.1, -0.02]} rotation={[0.55, 0, 0.12]}>
-        <mesh position={[0, -0.13, 0]} castShadow>
-          <capsuleGeometry args={[0.042, 0.18, 6, 12]} />
-          <meshStandardMaterial color={armor} metalness={0.48} roughness={0.3} />
-        </mesh>
-        <mesh position={[0, -0.26, 0.1]} rotation={[0.85, 0, 0]} castShadow>
-          <capsuleGeometry args={[0.038, 0.18, 6, 12]} />
-          <meshStandardMaterial color={chassisTrim} metalness={0.62} roughness={0.28} />
+        <mesh position={[0, -0.22, 0.1]} rotation={[0.95, 0, 0]} castShadow>
+          <capsuleGeometry args={[0.036, 0.16, 6, 12]} />
+          <meshStandardMaterial color={whiteShell} metalness={0.25} roughness={0.22} />
         </mesh>
       </group>
 
-      {/* Articulated Robotic Head + Visor + Antennae */}
-      <group ref={headGroup} position={[0, 1.38, -0.02]}>
-        <RoundedBox args={[0.28, 0.25, 0.26]} radius={0.08} smoothness={3} castShadow>
-          <meshStandardMaterial color={armor} metalness={0.52} roughness={0.24} />
+      {/* Articulated Right Arm typing forward on desk */}
+      <group ref={rightArmGroup} position={[0.21, 0.84, 0.02]} rotation={[0.55, 0, 0.1]}>
+        <mesh position={[0, -0.11, 0]} castShadow>
+          <capsuleGeometry args={[0.04, 0.16, 6, 12]} />
+          <meshStandardMaterial color={whiteShell} metalness={0.25} roughness={0.22} />
+        </mesh>
+        <mesh position={[0, -0.22, 0.1]} rotation={[0.95, 0, 0]} castShadow>
+          <capsuleGeometry args={[0.036, 0.16, 6, 12]} />
+          <meshStandardMaterial color={whiteShell} metalness={0.25} roughness={0.22} />
+        </mesh>
+      </group>
+
+      {/* Cute rounded white robot head with glossy black visor & glowing cyan eyes */}
+      <group ref={headGroup} position={[0, 1.12, 0]}>
+        <RoundedBox args={[0.31, 0.27, 0.28]} radius={0.11} smoothness={4} castShadow>
+          <meshStandardMaterial color={whiteShell} metalness={0.22} roughness={0.18} />
         </RoundedBox>
-        {/* Panoramic wrap-around visor */}
-        <mesh position={[0, 0.01, 0.118]}>
-          <boxGeometry args={[0.23, 0.11, 0.04]} />
-          <meshStandardMaterial color="#050C1A" metalness={0.8} roughness={0.15} />
+        {/* Front black curved visor */}
+        <mesh position={[0, 0.0, 0.118]}>
+          <boxGeometry args={[0.23, 0.12, 0.05]} />
+          <meshStandardMaterial color="#050C1C" metalness={0.85} roughness={0.12} />
         </mesh>
-        {/* Glowing visor optical eyes */}
-        <mesh position={[0, 0.01, 0.141]}>
-          <planeGeometry args={[0.17, 0.045]} />
-          <meshBasicMaterial ref={visorMat} color={statusColor} toneMapped={false} />
-        </mesh>
-        {/* Rear neural halo band so camera sees status on back of head too */}
-        <mesh position={[0, 0.02, -0.132]}>
-          <planeGeometry args={[0.16, 0.032]} />
-          <meshBasicMaterial color={statusColor} toneMapped={false} />
-        </mesh>
-        {/* Side telemetry transceivers */}
-        {[-0.155, 0.155].map((ex) => (
-          <mesh key={ex} position={[ex, 0.01, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.045, 0.045, 0.035, 14]} />
-            <meshStandardMaterial color={chassisTrim} metalness={0.7} roughness={0.25} />
+        {/* Glowing cyan pill eyes */}
+        {[-0.055, 0.055].map((ex) => (
+          <mesh key={ex} position={[ex, 0.005, 0.146]}>
+            <capsuleGeometry args={[0.02, 0.028, 4, 8]} />
+            <meshBasicMaterial ref={ex < 0 ? visorMat : undefined} color={accentCyan} toneMapped={false} />
           </mesh>
         ))}
-        {/* Crown antenna */}
-        <mesh position={[0, 0.18, 0]}>
-          <cylinderGeometry args={[0.01, 0.014, 0.12, 8]} />
-          <meshStandardMaterial color={chassisTrim} metalness={0.7} roughness={0.25} />
-        </mesh>
-        <mesh position={[0, 0.25, 0]}>
-          <sphereGeometry args={[0.032, 12, 12]} />
+        {/* Ear headphone pods with cyan LED ring */}
+        {[-0.16, 0.16].map((ex) => (
+          <group key={ex} position={[ex, 0.0, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <mesh>
+              <cylinderGeometry args={[0.055, 0.055, 0.035, 14]} />
+              <meshStandardMaterial color={darkJoint} metalness={0.7} roughness={0.25} />
+            </mesh>
+            <mesh position={[0, ex > 0 ? -0.02 : 0.02, 0]} rotation={[Math.PI / 2, 0, 0]}>
+              <ringGeometry args={[0.026, 0.038, 16]} />
+              <meshBasicMaterial color={accentCyan} side={DoubleSide} toneMapped={false} />
+            </mesh>
+          </group>
+        ))}
+        {/* Rear status glow strip visible from isometric camera */}
+        <mesh position={[0, 0.01, -0.142]}>
+          <planeGeometry args={[0.14, 0.028]} />
           <meshBasicMaterial color={statusColor} toneMapped={false} />
         </mesh>
       </group>
 
-      {/* Thinking / Processing Orbital Data Rings around the Robot Head */}
-      <group ref={thinkRingGroup} position={[0, 1.56, -0.02]} visible={false}>
-        <mesh rotation={[Math.PI / 2.3, 0.2, 0]}>
-          <torusGeometry args={[0.26, 0.01, 8, 32]} />
-          <meshBasicMaterial color={statusColor} transparent opacity={0.8} toneMapped={false} />
+      {/* Active thinking / tool orbital ring above robot head */}
+      <group ref={thinkRingGroup} position={[0, 1.38, 0]} visible={false}>
+        <mesh rotation={[Math.PI / 2.2, 0.2, 0]}>
+          <torusGeometry args={[0.24, 0.012, 8, 28]} />
+          <meshBasicMaterial color={statusColor} transparent opacity={0.88} toneMapped={false} />
         </mesh>
-        {[-0.24, 0.24, 0].map((ox, idx) => (
-          <mesh key={idx} position={[ox, (idx - 1) * 0.05, idx === 2 ? 0.24 : -0.12]}>
-            <octahedronGeometry args={[0.032, 0]} />
-            <meshBasicMaterial color={statusColor} toneMapped={false} />
-          </mesh>
-        ))}
       </group>
     </group>
   );
@@ -277,12 +267,9 @@ function DeskImpl({ id, position, palette, showLabel }: { id: string; position: 
   const selectAgent = useTelemetryStore((s) => s.selectAgent);
   const screens = [useRef<MeshStandardMaterial>(null), useRef<MeshStandardMaterial>(null), useRef<MeshStandardMaterial>(null)];
   const halo = useRef<Sprite>(null);
-  const orb = useRef<Mesh>(null);
   const ring = useRef<MeshBasicMaterial>(null);
   const pulseRing = useRef<Mesh>(null);
-  const holoPad = useRef<Mesh>(null);
 
-  // Robot animation refs
   const robotGroup = useRef<Group>(null);
   const headGroup = useRef<Group>(null);
   const leftArmGroup = useRef<Group>(null);
@@ -297,10 +284,11 @@ function DeskImpl({ id, position, palette, showLabel }: { id: string; position: 
   const role = agentRole(id);
   const isBuilder = role === 'builder';
   const roleColor = ROLE_STYLES[role].color;
-  const width = isBuilder ? 2.85 : 1.92;
+  const width = isBuilder ? 1.85 : 1.56;
   const state = agent?.state ?? 'idle';
   const style = STATE_STYLES[state] ?? STATE_STYLES.idle;
   const color = style.color;
+  const isIdle = state === 'idle';
 
   useFrame(({ clock }) => {
     const live = useTelemetryStore.getState().agents[id];
@@ -311,72 +299,58 @@ function DeskImpl({ id, position, palette, showLabel }: { id: string; position: 
     const isCallingTool = live.state === 'tool_execution' || live.state === 'running';
     const isError = live.state === 'error' || live.state === 'failed';
     const active = ACTIVE.has(live.state);
-    const wave = 0.5 + 0.5 * Math.sin(t * (isError ? 4.5 : active ? 5.2 : 2.2) + phase);
-    const intensity = active ? 1.45 + 1.15 * wave : isError ? 1.1 + 0.55 * wave : 0.55;
+    const wave = 0.5 + 0.5 * Math.sin(t * (isError ? 4.5 : active ? 5.2 : 2.0) + phase);
+    const intensity = active ? 1.65 + 1.0 * wave : isError ? 1.2 + 0.5 * wave : 1.05;
 
     for (const s of screens) if (s.current) s.current.emissiveIntensity = intensity;
 
     if (halo.current) {
-      const size = active ? 2.35 + 0.4 * wave : isError ? 2.0 : 1.35;
+      const size = active ? 2.15 + 0.35 * wave : isError ? 1.8 : 1.2;
       halo.current.scale.set(size, size, 1);
-      (halo.current.material as SpriteMaterial).opacity = active ? 0.52 + 0.24 * wave : isError ? 0.45 : 0.16;
-    }
-
-    if (orb.current) {
-      orb.current.position.y = 1.78 + (active ? 0.07 * Math.sin(t * 3.4 + phase) : 0.025 * Math.sin(t * 1.8 + phase));
-      orb.current.rotation.y = t * (active ? 2.4 : 0.7);
-    }
-
-    if (holoPad.current) {
-      holoPad.current.rotation.z = t * (isCallingTool ? 2.8 : 0.6);
+      (halo.current.material as SpriteMaterial).opacity = active ? 0.5 + 0.22 * wave : isError ? 0.42 : 0.16;
     }
 
     if (ring.current) {
-      ring.current.opacity = selected ? 0.92 : active ? 0.42 + 0.32 * wave : hoveredRef.current ? 0.58 : 0.2;
+      ring.current.opacity = selected ? 0.98 : active ? 0.65 + 0.3 * wave : hoveredRef.current ? 0.85 : 0.52;
     }
 
     if (pulseRing.current) {
       pulseRing.current.visible = active || selected || isError;
-      const pulseScale = 1 + (reducedMotion ? 0.04 : ((t * 0.85 + phase) % 1) * 0.28);
+      const pulseScale = 1 + (reducedMotion ? 0.04 : ((t * 0.85 + phase) % 1) * 0.26);
       pulseRing.current.scale.set(pulseScale, pulseScale, 1);
       (pulseRing.current.material as MeshBasicMaterial).opacity = selected
-        ? 0.45
+        ? 0.52
         : active
-          ? 0.38 * (1 - ((t * 0.85 + phase) % 1))
-          : 0.25;
+          ? 0.44 * (1 - ((t * 0.85 + phase) % 1))
+          : 0.28;
     }
 
-    // State-driven humanoid robot animation
     if (robotGroup.current && headGroup.current && leftArmGroup.current && rightArmGroup.current) {
       if (isThinking) {
-        // THINKING: slight lean, head scanning, hand raised thoughtfully, orbital thinking ring active
-        robotGroup.current.position.y = 0.02 * Math.sin(t * 3.2 + phase);
-        headGroup.current.rotation.y = 0.26 * Math.sin(t * 2.1 + phase);
-        headGroup.current.rotation.x = -0.12 + 0.08 * Math.sin(t * 3.6);
-        leftArmGroup.current.rotation.x = 0.5 + 0.15 * Math.sin(t * 3.2);
-        rightArmGroup.current.rotation.x = 0.92 + 0.12 * Math.cos(t * 4.0);
+        robotGroup.current.position.y = 0.06 + 0.02 * Math.sin(t * 3.2 + phase);
+        headGroup.current.rotation.y = 0.25 * Math.sin(t * 2.1 + phase);
+        headGroup.current.rotation.x = -0.1 + 0.06 * Math.sin(t * 3.5);
+        leftArmGroup.current.rotation.x = 0.52 + 0.15 * Math.sin(t * 3.4);
+        rightArmGroup.current.rotation.x = 0.88 + 0.12 * Math.cos(t * 4.2);
       } else if (isCallingTool) {
-        // CALLING TOOL: rapid interactive console typing & holographic manipulation
-        robotGroup.current.position.y = 0.015 * Math.sin(t * 6 + phase);
-        headGroup.current.rotation.y = 0.16 * Math.sin(t * 4.5);
+        robotGroup.current.position.y = 0.06 + 0.015 * Math.sin(t * 6 + phase);
+        headGroup.current.rotation.y = 0.15 * Math.sin(t * 4.5);
         headGroup.current.rotation.x = 0.08;
-        leftArmGroup.current.rotation.x = 0.65 + 0.24 * Math.sin(t * 11 + phase);
-        rightArmGroup.current.rotation.x = 0.65 + 0.24 * Math.cos(t * 11 + phase);
+        leftArmGroup.current.rotation.x = 0.65 + 0.22 * Math.sin(t * 11 + phase);
+        rightArmGroup.current.rotation.x = 0.65 + 0.22 * Math.cos(t * 11 + phase);
       } else if (isError) {
-        // ERROR: restrained warning posture without harsh strobe
-        robotGroup.current.position.y = 0;
-        headGroup.current.rotation.x = 0.22;
+        robotGroup.current.position.y = 0.06;
+        headGroup.current.rotation.x = 0.2;
         headGroup.current.rotation.z = 0.08 * Math.sin(t * 3.5);
-        leftArmGroup.current.rotation.x = 0.25;
-        rightArmGroup.current.rotation.x = 0.25;
+        leftArmGroup.current.rotation.x = 0.28;
+        rightArmGroup.current.rotation.x = 0.28;
       } else {
-        // READY: subtle breathing idle posture at workstation
-        robotGroup.current.position.y = 0.012 * Math.sin(t * 1.9 + phase);
+        robotGroup.current.position.y = 0.06 + 0.01 * Math.sin(t * 1.8 + phase);
         headGroup.current.rotation.y = 0.08 * Math.sin(t * 1.1 + phase);
         headGroup.current.rotation.x = 0;
         headGroup.current.rotation.z = 0;
-        leftArmGroup.current.rotation.x = 0.52 + 0.04 * Math.sin(t * 1.9 + phase);
-        rightArmGroup.current.rotation.x = 0.52 + 0.04 * Math.cos(t * 1.9 + phase);
+        leftArmGroup.current.rotation.x = 0.55 + 0.06 * Math.sin(t * 3.0 + phase);
+        rightArmGroup.current.rotation.x = 0.55 + 0.06 * Math.cos(t * 3.0 + phase);
       }
     }
 
@@ -398,15 +372,16 @@ function DeskImpl({ id, position, palette, showLabel }: { id: string; position: 
     hoveredRef.current = on;
     setHovered(on);
   };
+
+  const ringColor = selected ? '#00F0FF' : isIdle ? '#00D8FF' : color;
   const monitorConfigs = isBuilder
     ? [
-        { x: -0.88, z: -0.18, rotY: 0.24, w: 0.78 },
-        { x: 0, z: -0.28, rotY: 0, w: 0.88 },
-        { x: 0.88, z: -0.18, rotY: -0.24, w: 0.78 },
+        { x: -0.46, z: -0.22, rotY: 0.22, w: 0.72 },
+        { x: 0.46, z: -0.22, rotY: -0.22, w: 0.72 },
       ]
     : [
-        { x: -0.38, z: -0.24, rotY: 0.14, w: 0.72 },
-        { x: 0.38, z: -0.24, rotY: -0.14, w: 0.72 },
+        { x: -0.39, z: -0.22, rotY: 0.14, w: 0.72 },
+        { x: 0.39, z: -0.22, rotY: -0.14, w: 0.72 },
       ];
 
   const currentTask =
@@ -415,80 +390,62 @@ function DeskImpl({ id, position, palette, showLabel }: { id: string; position: 
 
   return (
     <group position={position} onClick={onClick} onDoubleClick={onClick} onPointerOver={hover(true)} onPointerOut={hover(false)}>
-      {/* Individual tiered architectural workstation foundation */}
-      <RoundedBox
-        args={[isBuilder ? 3.45 : 2.38, 0.11, isBuilder ? 2.38 : 2.08]}
-        radius={0.04}
-        smoothness={2}
-        position={[0, 0.056, 0.15]}
-        castShadow
-        receiveShadow
-      >
-        <meshStandardMaterial color={palette.wall} metalness={0.56} roughness={0.38} />
+      {/* Signature glowing circular cyan floor ring beneath every agent workstation */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.022, 0.14]}>
+        <ringGeometry args={[isBuilder ? 1.12 : 0.98, isBuilder ? 1.19 : 1.04, 56]} />
+        <meshBasicMaterial ref={ring} color={ringColor} transparent opacity={0.55} toneMapped={false} depthWrite={false} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.018, 0.14]}>
+        <circleGeometry args={[isBuilder ? 1.12 : 0.98, 48]} />
+        <meshBasicMaterial color={ringColor} transparent opacity={0.07} toneMapped={false} depthWrite={false} />
+      </mesh>
+
+      {/* Outer activity pulse ring */}
+      <mesh ref={pulseRing} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.026, 0.14]} visible={false}>
+        <ringGeometry args={[isBuilder ? 1.22 : 1.06, isBuilder ? 1.28 : 1.11, 56]} />
+        <meshBasicMaterial color={ringColor} transparent opacity={0.35} toneMapped={false} depthWrite={false} />
+      </mesh>
+
+      {/* Sleek dark command desk */}
+      <RoundedBox args={[width, 0.065, 0.78]} radius={0.025} smoothness={2} position={[0, 0.68, -0.04]} castShadow receiveShadow>
+        <meshStandardMaterial color={palette.deskTop} metalness={0.52} roughness={0.32} />
       </RoundedBox>
-      {/* Glowing perimeter front trim on individual foundation */}
-      <mesh position={[0, 0.116, isBuilder ? 1.32 : 1.17]}>
-        <boxGeometry args={[isBuilder ? 3.1 : 2.08, 0.018, 0.03]} />
-        <meshBasicMaterial color={selected ? '#2DD4FF' : roleColor} transparent opacity={0.75} toneMapped={false} />
+      {/* Subtle glowing cyan front desk edge strip */}
+      <mesh position={[0, 0.68, 0.355]}>
+        <boxGeometry args={[width - 0.1, 0.018, 0.012]} />
+        <meshBasicMaterial color={ringColor} transparent opacity={0.78} toneMapped={false} />
       </mesh>
-
-      {/* Primary floor status ring */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.118, 0.15]}>
-        <ringGeometry args={[isBuilder ? 1.48 : 1.04, isBuilder ? 1.58 : 1.12, 64]} />
-        <meshBasicMaterial ref={ring} color={selected ? '#2DD4FF' : color} transparent opacity={0.32} toneMapped={false} depthWrite={false} />
-      </mesh>
-
-      {/* Animated outer activity pulse ring */}
-      <mesh ref={pulseRing} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.121, 0.15]} visible={false}>
-        <ringGeometry args={[isBuilder ? 1.6 : 1.15, isBuilder ? 1.68 : 1.21, 64]} />
-        <meshBasicMaterial color={selected ? '#2DD4FF' : color} transparent opacity={0.28} toneMapped={false} depthWrite={false} />
-      </mesh>
-
-      {/* Futuristic curved command console desk */}
-      <RoundedBox args={[width, 0.08, 0.98]} radius={0.03} smoothness={2} position={[0, 0.76, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color={palette.deskTop} metalness={0.42} roughness={0.35} />
-      </RoundedBox>
-
-      {/* Illuminated front edge trim on desk */}
-      <mesh position={[0, 0.76, 0.495]}>
-        <boxGeometry args={[width - 0.14, 0.024, 0.016]} />
-        <meshBasicMaterial color={selected ? '#2DD4FF' : roleColor} transparent opacity={0.85} toneMapped={false} />
-      </mesh>
-
-      {/* Angled architectural desk pedestals */}
+      {/* Sleek dark desk side legs */}
       {[-1, 1].map((sx) => (
-        <group key={sx} position={[sx * (width / 2 - 0.22), 0.42, 0]}>
-          <mesh castShadow>
-            <boxGeometry args={[0.14, 0.68, 0.72]} />
-            <meshStandardMaterial color={palette.deskLeg} metalness={0.55} roughness={0.35} />
-          </mesh>
-          <mesh position={[sx * 0.075, 0, 0]}>
-            <boxGeometry args={[0.015, 0.52, 0.56]} />
-            <meshBasicMaterial color={color} transparent opacity={0.45} toneMapped={false} />
-          </mesh>
-        </group>
+        <mesh key={sx} position={[sx * (width / 2 - 0.12), 0.34, -0.04]} castShadow>
+          <boxGeometry args={[0.07, 0.66, 0.66]} />
+          <meshStandardMaterial color={palette.deskLeg} metalness={0.62} roughness={0.32} />
+        </mesh>
       ))}
-
-      {/* Desk surface holographic projection emitter & control keyboard */}
-      <mesh position={[0, 0.806, 0.18]}>
-        <planeGeometry args={[0.72, 0.24]} />
-        <meshBasicMaterial color={color} transparent opacity={0.28} toneMapped={false} />
-      </mesh>
-      <mesh ref={holoPad} rotation={[-Math.PI / 2, 0, 0]} position={[isBuilder ? 0.85 : 0.58, 0.808, 0.16]}>
-        <ringGeometry args={[0.09, 0.14, 6]} />
-        <meshBasicMaterial color={roleColor} transparent opacity={0.65} toneMapped={false} />
+      {/* Glowing keyboard strip */}
+      <mesh position={[0, 0.718, 0.14]}>
+        <planeGeometry args={[0.56, 0.16]} />
+        <meshBasicMaterial color="#00E5FF" transparent opacity={0.35} toneMapped={false} />
       </mesh>
 
-      {/* Panoramic Holographic Monitors */}
+      {/* Dual glowing emerald-green / cyan monitors */}
       {monitorConfigs.map((m, i) => (
-        <Monitor key={m.x} x={m.x} z={m.z} rotY={m.rotY} width={m.w} screenRef={screens[i]} color={color} roleColor={roleColor} />
+        <Monitor key={m.x} x={m.x} z={m.z} rotY={m.rotY} width={m.w} screenRef={screens[i]} color={color} isIdle={isIdle} />
       ))}
 
-      {/* Stationed Humanoid Agent Robot */}
-      <StationedAgentRobot
+      {/* Supervisory curved translucent hologram display above agent_builder's console (matching right-side holo station in reference) */}
+      {isBuilder && (
+        <group position={[0, 1.38, -0.36]}>
+          <HoloScreen variant="command" accent="#00E5FF" position={[0, 0.18, 0]} width={1.65} height={1.08} opacity={0.86} />
+          <HoloScreen variant="code" accent="#38BDF8" position={[-1.08, 0.08, 0.28]} rotation={[0, 0.45, 0]} width={0.88} height={0.78} opacity={0.78} />
+          <HoloScreen variant="code" accent="#38BDF8" position={[1.08, 0.08, 0.28]} rotation={[0, -0.45, 0]} width={0.88} height={0.78} opacity={0.78} />
+        </group>
+      )}
+
+      {/* Seated glossy white-and-cyan 3D robot */}
+      <SeatedAgentRobot
         isBuilder={isBuilder}
-        roleColor={roleColor}
-        statusColor={color}
+        statusColor={isIdle ? '#00E5FF' : color}
         robotGroup={robotGroup}
         headGroup={headGroup}
         leftArmGroup={leftArmGroup}
@@ -498,40 +455,39 @@ function DeskImpl({ id, position, palette, showLabel }: { id: string; position: 
         thinkRingGroup={thinkRingGroup}
       />
 
-      {/* Ergonomic cybernetic command chair behind robot */}
-      <group position={[0, 0.08, 0.86]}>
-        <mesh position={[0, 0.38, 0]} castShadow>
-          <boxGeometry args={[0.52, 0.07, 0.46]} />
-          <meshStandardMaterial color={palette.chair} metalness={0.45} roughness={0.4} />
+      {/* Ergonomic dark swivel office chair */}
+      <group position={[0, 0.02, 0.56]}>
+        <mesh position={[0, 0.4, -0.06]} castShadow>
+          <boxGeometry args={[0.42, 0.055, 0.38]} />
+          <meshStandardMaterial color={palette.chair} metalness={0.5} roughness={0.38} />
         </mesh>
-        <mesh position={[0, 0.76, 0.21]} castShadow>
-          <boxGeometry args={[0.48, 0.68, 0.06]} />
-          <meshStandardMaterial color={palette.chair} metalness={0.45} roughness={0.38} />
+        <mesh position={[0, 0.72, 0.12]} castShadow>
+          <boxGeometry args={[0.38, 0.58, 0.055]} />
+          <meshStandardMaterial color={palette.chair} metalness={0.5} roughness={0.36} />
         </mesh>
-        <mesh position={[0, 0.78, 0.245]}>
-          <planeGeometry args={[0.32, 0.42]} />
-          <meshBasicMaterial color={roleColor} transparent opacity={0.3} toneMapped={false} />
+        <mesh position={[0, 0.22, -0.06]}>
+          <cylinderGeometry args={[0.032, 0.045, 0.36, 10]} />
+          <meshStandardMaterial color="#182D54" metalness={0.72} roughness={0.28} />
         </mesh>
-        <mesh position={[0, 0.2, 0]}>
-          <cylinderGeometry args={[0.04, 0.06, 0.36, 12]} />
-          <meshStandardMaterial color={palette.deskLeg} metalness={0.6} roughness={0.3} />
-        </mesh>
+        {/* 4-spoke star caster base */}
+        {[0, Math.PI / 2].map((ang) => (
+          <mesh key={ang} position={[0, 0.05, -0.06]} rotation={[0, ang, 0]}>
+            <boxGeometry args={[0.44, 0.03, 0.045]} />
+            <meshStandardMaterial color="#13264A" metalness={0.75} roughness={0.3} />
+          </mesh>
+        ))}
       </group>
 
-      {/* Floating crystalline status beacon + soft additive halo */}
-      <mesh ref={orb} position={[0, 1.78, -0.24]}>
-        <octahedronGeometry args={[isBuilder ? 0.12 : 0.095, 0]} />
-        <meshBasicMaterial color={color} toneMapped={false} />
-      </mesh>
-      <Halo ref={halo} color={color} position={[0, 1.78, -0.24]} />
+      {/* Subtle ambient glow above workstation when active */}
+      <Halo ref={halo} color={ringColor} position={[0, 1.32, -0.15]} size={1.2} opacity={0.16} />
 
       {(showLabel || ACTIVE.has(state) || hovered || selected) && (
-        <Html position={[0, isBuilder ? 2.52 : 2.34, -0.18]} center distanceFactor={10.5} zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
+        <Html position={[0, isBuilder ? 2.42 : 1.98, -0.1]} center distanceFactor={11.5} zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
           <div
-            className={`office-tag flex min-w-[146px] max-w-[216px] flex-col rounded-xl border px-2.5 py-1 shadow-2xl backdrop-blur-xl transition-all ${
+            className={`office-tag flex min-w-[144px] max-w-[214px] flex-col rounded-xl border px-2.5 py-1 shadow-2xl backdrop-blur-xl transition-all ${
               selected
-                ? 'border-cyan-400/80 bg-slate-950/90 shadow-cyan-500/20'
-                : 'border-cyan-300/20 bg-slate-950/80'
+                ? 'border-cyan-400/85 bg-[#051028]/92 shadow-cyan-500/25'
+                : 'border-cyan-400/30 bg-[#051028]/85'
             }`}
           >
             <div className="flex items-center justify-between gap-1.5">

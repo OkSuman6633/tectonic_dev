@@ -8,28 +8,47 @@ import { Bot, Building2, Eye, EyeOff, Focus, LocateFixed, Play, RotateCcw, ZoomI
 import { shallow } from 'zustand/shallow';
 import { useTelemetryStore } from '../../store/useTelemetryStore';
 import { startSimulation } from '../../services/telemetrySimulator';
-import { useIsLightTheme } from '../../hooks/useIsLightTheme';
 import { AgentTelemetryPanel } from '../command/AgentTelemetryPanel';
 import { ModuleTelemetryPanel } from '../command/ModuleTelemetryPanel';
 import { STATE_STYLES } from '../command/agentStateStyles';
 import { MODULE_STATE_STYLES } from '../command/ModuleNode';
-import { DARK_PALETTE, Desk, LIGHT_PALETTE } from './Desk';
+import { DARK_PALETTE, Desk } from './Desk';
 import { Station } from './Station';
 import { COURIER_COLORS, Couriers } from './Couriers';
 import {
+  AgentCommandLandmarks,
   CampusPlatform,
-  CommandIslandLandmarks,
-  DeepVoidBackdrop,
-  MemoryIslandLandmarks,
+  CommandCenterLandmarks,
+  ContentStudioLandmarks,
+  MemoryLandmarks,
+  NeonFloorAndBackdrop,
+  ProcessStudioLandmarks,
   SatelliteCluster,
   SkyBridge,
+  ToolOrchestrationLandmarks,
 } from './CampusArchitecture';
 import { layoutOffice, type OfficeLayout } from './officeLayout';
 import { getOfficeFocusTarget } from './officeCamera';
 
-/** Strong elevated isometric camera vector (~45° diagonal azimuth, ~37° elevation) framing all floating islands. */
-const VIEW_DIR = new Vector3(0.84, 0.78, 0.88).normalize();
+/** Classic isometric diamond camera vector (~45° azimuth, ~33° elevation) matching Neon AI Operations Campus. */
+const VIEW_DIR = new Vector3(0.76, 0.62, 0.78).normalize();
 const LABELS_KEY = 'tectonic.office.labels';
+
+/** Isometric glowing 3D cube icon matching the reference HUD legend & module counter. */
+function NeonCubeIcon({ color, className = 'h-3.5 w-3.5' }: { color: string; className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      className={className}
+      style={{ filter: `drop-shadow(0 0 5px ${color})` }}
+      aria-hidden="true"
+    >
+      <path d="M12 2.5L20.5 7.25V16.75L12 21.5L3.5 16.75V7.25L12 2.5Z" fill={`${color}35`} stroke={color} strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M12 2.5V12M12 12L20.5 7.25M12 12L3.5 7.25M12 12V21.5" stroke={color} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 /** Glides the camera to frame the campus, focus a selected entity, reset the default isometric angle, or step zoom. */
 function CameraRig({
@@ -56,9 +75,8 @@ function CameraRig({
   const focusKey = `${focusTarget?.join(',') ?? ''}:${focusNonce}`;
 
   useEffect(() => {
-    const target = new Vector3(layout.center[0] + 0.5, layout.center[1] + 0.4, layout.center[2] + 0.2);
-    // Tight isometric framing so the multi-island campus fills ~80% of the viewport cleanly
-    const distance = (layout.radius * 1.66 + 2.8) * Math.max(1, 1.38 / aspect);
+    const target = new Vector3(layout.center[0] + 0.15, layout.center[1] + 0.5, layout.center[2] + 0.2);
+    const distance = (layout.radius * 1.9 + 2.4) * Math.max(1, 1.38 / aspect);
     goal.current = {
       target,
       pos: target.clone().addScaledVector(VIEW_DIR, distance),
@@ -68,8 +86,8 @@ function CameraRig({
 
   useEffect(() => {
     if (!focusTarget) return;
-    const target = new Vector3(focusTarget[0], focusTarget[1] + 0.85, focusTarget[2]);
-    const distance = Math.max(11.5, Math.min(18.5, layout.radius * 0.78));
+    const target = new Vector3(focusTarget[0], focusTarget[1] + 0.75, focusTarget[2]);
+    const distance = Math.max(11.5, Math.min(18.5, layout.radius * 0.85));
     goal.current = {
       target,
       pos: target.clone().addScaledVector(VIEW_DIR, distance),
@@ -81,7 +99,7 @@ function CameraRig({
     if (zoomDelta.nonce === 0) return;
     const currentTarget = controls ? controls.target.clone() : new Vector3(...layout.center);
     const offset = camera.position.clone().sub(currentTarget);
-    const dist = Math.max(8, Math.min(115, offset.length() * (zoomDelta.step > 0 ? 0.8 : 1.25)));
+    const dist = Math.max(8, Math.min(125, offset.length() * (zoomDelta.step > 0 ? 0.8 : 1.25)));
     offset.normalize().multiplyScalar(dist);
     goal.current = {
       target: currentTarget,
@@ -114,9 +132,8 @@ function Scene({
   focusNonce: number;
   zoomDelta: { step: number; nonce: number };
 }) {
-  const light = useIsLightTheme();
   const reducedMotion = useReducedMotion();
-  const palette = light ? LIGHT_PALETTE : DARK_PALETTE;
+  const palette = DARK_PALETTE;
   const topology = useTelemetryStore(
     (s) => ({
       order: s.agentOrder,
@@ -135,27 +152,29 @@ function Scene({
   const focusTarget = getOfficeFocusTarget(layout, selectedAgentId, selectedModuleId);
 
   const commandZone = layout.zones.find((z) => z.kind === 'command') ?? null;
-  const safetyZone = layout.zones.find((z) => z.kind === 'safety') ?? null;
+  const hubZone = layout.zones.find((z) => z.kind === 'hub') ?? null;
+  const contentZone = layout.zones.find((z) => z.kind === 'content') ?? null;
   const memoryZone = layout.zones.find((z) => z.kind === 'memory') ?? null;
+  const processZone = layout.zones.find((z) => z.kind === 'process') ?? null;
   const toolsZone = layout.zones.find((z) => z.kind === 'tools') ?? null;
-  const shadowExtent = Math.max(24, layout.radius + 8);
+  const shadowExtent = Math.max(26, layout.radius + 10);
 
   return (
     <>
-      {/* Depth fog blending outer floating void tiles smoothly into luminous deep electric blue */}
-      <fog attach="fog" args={[light ? '#DBEAFE' : '#041230', 58, 145]} />
+      {/* Deep midnight neon-blue atmospheric fog */}
+      <fog attach="fog" args={['#02091E', 52, 130]} />
 
-      {/* Primary ambient & directional lighting rig for realistic metallic depth and crisp shadows */}
-      <ambientLight intensity={light ? 0.6 : 0.62} color={light ? '#F8FAFC' : '#C8E0FF'} />
-      <hemisphereLight args={[light ? '#FFFFFF' : '#A5D0FF', light ? '#B8CAE2' : '#081B40', light ? 0.95 : 1.15]} />
+      {/* Crisp neon studio lighting rig for bright white robots, glossy dark decks & vivid accents */}
+      <ambientLight intensity={0.62} color="#B8D8FF" />
+      <hemisphereLight args={['#93C5FD', '#040C24', 1.05]} />
       <directionalLight
         position={[layout.center[0] + 16, 26, layout.center[2] + 18]}
-        intensity={light ? 1.55 : 2.2}
-        color={light ? '#FFFFFF' : '#EBF5FF'}
+        intensity={2.15}
+        color="#EBF5FF"
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-camera-near={2}
-        shadow-camera-far={95}
+        shadow-camera-far={105}
         shadow-camera-left={-shadowExtent}
         shadow-camera-right={shadowExtent}
         shadow-camera-top={shadowExtent}
@@ -163,85 +182,70 @@ function Scene({
         shadow-bias={-0.0004}
         shadow-normalBias={0.04}
       />
-      {/* Cool back-left rim light catching architectural bevels and glass towers */}
       <directionalLight
-        position={[layout.center[0] - 20, 14, layout.center[2] - 18]}
-        intensity={light ? 0.5 : 0.85}
+        position={[layout.center[0] - 20, 15, layout.center[2] - 18]}
+        intensity={0.95}
         color="#38BDF8"
       />
 
-      {/* Distinct zone-colored atmospheric accent pools */}
+      {/* Zone-specific neon atmospheric light pools casting realistic colored specular highlights */}
       {commandZone && (
-        <pointLight
-          position={[commandZone.center[0], 7.0, commandZone.center[2]]}
-          color="#2DD4FF"
-          intensity={light ? 1.2 : 2.8}
-          distance={28}
-          decay={1.5}
-        />
+        <pointLight position={[commandZone.center[0], 6.5, commandZone.center[2]]} color="#00D8FF" intensity={3.2} distance={26} decay={1.5} />
       )}
-      {safetyZone && (
-        <pointLight
-          position={[safetyZone.center[0], 6.0, safetyZone.center[2]]}
-          color="#14B8A6"
-          intensity={light ? 1.0 : 2.2}
-          distance={22}
-          decay={1.5}
-        />
+      {hubZone && (
+        <pointLight position={[hubZone.center[0], 5.8, hubZone.center[2]]} color="#00E5FF" intensity={3.6} distance={20} decay={1.5} />
+      )}
+      {contentZone && (
+        <pointLight position={[contentZone.center[0], 5.2, contentZone.center[2]]} color="#00D4FF" intensity={2.6} distance={18} decay={1.5} />
       )}
       {memoryZone && (
-        <pointLight
-          position={[memoryZone.center[0], 6.2, memoryZone.center[2]]}
-          color="#FBBF24"
-          intensity={light ? 1.0 : 2.5}
-          distance={24}
-          decay={1.5}
-        />
+        <pointLight position={[memoryZone.center[0], 5.8, memoryZone.center[2]]} color="#A855F7" intensity={3.8} distance={20} decay={1.5} />
+      )}
+      {processZone && (
+        <pointLight position={[processZone.center[0], 5.8, processZone.center[2]]} color="#FF2AA6" intensity={4.0} distance={22} decay={1.5} />
       )}
       {toolsZone && (
-        <pointLight
-          position={[toolsZone.center[0], 6.4, toolsZone.center[2]]}
-          color="#F43F98"
-          intensity={light ? 1.0 : 2.6}
-          distance={24}
-          decay={1.5}
-        />
+        <pointLight position={[toolsZone.center[0], 5.6, toolsZone.center[2]]} color="#FFAE00" intensity={4.0} distance={22} decay={1.5} />
       )}
 
-      {/* Open deep-electric-blue void backdrop with floating architectural micro-tiles (no walls, no office floor) */}
-      <DeepVoidBackdrop center={layout.center} light={light} />
+      {/* Glossy dark cyber floor + distant dark-blue background monolith silhouettes */}
+      <NeonFloorAndBackdrop center={layout.center} />
 
-      {/* Independent elevated 3D floating island platforms with visible thickness & glowing perimeters */}
+      {/* All 6 Neon AI Operations Campus stepped platforms */}
       {layout.zones.map((zone) => (
-        <CampusPlatform key={zone.id} zone={zone} light={light} />
+        <CampusPlatform key={zone.id} zone={zone} />
       ))}
 
-      {/* Glowing translucent skybridges linking independent islands across spatial gaps */}
+      {/* Illuminated neon glass walkways with flowing light pulses */}
       {layout.bridges.map((bridge) => (
-        <SkyBridge key={bridge.id} bridge={bridge} light={light} />
+        <SkyBridge key={bridge.id} bridge={bridge} />
       ))}
 
-      {/* Satellite floating pads off Agent Command's left flank */}
-      <SatelliteCluster satellites={layout.satellites} light={light} />
+      {/* Front-left wireframe geodesic globe pad + subtle outer floor accent plinths */}
+      <SatelliteCluster satellites={layout.satellites} />
 
-      {/* Integrated sci-fi campus landmarks on Agent Command & Memory islands */}
+      {/* Signature hero landmarks matching each island of the reference image */}
       {commandZone && (
-        <CommandIslandLandmarks zone={commandZone} builderDais={layout.builderDais} light={light} />
+        <AgentCommandLandmarks zone={commandZone} builderDais={layout.builderDais} desks={layout.desks} />
       )}
-      {memoryZone && <MemoryIslandLandmarks zone={memoryZone} />}
+      {hubZone && <CommandCenterLandmarks zone={hubZone} />}
+      {contentZone && <ContentStudioLandmarks zone={contentZone} />}
+      {memoryZone && <MemoryLandmarks zone={memoryZone} />}
+      {processZone && <ProcessStudioLandmarks zone={processZone} />}
+      {toolsZone && <ToolOrchestrationLandmarks zone={toolsZone} />}
 
-      {/* Subtle ambient environmental particles drifting above the floating campus */}
+      {/* Subtle ambient cyber dust particles */}
       <Sparkles
-        count={light ? 34 : 85}
+        count={78}
         scale={[layout.width + 6, 5.5, layout.depth + 6]}
         position={[layout.center[0], 2.8, layout.center[2]]}
-        size={2.1}
-        speed={reducedMotion ? 0 : 0.18}
-        opacity={light ? 0.28 : 0.5}
-        color={light ? '#0284C7' : '#38BDF8'}
+        size={2.0}
+        speed={reducedMotion ? 0 : 0.16}
+        opacity={0.48}
+        color="#38BDF8"
       />
 
-      {/* Real Tectonic Modules & Agents */}
+      {/* Interactive Live Tectonic Modules & Seated White Robot Agents */}
       {Object.entries(layout.stations).map(([id, pos]) => (
         <Station key={id} id={id} position={pos} palette={palette} showLabel={showLabels} />
       ))}
@@ -249,17 +253,17 @@ function Scene({
         <Desk key={id} id={id} position={pos} palette={palette} showLabel={showLabels} />
       ))}
 
-      {/* Runtime-driven communication pathways, directional particles & courier fleet */}
+      {/* Live runtime-driven communication paths & courier fleet */}
       <Couriers layout={layout} />
 
       <OrbitControls
         makeDefault
         enableDamping
         dampingFactor={0.08}
-        minPolarAngle={0.25}
+        minPolarAngle={0.22}
         maxPolarAngle={1.28}
         minDistance={8}
-        maxDistance={120}
+        maxDistance={125}
       />
       <CameraRig
         layout={layout}
@@ -303,69 +307,98 @@ function Hud({
     ).length;
   });
   const modules = useTelemetryStore((s) => s.moduleOrder.length);
-  const btn =
-    'flex h-7 items-center gap-1.5 rounded-md px-2 text-[12px] font-medium text-[var(--studio-text-secondary)] transition-colors hover:bg-white/[0.08] hover:text-[var(--studio-text)] disabled:cursor-not-allowed disabled:opacity-40';
+
+  const pillSurface =
+    'rounded-xl border border-[#38BDF8]/45 bg-[#040E26]/82 shadow-[0_0_22px_rgba(0,165,255,0.22),inset_0_1px_0_rgba(125,211,252,0.18)] backdrop-blur-xl';
+  const pillBtn =
+    'flex h-8 items-center gap-1.5 px-3 text-[12.5px] font-medium text-[#E6F4FF] transition-colors hover:bg-[#38BDF8]/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-40';
+  const iconBtn =
+    'flex h-8 w-7 items-center justify-center rounded-lg text-[#B8D9F8] transition-colors hover:bg-[#38BDF8]/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-35';
 
   return (
     <>
-      <div className="pointer-events-none absolute left-3 top-3 z-10 flex items-center gap-3 rounded-xl border border-cyan-400/20 bg-[var(--glass-bg)] px-3.5 py-1.5 shadow-xl backdrop-blur-xl">
-        <Stat value={working} of={staff} label="agents working" color={STATE_STYLES.thinking.color} />
-        <span className="h-3.5 w-px bg-studio-border" />
-        <Stat value={serving} of={modules} label="modules serving" color={MODULE_STATE_STYLES.busy.color} />
+      {/* Top-Left Stats Pill matching reference image (Bot icon + agents working | Cube icon + modules serving) */}
+      <div className={`pointer-events-none absolute left-3.5 top-3.5 z-10 flex items-center gap-3.5 px-3.5 py-2 ${pillSurface}`}>
+        <span className="flex items-center gap-2">
+          <Bot className="h-4 w-4 text-[#38BDF8]" style={{ filter: 'drop-shadow(0 0 6px #38BDF8)' }} />
+          <Stat value={working} of={staff} label="agents working" color={STATE_STYLES.thinking.color} />
+        </span>
+        <span className="h-4 w-px bg-[#38BDF8]/30" />
+        <span className="flex items-center gap-2">
+          <NeonCubeIcon color="#38BDF8" className="h-4 w-4" />
+          <Stat value={serving} of={modules} label="modules serving" color={MODULE_STATE_STYLES.busy.color} />
+        </span>
       </div>
-      <div className="absolute right-3 top-3 z-10 flex items-center gap-0.5 rounded-xl border border-cyan-400/20 bg-[var(--glass-bg)] p-0.5 shadow-xl backdrop-blur-xl">
+
+      {/* Top-Right Controls matching reference image ([Fit] and [Labels: on hover] + compact utility controls) */}
+      <div className="absolute right-3.5 top-3.5 z-10 flex items-center gap-2">
+        <div className={`flex items-center gap-0.5 px-1 ${pillSurface}`}>
+          <button
+            type="button"
+            className="flex h-8 items-center gap-1 rounded-lg px-2 text-[12px] font-medium text-[#7DD3FC] transition-colors hover:bg-[#38BDF8]/15 hover:text-white"
+            onClick={() => void startSimulation()}
+            title="Simulate an agent campus workflow"
+          >
+            <Play className="h-3.5 w-3.5" />
+            <span className="hidden xl:inline">Simulate</span>
+          </button>
+          <span className="mx-0.5 h-3.5 w-px bg-[#38BDF8]/25" />
+          <button type="button" className={iconBtn} onClick={onZoomIn} title="Zoom in">
+            <ZoomIn className="h-3.5 w-3.5" />
+          </button>
+          <button type="button" className={iconBtn} onClick={onZoomOut} title="Zoom out">
+            <ZoomOut className="h-3.5 w-3.5" />
+          </button>
+          <button type="button" className={iconBtn} onClick={onFocus} disabled={!hasFocus} title="Focus selected agent or module">
+            <LocateFixed className="h-3.5 w-3.5" />
+          </button>
+          <button type="button" className={iconBtn} onClick={onReset} title="Reset isometric camera">
+            <RotateCcw className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
         <button
           type="button"
-          className={btn}
-          onClick={() => void startSimulation()}
-          title="Simulate an agent campus workflow"
+          className={`${pillSurface} ${pillBtn}`}
+          onClick={onFit}
+          title="Frame the entire 3D campus"
         >
-          <Play className="h-3.5 w-3.5 text-cyan-300" /> Simulate
+          <Focus className="h-3.5 w-3.5 text-[#7DD3FC]" />
+          <span>Fit</span>
         </button>
-        <span className="mx-0.5 h-3.5 w-px bg-studio-border" />
-        <button type="button" className={btn} onClick={onZoomIn} title="Zoom in">
-          <ZoomIn className="h-3.5 w-3.5" />
-        </button>
-        <button type="button" className={btn} onClick={onZoomOut} title="Zoom out">
-          <ZoomOut className="h-3.5 w-3.5" />
-        </button>
-        <span className="mx-0.5 h-3.5 w-px bg-studio-border" />
-        <button type="button" className={btn} onClick={onFit} title="Frame the entire 3D campus">
-          <Focus className="h-3.5 w-3.5" /> Fit
-        </button>
-        <button type="button" className={btn} onClick={onFocus} disabled={!hasFocus} title="Focus selected agent or module">
-          <LocateFixed className="h-3.5 w-3.5" /> Focus
-        </button>
-        <button type="button" className={btn} onClick={onReset} title="Reset isometric camera">
-          <RotateCcw className="h-3.5 w-3.5" /> Reset
-        </button>
+
         <button
           type="button"
-          className={btn}
+          className={`${pillSurface} ${pillBtn}`}
           onClick={toggleLabels}
           title={showLabels ? 'Show name tags only when you hover a desk or module' : 'Always show every name tag'}
         >
-          {showLabels ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />} Labels: {showLabels ? 'always' : 'on hover'}
+          {showLabels ? <Eye className="h-3.5 w-3.5 text-[#7DD3FC]" /> : <EyeOff className="h-3.5 w-3.5 text-[#7DD3FC]" />}
+          <span>Labels: {showLabels ? 'always' : 'on hover'}</span>
         </button>
       </div>
-      <div className="typo-metadata pointer-events-none absolute bottom-3 left-3 z-10 flex flex-wrap items-center gap-x-3.5 gap-y-1 rounded-xl border border-cyan-400/20 bg-[var(--glass-bg)] px-3.5 py-1.5 text-[var(--studio-text-secondary)] shadow-xl backdrop-blur-xl">
+
+      {/* Bottom-Left Status & Courier Legend Pill matching reference image */}
+      <div
+        className={`pointer-events-none absolute bottom-3.5 left-3.5 z-10 flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 text-[12px] text-[#DCEEFF] ${pillSurface}`}
+      >
         {[
-          ['Thinking', STATE_STYLES.thinking.color],
-          ['Calling tool', STATE_STYLES.tool_execution.color],
-          ['Ready', STATE_STYLES.idle.color],
-          ['Error', STATE_STYLES.error.color],
-        ].map(([label, color]) => (
-          <span key={label} className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full" style={{ background: color, boxShadow: `0 0 6px ${color}` }} />
+          { label: 'Thinking', color: '#FBBF24', bold: false },
+          { label: 'Calling tool', color: '#3B82F6', bold: true },
+          { label: 'Ready', color: '#10B981', bold: false },
+          { label: 'Error', color: '#EF4444', bold: false },
+        ].map(({ label, color, bold }) => (
+          <span key={label} className={`flex items-center gap-2 ${bold ? 'font-semibold text-white' : 'font-normal'}`}>
+            <span className="h-2.5 w-2.5 rounded-full" style={{ background: color, boxShadow: `0 0 8px ${color}` }} />
             {label}
           </span>
         ))}
         {[
-          ['Courier · delegation', COURIER_COLORS.delegation],
-          ['Courier · module call', COURIER_COLORS.module],
-        ].map(([label, color]) => (
-          <span key={label} className="flex items-center gap-1">
-            <Bot className="h-3 w-3" style={{ color, filter: `drop-shadow(0 0 4px ${color})` }} />
+          { label: 'Courier - delegation', color: COURIER_COLORS.delegation },
+          { label: 'Courier - module call', color: COURIER_COLORS.module },
+        ].map(({ label, color }) => (
+          <span key={label} className="flex items-center gap-1.5">
+            <NeonCubeIcon color={color} className="h-3.5 w-3.5" />
             {label}
           </span>
         ))}
@@ -376,11 +409,11 @@ function Hud({
 
 function Stat({ value, of, label, color }: { value: number; of: number; label: string; color: string }) {
   return (
-    <span className="flex shrink-0 items-baseline gap-1 whitespace-nowrap">
-      <span className="font-mono text-[13px] font-semibold tabular-nums" style={{ color: value > 0 ? color : 'var(--studio-text)' }}>
+    <span className="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap">
+      <span className="font-mono text-[14px] font-bold tabular-nums" style={{ color: value > 0 ? color : '#FFFFFF' }}>
         {value}
       </span>
-      <span className="typo-metadata text-[var(--studio-text-muted)]">/ {of} {label}</span>
+      <span className="text-[12.5px] font-medium text-[#C2DDFB]">/ {of} {label}</span>
     </span>
   );
 }
@@ -388,16 +421,16 @@ function Stat({ value, of, label, color }: { value: number; of: number; label: s
 function EmptyOffice() {
   return (
     <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-      <div className="pointer-events-auto max-w-xs rounded-xl border border-cyan-400/25 bg-[var(--glass-bg)] p-5 text-center shadow-2xl backdrop-blur-xl">
+      <div className="pointer-events-auto max-w-xs rounded-xl border border-[#38BDF8]/40 bg-[#040E26]/88 p-5 text-center shadow-[0_0_32px_rgba(0,165,255,0.28)] backdrop-blur-xl">
         <Building2 className="mx-auto mb-2 h-6 w-6 text-cyan-300" />
-        <h3 className="typo-panel-heading text-[var(--studio-text)]">The campus is on standby</h3>
-        <p className="typo-secondary mt-1 text-[var(--studio-text-secondary)]">
+        <h3 className="typo-panel-heading text-white">The campus is on standby</h3>
+        <p className="typo-secondary mt-1 text-slate-300">
           Command workstations appear as agents spawn; memory and tool infrastructure light up as agents invoke them.
         </p>
         <button
           type="button"
           onClick={() => void startSimulation()}
-          className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-sky-400/40 bg-sky-400/10 px-3 py-1.5 text-[12px] font-medium text-sky-300 hover:bg-sky-400/20"
+          className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-sky-400/45 bg-sky-400/15 px-3 py-1.5 text-[12px] font-medium text-sky-200 hover:bg-sky-400/25"
         >
           <Play className="h-3.5 w-3.5" /> Simulate office
         </button>
@@ -406,9 +439,8 @@ function EmptyOffice() {
   );
 }
 
-/** Blueprint: a 3D multi-agent campus mirroring the Command Center's live telemetry (same store, same selection). */
+/** Blueprint: Neon AI Operations Campus 3D view mirroring live telemetry (same store, same selection). */
 export function Office3D() {
-  const light = useIsLightTheme();
   const [showLabels, setShowLabels] = useState(() => {
     try {
       return localStorage.getItem(LABELS_KEY) === 'always';
@@ -441,22 +473,21 @@ export function Office3D() {
     document.body.style.cursor = '';
   }, []);
 
-  const campusBackground = light
-    ? 'radial-gradient(ellipse at 50% 42%, #EFF6FF 0%, #DBEAFE 52%, #C7D7EE 100%)'
-    : 'radial-gradient(ellipse at 48% 42%, #0F3174 0%, #071A46 46%, #030A1E 100%)';
+  const campusBackground =
+    'radial-gradient(ellipse at 50% 44%, #09215E 0%, #041033 48%, #010615 100%)';
 
   return (
     <div className="relative h-full w-full overflow-hidden" style={{ background: campusBackground }}>
       <Canvas
         shadows
         dpr={[1, 1.75]}
-        camera={{ fov: 26, position: [26, 24, 28], near: 0.2, far: 450 }}
+        camera={{ fov: 25, position: [28, 23, 29], near: 0.2, far: 450 }}
         gl={{
           antialias: true,
           alpha: true,
           powerPreference: 'high-performance',
           toneMapping: ACESFilmicToneMapping,
-          toneMappingExposure: 1.2,
+          toneMappingExposure: 1.24,
         }}
         onPointerMissed={() => {
           const s = useTelemetryStore.getState();

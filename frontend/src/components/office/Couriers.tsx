@@ -52,8 +52,9 @@ interface NetworkRoute {
 function routeColor(isModule: boolean, toId: string): string {
   if (!isModule) return DELEGATION;
   const kind = moduleZoneKind(toId);
-  if (kind === 'tools') return '#EC4899';
-  if (kind === 'safety') return '#22D3EE';
+  if (kind === 'tools') return '#FFAE00';
+  if (kind === 'process') return '#FF2AA6';
+  if (kind === 'hub' || kind === 'content') return '#00D8FF';
   return MODULE;
 }
 

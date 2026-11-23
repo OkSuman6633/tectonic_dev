@@ -62,8 +62,8 @@ test('layoutOffice elevates campus zones and bounds all seven agents and five co
   assert.ok(computed.stations.short_term_memory[1] > 0);
   assert.ok(computed.stations.long_term_memory[1] > 0);
   assert.ok(computed.stations.tool_orchestration[1] > 0);
-  // Distinct zone metadata exists for Agent Command, Cognitive Gateway, Memory Core, and Tool Orchestration
-  assert.equal(computed.zones.length, 4);
+  // Distinct zone metadata exists for all 6 Neon AI Operations Campus islands
+  assert.equal(computed.zones.length, 6);
   for (const zone of computed.zones) {
     assert.ok(zone.thickness >= 0.75, `expected visible platform thickness for ${zone.id}`);
   }
@@ -79,9 +79,10 @@ test('layoutOffice elevates campus zones and bounds all seven agents and five co
     }
   }
 
-  // Skybridges connect independent islands and satellite floating pads flank Agent Command
-  assert.ok(computed.bridges.length >= 4);
+  // Skybridges connect independent islands and satellite pads include the wireframe globe pad
+  assert.ok(computed.bridges.length >= 6);
   assert.equal(computed.satellites.length, 3);
+  assert.ok(computed.satellites.some((s) => s.feature === 'globe'));
   assert.ok(computed.builderDais && computed.builderDais.topY > computed.builderDais.baseY);
 });
 
