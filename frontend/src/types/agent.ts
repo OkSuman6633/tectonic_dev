@@ -197,6 +197,14 @@ export interface ChatMessage {
   autopilot?: AutopilotRun;
   /** An agent could not get data from a connector (not connected, failed, no data): shown as a pop-up. */
   connectorNotice?: ConnectorNoticeView;
+  webSearchResults?: {
+    status: 'success' | 'no_results' | 'error';
+    provider?: string;
+    query: string;
+    results?: Array<{ title: string; url: string; snippet: string }>;
+    note?: string;
+    error?: string;
+  };
   structuredInfo?: {
     goal?: string;
     tools?: string[];
@@ -291,6 +299,14 @@ export interface SandboxChatMessage {
   kind?: 'edit-request' | 'edit' | 'notice' | 'connector-notice';
   edit?: SandboxEditView;
   connectorNotice?: ConnectorNoticeView;
+  webSearchResults?: {
+    status: 'success' | 'no_results' | 'error';
+    provider?: string;
+    query: string;
+    results?: Array<{ title: string; url: string; snippet: string }>;
+    note?: string;
+    error?: string;
+  };
   /** A test message re-sent automatically to the updated agent. */
   rerun?: boolean;
   /** Files the user attached (names and types only). */

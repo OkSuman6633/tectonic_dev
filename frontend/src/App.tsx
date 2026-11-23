@@ -118,6 +118,7 @@ export const App: React.FC = () => {
   }, [agentDropdownOpen]);
   const [planName, setPlanName] = useState<string | null>(null);
   const [showPlanModal, setShowPlanModal] = useState(false);
+  const [planExpired, setPlanExpired] = useState(false);
   const signedIn = getUser();
   const builderModelLabel = studioSettings
     ? (studioSettings.catalogue.find((m) => m.id === studioSettings.model)?.label ?? studioSettings.model)
@@ -155,11 +156,33 @@ export const App: React.FC = () => {
     // Reopen the conversations, sessions and agent from before the page refresh (or start fresh).
     restoreStudio();
     connectTelemetry();
-    // Current plan (for the nav badge and "Change plan" modal).
-    getPlan().then((s) => { if (s) setPlanName(s.plan.name); }).catch(() => {});
+
+    const onPlanExpired = () => {
+      setPlanExpired(true);
+      setShowPlanModal(true);
+    };
+    window.addEventListener('tectonic:plan-expired', onPlanExpired);
+
+    // Current plan (for the nav badge, expiration check, and modal).
+    getPlan()
+      .then((s) => {
+        if (s) {
+          setPlanName(s.plan.name);
+          if (s.is_expired || s.subscription_status === 'expired') {
+            setPlanExpired(true);
+            setShowPlanModal(true);
+          }
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      window.removeEventListener('tectonic:plan-expired', onPlanExpired);
+    };
   }, []);
 
   const handlePlanSelected = () => {
+    setPlanExpired(false);
     setShowPlanModal(false);
     getPlan().then((s) => { if (s) setPlanName(s.plan.name); }).catch(() => {});
     loadStudioSettings(); // the model picker catalogue changes with the plan
@@ -342,7 +365,14 @@ export const App: React.FC = () => {
       {showPlanModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-studio-border bg-studio-card p-6 shadow-2xl">
-            <PlanPicker embedded onClose={() => setShowPlanModal(false)} onSelected={handlePlanSelected} />
+            <PlanPicker
+              embedded
+              expired={planExpired}
+              onClose={() => {
+                if (!planExpired) setShowPlanModal(false);
+              }}
+              onSelected={handlePlanSelected}
+            />
             <div className="mt-6 border-t border-white/10 pt-5">
               <PlanReportPanel />
             </div>

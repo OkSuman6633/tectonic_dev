@@ -66,6 +66,14 @@ export interface ChatResponse {
   autopilot?: AutopilotRun;
   /** Images generated in this turn (core_generate_image, also by an agent reached with ask_agent). */
   images?: GeneratedImage[];
+  webSearchResults?: {
+    status: 'success' | 'no_results' | 'error';
+    provider?: string;
+    query: string;
+    results?: Array<{ title: string; url: string; snippet: string }>;
+    note?: string;
+    error?: string;
+  };
 }
 
 const IMAGE_URL = /^\/media\/images\/[0-9a-f]{32}$/;
@@ -152,6 +160,14 @@ export interface AgentChatResult {
   trace: TraceStep[];
   duration_ms: number;
   images?: GeneratedImage[];
+  webSearchResults?: {
+    status: 'success' | 'no_results' | 'error';
+    provider?: string;
+    query: string;
+    results?: Array<{ title: string; url: string; snippet: string }>;
+    note?: string;
+    error?: string;
+  };
 }
 
 export interface AgentDeleteResult {
@@ -243,6 +259,14 @@ export interface RuntimeChatResponse {
   };
   cardPayload?: any;
   images?: GeneratedImage[];
+  webSearchResults?: {
+    status: 'success' | 'no_results' | 'error';
+    provider?: string;
+    query: string;
+    results?: Array<{ title: string; url: string; snippet: string }>;
+    note?: string;
+    error?: string;
+  };
 }
 
 // Fallback Spec for demo
@@ -608,13 +632,14 @@ class ApiService {
 
   /** Who ran in this Builder turn: agent hand-offs, tool / specialist calls, and (via ask_agent) the
    *  agents the Builder reached on the user's behalf, with their own nested steps. */
-  private extractTrace(events: any[]): Pick<ChatResponse, 'routedTo' | 'routedAgent' | 'edited'> & { trace: TraceStep[] } {
+  private extractTrace(events: any[]): Pick<ChatResponse, 'routedTo' | 'routedAgent' | 'edited' | 'webSearchResults'> & { trace: TraceStep[] } {
     const trace: TraceStep[] = [];
     const byCallId = new Map<string, TraceStep>();
     let lastAuthor = '';
     let routedTo: string | undefined;
     let routedAgent: string | undefined;
     let edited: ChatResponse['edited'];
+    let webSearchResults: ChatResponse['webSearchResults'];
     for (const event of events) {
       const author: string = event.author || '';
       if (author && author !== 'user' && author !== lastAuthor) {
@@ -633,6 +658,9 @@ class ApiService {
           const resp = fr.response ?? {};
           const step = fr.id ? byCallId.get(fr.id) : undefined;
           if (step) step.status = typeof resp.status === 'string' ? resp.status : 'done';
+          if (fr.name === 'web_search' && resp && typeof resp === 'object') {
+            webSearchResults = resp;
+          }
           if (fr.name === 'ask_agent' && Array.isArray(resp.trace)) {
             routedTo = resp.target;
             routedAgent = resp.agent;
@@ -644,7 +672,7 @@ class ApiService {
         }
       }
     }
-    return { trace, routedTo, routedAgent, edited };
+    return { trace, routedTo, routedAgent, edited, webSearchResults };
   }
 
   // --- Agent directory: every agent reachable from the Builder chat ---

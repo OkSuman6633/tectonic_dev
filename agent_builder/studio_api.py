@@ -101,7 +101,11 @@ async def auth_config():
 @router.post("/auth/register")
 async def auth_register(body: dict = Body(...)):
     try:
-        user = auth.register(str(body.get("username", "")), str(body.get("password", "")))
+        user = auth.register(
+            str(body.get("username", "")),
+            str(body.get("password", "")),
+            email=body.get("email"),
+        )
     except auth.AuthError as exc:
         raise HTTPException(400, str(exc))
     return {"token": auth.issue_token(user), "user": user}
@@ -110,7 +114,8 @@ async def auth_register(body: dict = Body(...)):
 @router.post("/auth/login")
 async def auth_login(body: dict = Body(...)):
     try:
-        user = auth.login(str(body.get("username", "")), str(body.get("password", "")))
+        ident = str(body.get("username") or body.get("email") or body.get("identifier") or "")
+        user = auth.login(ident, str(body.get("password", "")))
     except auth.AuthError as exc:
         raise HTTPException(401, str(exc))
     return {"token": auth.issue_token(user), "user": user}
@@ -119,7 +124,38 @@ async def auth_login(body: dict = Body(...)):
 @router.get("/auth/me")
 async def auth_me():
     user = current_user_info()
-    return {"user": user, "plan_id": entitlements.get_plan_id(current_user())}
+    plan_id = entitlements.get_plan_id(current_user())
+    sub = None
+    if current_user():
+        from .db import SubscriptionRepository
+
+        sub = SubscriptionRepository.get_by_user_id(current_user())
+    return {"user": user, "plan_id": plan_id, "subscription": sub}
+
+
+# --- subscription management & test simulation ----------------------------------------------------
+@router.post("/api/subscription/simulate-expiration")
+async def simulate_expiration():
+    """Testing utility: artificially sets the user's subscription to expired in the past."""
+    uid = current_user()
+    if not uid:
+        raise HTTPException(400, "Signed-in user context required")
+    from .db import SubscriptionRepository
+
+    sub = SubscriptionRepository.simulate_expiration(uid)
+    return {"status": "expired", "subscription": sub}
+
+
+@router.post("/api/subscription/reset-trial")
+async def reset_trial():
+    """Testing utility: restores a fresh 7-day active Starter subscription."""
+    uid = current_user()
+    if not uid:
+        raise HTTPException(400, "Signed-in user context required")
+    from .db import SubscriptionRepository
+
+    sub = SubscriptionRepository.reset_starter_trial(uid)
+    return {"status": "reset", "subscription": sub}
 
 
 # --- subscription plans (no payment yet: choosing/switching is free) -----------------------------
@@ -209,6 +245,19 @@ async def web_search_choose(body: dict = Body(...)):
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     return web_search.providers_status(current_user())
+
+
+@router.post("/api/web-search")
+async def web_search_execute(body: dict = Body(...)):
+    """Directly execute a web search with graceful fallback across providers."""
+    from .tools import web_search
+
+    query = str(body.get("query", "")).strip()
+    if not query:
+        raise HTTPException(400, "query must not be empty")
+    max_results = int(body.get("max_results", 5))
+    provider = body.get("provider")
+    return web_search.web_search(query=query, max_results=max_results, provider=provider)
 
 
 # --- the Builder's model ------------------------------------------------------------------------

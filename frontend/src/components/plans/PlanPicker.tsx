@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Building2, Check, Crown, Loader2, Rocket, X, Zap } from 'lucide-react';
-import { choosePlan, fmtTokens, getPlans, type PlanSummary } from '../../services/plans';
+import { AlertTriangle, Building2, Check, Clock, Crown, FlaskConical, Loader2, RefreshCw, Rocket, X, Zap } from 'lucide-react';
+import { choosePlan, fmtTokens, getPlans, resetStarterTrial, simulateExpiration, type PlanSummary } from '../../services/plans';
 import { ThemeToggle } from '../ThemeToggle';
 
 /**
- * The plan picker, used in two ways:
- *  * fullscreen right after sign-in (embedded=false) — the user must choose before the Studio loads;
+ * The plan picker, used in three ways:
+ *  * fullscreen right after sign-in (embedded=false);
+ *  * when a 7-day Starter plan expires (expired=true) to mandate selecting a plan;
  *  * inside the Studio as a "Change plan" modal (embedded=true).
- *
- * There is no payment yet: picking/switching is free and immediate.
  */
 
 const TIER_ICON: Record<string, React.ReactNode> = {
@@ -23,12 +22,14 @@ const FEATURE_CELL = (v: string | number | boolean) => (typeof v === 'boolean' ?
 export const PlanPicker: React.FC<{
   embedded?: boolean;
   current?: string | null;
+  expired?: boolean;
   onClose?: () => void;
   onSelected?: () => void;
-}> = ({ embedded = false, current, onClose, onSelected }) => {
+}> = ({ embedded = false, current, expired = false, onClose, onSelected }) => {
   const [plans, setPlans] = useState<PlanSummary[] | null>(null);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [simulating, setSimulating] = useState(false);
 
   useEffect(() => {
     getPlans()
@@ -46,6 +47,28 @@ export const PlanPicker: React.FC<{
     } catch (err: any) {
       setError(err.message || 'Could not switch plan.');
       setBusyId(null);
+    }
+  };
+
+  const handleSimulateExpiration = async () => {
+    setSimulating(true);
+    try {
+      await simulateExpiration();
+      window.location.reload();
+    } catch (err: any) {
+      setError(err.message || 'Simulation failed');
+      setSimulating(false);
+    }
+  };
+
+  const handleResetTrial = async () => {
+    setSimulating(true);
+    try {
+      await resetStarterTrial();
+      window.location.reload();
+    } catch (err: any) {
+      setError(err.message || 'Reset failed');
+      setSimulating(false);
     }
   };
 
@@ -122,13 +145,16 @@ export const PlanPicker: React.FC<{
     <>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-slate-100">{embedded ? 'Change your plan' : 'Choose your plan'}</h2>
+          <h2 className="text-lg font-semibold text-slate-100">
+            {expired ? 'Renew or Upgrade Your Plan' : embedded ? 'Change your plan' : 'Choose your plan'}
+          </h2>
           <p className="mt-1 max-w-xl text-xs leading-relaxed text-slate-400">
-            Pick the plan that fits how you want to build. You can switch anytime — there is no charge yet, and
-            nothing you've built is lost when you change plans.
+            {expired
+              ? 'Your Starter trial period has concluded. Choose an upgraded plan below to resume agent creation, execution, and studio operations.'
+              : "Pick the plan that fits how you want to build. You can switch anytime — there is no charge yet, and nothing you've built is lost when you change plans."}
           </p>
         </div>
-        {embedded ? (
+        {embedded && !expired ? (
           <button onClick={onClose} className="rounded p-1 text-slate-400 hover:text-white" aria-label="Close">
             <X className="h-4 w-4" />
           </button>
@@ -136,6 +162,18 @@ export const PlanPicker: React.FC<{
           <ThemeToggle />
         )}
       </div>
+
+      {expired && (
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-amber-200 animate-in fade-in">
+          <div className="flex items-center gap-2 font-semibold text-sm text-amber-300">
+            <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0" />
+            <span>7-Day Starter Trial Expired</span>
+          </div>
+          <p className="mt-1 text-xs text-amber-200/90 leading-relaxed">
+            Your initial 7-day Starter plan has expired. To reactivate all Studio capabilities and private workspaces, please select a plan below. Your existing agents and chat records are preserved.
+          </p>
+        </div>
+      )}
 
       {error && (
         <div role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
@@ -177,6 +215,35 @@ export const PlanPicker: React.FC<{
                 {compare('SLA', (p) => p.sla)}
               </tbody>
             </table>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-studio-surface/50 p-3.5 text-xs text-slate-400">
+            <div className="flex items-center gap-2">
+              <FlaskConical className="h-4 w-4 text-sky-400" />
+              <span className="font-medium text-slate-300">Subscription Testing & Verification:</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={simulating || busyId !== null}
+                onClick={handleSimulateExpiration}
+                className="flex items-center gap-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
+                title="Immediately expire the 7-day Starter subscription for testing"
+              >
+                {simulating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Clock className="h-3.5 w-3.5" />}
+                <span>Simulate 7-Day Expiry</span>
+              </button>
+              <button
+                type="button"
+                disabled={simulating || busyId !== null}
+                onClick={handleResetTrial}
+                className="flex items-center gap-1.5 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/30 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
+                title="Reset back to a fresh 7-day active Starter plan"
+              >
+                {simulating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                <span>Reset 7-Day Trial</span>
+              </button>
+            </div>
           </div>
         </>
       ) : null}
