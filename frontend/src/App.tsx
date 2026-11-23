@@ -193,7 +193,7 @@ export const App: React.FC = () => {
             title="Start fresh session to create another agent"
           >
             <Plus className="h-3.5 w-3.5 shrink-0" />
-            <span className="hidden md:inline">Create Another Agent</span>
+            <span className="hidden md:inline">New Chat</span>
           </button>
 
           {/* Created Agents Selector Dropdown */}
