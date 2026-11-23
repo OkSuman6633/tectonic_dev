@@ -5,26 +5,33 @@ export type Vec3 = [number, number, number];
 
 export type CampusZoneKind = 'command' | 'hub' | 'content' | 'memory' | 'process' | 'tools';
 
+export interface ObstacleRect {
+  id: string;
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+}
+
 export interface CampusZone {
   id: string;
   label: string;
   subtitle?: string;
   kind: CampusZoneKind;
-  /** Center of the platform top deck: [x, topSurfaceY, z]. */
+  /** Center of the zone floor: [x, topSurfaceY, z]. */
   center: Vec3;
   width: number;
   depth: number;
   /** Top deck elevation above world y = 0. */
   height: number;
-  /** Visible vertical slab thickness of this floating platform. */
+  /** Slab thickness for architectural depth. */
   thickness: number;
-  /** Primary luminous perimeter accent color. */
+  /** Primary warm architectural accent color. */
   accent: string;
-  /** Secondary highlight accent color (lower stepped rim / trim). */
+  /** Secondary subtle accent color. */
   secondaryAccent: string;
-  /** Platform deck surface tint. */
+  /** Floor / rug surface tint. */
   surfaceTint: string;
-  /** Where the glowing zone marquee sign sits: floating above back edge or mounted on front rim. */
   signPlacement: 'top' | 'front';
 }
 
@@ -45,35 +52,47 @@ export interface SatellitePad {
   depth: number;
   thickness: number;
   accent: string;
-  feature: 'globe' | 'plinth' | 'accent';
+  feature: 'lounge' | 'cafe' | 'greenery';
   tetherTo?: Vec3;
 }
 
 export interface OfficeLayout {
+  /** Desk center coordinates per agent ID. */
   desks: Record<string, Vec3>;
+  /** Standing point beside each desk where an employee steps before/after walking. */
+  deskStandPoints: Record<string, Vec3>;
+  /** Facing yaw (radians) when seated at each desk. */
+  deskRotations: Record<string, number>;
+  /** Module resource workstation coordinates per module ID. */
   stations: Record<string, Vec3>;
+  /** Navigable floor point in front of each module resource where an employee stands/works. */
+  stationStandPoints: Record<string, Vec3>;
+  /** Facing yaw (radians) when interacting with each module resource. */
+  stationFacings: Record<string, number>;
+  /** Collaboration seats around the shared conference table for multi-employee meetings. */
+  meetingTableCenter: Vec3;
+  meetingSeats: { pos: Vec3; yaw: number }[];
+  /** Non-walkable furniture/wall footprints used by A* pathfinding. */
+  obstacles: ObstacleRect[];
+  /** Overall interior floor bounds [minX, maxX, minZ, maxZ]. */
+  floorBounds: { minX: number; maxX: number; minZ: number; maxZ: number };
   zones: CampusZone[];
   bridges: CampusBridge[];
   satellites: SatellitePad[];
   builderDais: { center: Vec3; baseY: number; topY: number } | null;
   center: Vec3;
-  /** Half-extent of the occupied campus, used for shadow bounds and camera fit. */
+  /** Half-extent of the occupied office, used for shadow bounds and camera fit. */
   radius: number;
   width: number;
   depth: number;
 }
 
-// Elevations of independent stepped neon platforms (top deck Y)
-const COMMAND_DECK_Y = 0.72;
-const BUILDER_DAIS_Y = 0.94;
-const HUB_DECK_Y = 0.96;
-const CONTENT_DECK_Y = 0.78;
-const MEMORY_DECK_Y = 0.90;
-const PROCESS_DECK_Y = 0.88;
-const TOOLS_DECK_Y = 0.82;
+/** Main unified office floor surface Y (clean single-level oak floor with subtle executive platform). */
+export const OFFICE_FLOOR_Y = 0.0;
+const BUILDER_PLATFORM_Y = 0.14;
 
-const DESK_SPACING_X = 2.62;
-const DESK_SPACING_Z = 2.52;
+const DESK_SPACING_X = 2.85;
+const DESK_SPACING_Z = 2.75;
 const DESKS_PER_ROW = 3;
 
 const HUB_MODULES = new Set(['guardrails', 'intent_detection']);
@@ -92,13 +111,14 @@ export function moduleZoneKind(moduleId: string): CampusZoneKind {
 }
 
 /**
- * Neon AI Operations Campus — 6-island isometric diamond architecture:
- * - AGENT COMMAND ZONE (center foreground, electric cyan): workstation grid + right-side holographic supervisor station
- * - COMMAND CENTER (upper-left, bright electric cyan/blue): stepped pyramid dais + floating neon cyan torus cube
- * - CONTENT STUDIO - RCP (far-left, cyan): hexagon wireframe screen + circular energy disc + front-left wireframe globe pad
- * - SHORT-TERM & LONG-TERM MEMORY (upper-right, royal purple + cyan): translucent cylinder memory stack + flanking cubes
- * - PROCESS STUDIO (far-right, hot magenta/pink): glowing pink cube cluster + floating magenta torus + holo code panels
- * - TOOL ORCHESTRATION (bottom-right foreground, warm amber/gold): golden energy cube core + gold modules + cyan cog screen
+ * Living 3D Modern AI Office Floorplan (warm isometric sunlit workspace):
+ * Single cohesive architectural interior with wide walkable aisles connecting 6 functional areas + break lounge:
+ * - Engineering & Agent Workspace (center): ergonomic wood-and-white desks + Architect corner (`agent_builder`)
+ * - Operations & Compliance Desk (back-left): glass-partitioned governance & intent terminals
+ * - Data & Knowledge Library (back-center): archive server racks, bookshelves & data monitoring consoles
+ * - Collaboration & Meeting Room (back-right): glass-walled conference table for A2A & strategy work
+ * - Research & Creative Studio (front-left): creative workstation bay alongside cozy lounge & espresso bar
+ * - Tooling & Automation Lab (front-right): multi-monitor ops consoles & hardware cabinets
  */
 export function layoutOffice(order: string[], agents: Record<string, AgentMeta>, modules: string[]): OfficeLayout {
   const children = new Map<string, string[]>();
@@ -116,131 +136,195 @@ export function layoutOffice(order: string[], agents: Record<string, AgentMeta>,
   [...roots].sort((a, b) => (a === BUILDER_ID ? -1 : b === BUILDER_ID ? 1 : 0)).forEach(visit);
 
   const workerRows = Math.max(2, Math.ceil(orderedWorkers.length / DESKS_PER_ROW));
-  const extraDepth = Math.max(0, workerRows - 3) * DESK_SPACING_Z;
+  const extraDepth = Math.max(0, workerRows - 2) * DESK_SPACING_Z;
 
-  // 1. AGENT COMMAND ZONE (Center foreground)
-  const cmdW = 11.4;
-  const cmdD = 9.8 + extraDepth;
-  const cmdCenter: Vec3 = [0, COMMAND_DECK_Y, 2.2 + extraDepth / 2];
+  // Overall sunlit interior floor bounds
+  const minX = -11.8;
+  const maxX = 11.8;
+  const minZ = -9.6;
+  const maxZ = 8.4 + extraDepth;
+
+  // 1. Engineering & Agent Workspace (center open-plan desk bay)
+  const cmdW = 10.6;
+  const cmdD = 7.4 + extraDepth;
+  const cmdCenter: Vec3 = [-0.4, OFFICE_FLOOR_Y, 1.3 + extraDepth / 2];
 
   const desks: Record<string, Vec3> = {};
+  const deskStandPoints: Record<string, Vec3> = {};
+  const deskRotations: Record<string, number> = {};
+  const obstacles: ObstacleRect[] = [];
+
   const hasBuilder = Boolean(agents[BUILDER_ID]);
-  const builderPos: Vec3 = [3.65, BUILDER_DAIS_Y, 0.35];
+  const builderPos: Vec3 = [3.6, BUILDER_PLATFORM_Y, -0.5];
   if (hasBuilder) {
     desks[BUILDER_ID] = builderPos;
+    deskRotations[BUILDER_ID] = Math.PI;
+    // Step out behind the executive chair into the main corridor
+    deskStandPoints[BUILDER_ID] = [builderPos[0], OFFICE_FLOOR_Y, builderPos[2] + 1.35];
+    obstacles.push({
+      id: `desk-${BUILDER_ID}`,
+      minX: builderPos[0] - 1.05,
+      maxX: builderPos[0] + 1.05,
+      minZ: builderPos[2] - 0.65,
+      maxZ: builderPos[2] + 0.55,
+    });
   }
 
-  // Place worker agents centered cleanly inside the left-center floor grid of Agent Command Zone
-  const gridCenterX = -1.15;
+  // Place worker desks cleanly in rows with spacious walkways between every row
   const actualRows = Math.max(1, Math.ceil(orderedWorkers.length / DESKS_PER_ROW));
-  const gridCenterZ = cmdCenter[2] + 0.15;
+  const gridCenterX = -1.6;
+  const gridCenterZ = cmdCenter[2] + 0.2;
   orderedWorkers.forEach((id, i) => {
     const row = Math.floor(i / DESKS_PER_ROW);
     const inRow = Math.min(DESKS_PER_ROW, orderedWorkers.length - row * DESKS_PER_ROW);
     const col = i % DESKS_PER_ROW;
     const x = gridCenterX + (col - (inRow - 1) / 2) * DESK_SPACING_X;
     const z = gridCenterZ + (row - (actualRows - 1) / 2) * DESK_SPACING_Z;
-    desks[id] = [x, COMMAND_DECK_Y, z];
+    desks[id] = [x, OFFICE_FLOOR_Y, z];
+    deskRotations[id] = Math.PI;
+    // Stand/exit position behind the chair so employee walks smoothly into the aisle
+    deskStandPoints[id] = [x, OFFICE_FLOOR_Y, z + 1.18];
+    obstacles.push({
+      id: `desk-${id}`,
+      minX: x - 0.88,
+      maxX: x + 0.88,
+      minZ: z - 0.54,
+      maxZ: z + 0.44,
+    });
   });
 
   const commandZone: CampusZone = {
-    id: 'agent-command-zone',
-    label: 'AGENT COMMAND ZONE',
+    id: 'workspace-zone',
+    label: 'ENGINEERING FLOOR',
+    subtitle: 'Active Agent Desks',
     kind: 'command',
     center: cmdCenter,
     width: cmdW,
     depth: cmdD,
-    height: COMMAND_DECK_Y,
-    thickness: 0.92,
-    accent: '#00D8FF',
-    secondaryAccent: '#1D6BFF',
-    surfaceTint: '#06122B',
+    height: OFFICE_FLOOR_Y,
+    thickness: 0.55,
+    accent: '#2563EB',
+    secondaryAccent: '#60A5FA',
+    surfaceTint: '#E9DFD1',
     signPlacement: 'front',
   };
 
-  // 2. COMMAND CENTER (Back-left of Agent Command Zone)
+  // 2. Operations & Compliance Desk (back-left)
   const hubZone: CampusZone = {
-    id: 'command-center-zone',
-    label: 'COMMAND CENTER',
+    id: 'operations-zone',
+    label: 'OPERATIONS & SAFETY',
+    subtitle: 'Guardrails · Intent',
     kind: 'hub',
-    center: [-11.0, HUB_DECK_Y, -2.1],
-    width: 6.4,
-    depth: 6.4,
-    height: HUB_DECK_Y,
-    thickness: 1.06,
-    accent: '#00E5FF',
-    secondaryAccent: '#2563EB',
-    surfaceTint: '#071736',
+    center: [-8.1, OFFICE_FLOOR_Y, -5.9],
+    width: 6.2,
+    depth: 5.4,
+    height: OFFICE_FLOOR_Y,
+    thickness: 0.55,
+    accent: '#0F766E',
+    secondaryAccent: '#2DD4BF',
+    surfaceTint: '#E5ECE9',
     signPlacement: 'top',
   };
 
-  // 3. CONTENT STUDIO - RCP (Far left)
-  const contentZone: CampusZone = {
-    id: 'content-studio-zone',
-    label: 'CONTENT STUDIO - RCP',
-    kind: 'content',
-    center: [-11.0, CONTENT_DECK_Y, 5.2],
-    width: 5.4,
-    depth: 4.8,
-    height: CONTENT_DECK_Y,
-    thickness: 0.92,
-    accent: '#00D4FF',
-    secondaryAccent: '#1E88E5',
-    surfaceTint: '#061430',
-    signPlacement: 'top',
-  };
-
-  // 4. SHORT-TERM & LONG-TERM MEMORY (Back-right)
+  // 3. Data & Knowledge Library (back-center)
   const memoryZone: CampusZone = {
-    id: 'memory-infra-zone',
-    label: 'SHORT-TERM &\nLONG-TERM MEMORY',
+    id: 'knowledge-zone',
+    label: 'DATA & KNOWLEDGE HUB',
+    subtitle: 'Memory · RAG · Vector Archive',
     kind: 'memory',
-    center: [-1.8, MEMORY_DECK_Y, -8.3],
-    width: 6.4,
-    depth: 6.0,
-    height: MEMORY_DECK_Y,
-    thickness: 1.0,
-    accent: '#A855F7',
-    secondaryAccent: '#00D8FF',
-    surfaceTint: '#0D1030',
+    center: [-0.4, OFFICE_FLOOR_Y, -6.1],
+    width: 6.8,
+    depth: 5.2,
+    height: OFFICE_FLOOR_Y,
+    thickness: 0.55,
+    accent: '#6D28D9',
+    secondaryAccent: '#A78BFA',
+    surfaceTint: '#E9E6F2',
     signPlacement: 'top',
   };
 
-  // 5. PROCESS STUDIO (Far right, hot magenta)
+  // 4. Collaboration & Meeting Room (back-right glass room)
   const processZone: CampusZone = {
-    id: 'process-studio-zone',
-    label: 'PROCESS STUDIO',
+    id: 'meeting-zone',
+    label: 'MEETING & STRATEGY',
+    subtitle: 'Collaboration · Audit · FinOps',
     kind: 'process',
-    center: [7.0, PROCESS_DECK_Y, -7.6],
-    width: 7.0,
-    depth: 6.4,
-    height: PROCESS_DECK_Y,
-    thickness: 1.02,
-    accent: '#FF2AA6',
-    secondaryAccent: '#7C3AED',
-    surfaceTint: '#190B2E',
+    center: [7.6, OFFICE_FLOOR_Y, -5.8],
+    width: 6.6,
+    depth: 5.6,
+    height: OFFICE_FLOOR_Y,
+    thickness: 0.55,
+    accent: '#C2410C',
+    secondaryAccent: '#FB923C',
+    surfaceTint: '#F0E6DC',
     signPlacement: 'top',
   };
 
-  // 6. TOOL ORCHESTRATION (Front-right foreground, warm amber gold)
+  // 5. Research & Creative Studio (mid-left, adjacent to lounge)
+  const contentZone: CampusZone = {
+    id: 'research-zone',
+    label: 'RESEARCH & STUDIO',
+    subtitle: 'PromptOps · Creative',
+    kind: 'content',
+    center: [-8.4, OFFICE_FLOOR_Y, 0.4],
+    width: 5.2,
+    depth: 4.8,
+    height: OFFICE_FLOOR_Y,
+    thickness: 0.55,
+    accent: '#0284C7',
+    secondaryAccent: '#38BDF8',
+    surfaceTint: '#E4ECF3',
+    signPlacement: 'top',
+  };
+
+  // 6. Tooling & Automation Lab (front-right)
   const toolsZone: CampusZone = {
-    id: 'tool-orchestration-zone',
-    label: 'TOOL ORCHESTRATION',
+    id: 'tooling-zone',
+    label: 'TOOLING & OPS LAB',
+    subtitle: 'Tool Orchestration · Connectors',
     kind: 'tools',
-    center: [11.0, TOOLS_DECK_Y, 2.8],
-    width: 6.6,
-    depth: 6.6,
-    height: TOOLS_DECK_Y,
-    thickness: 0.98,
-    accent: '#FFAE00',
-    secondaryAccent: '#00D8FF',
-    surfaceTint: '#17121E',
+    center: [8.2, OFFICE_FLOOR_Y, 2.5 + extraDepth * 0.35],
+    width: 5.6,
+    depth: 6.2,
+    height: OFFICE_FLOOR_Y,
+    thickness: 0.55,
+    accent: '#B45309',
+    secondaryAccent: '#F59E0B',
+    surfaceTint: '#EFE9DC',
     signPlacement: 'front',
   };
 
   const zones: CampusZone[] = [commandZone, hubZone, contentZone, memoryZone, processZone, toolsZone];
 
-  // Place live Tectonic modules neatly on their corresponding islands without obscuring central hero sculptures
+  // Shared conference table center & 6 navigable collaboration seats inside the Meeting Room
+  const meetingTableCenter: Vec3 = [processZone.center[0] - 0.1, OFFICE_FLOOR_Y, processZone.center[2] + 0.25];
+  obstacles.push({
+    id: 'conference-table',
+    minX: meetingTableCenter[0] - 1.45,
+    maxX: meetingTableCenter[0] + 1.45,
+    minZ: meetingTableCenter[2] - 0.8,
+    maxZ: meetingTableCenter[2] + 0.8,
+  });
+
+  const meetingSeats: { pos: Vec3; yaw: number }[] = [
+    { pos: [meetingTableCenter[0] - 0.85, OFFICE_FLOOR_Y, meetingTableCenter[2] + 1.3], yaw: Math.PI },
+    { pos: [meetingTableCenter[0] + 0.85, OFFICE_FLOOR_Y, meetingTableCenter[2] + 1.3], yaw: Math.PI },
+    { pos: [meetingTableCenter[0] - 0.85, OFFICE_FLOOR_Y, meetingTableCenter[2] - 1.3], yaw: 0 },
+    { pos: [meetingTableCenter[0] + 0.85, OFFICE_FLOOR_Y, meetingTableCenter[2] - 1.3], yaw: 0 },
+    { pos: [meetingTableCenter[0] - 1.95, OFFICE_FLOOR_Y, meetingTableCenter[2]], yaw: Math.PI / 2 },
+    { pos: [meetingTableCenter[0] + 1.95, OFFICE_FLOOR_Y, meetingTableCenter[2]], yaw: -Math.PI / 2 },
+  ];
+
+  // Cozy Lounge & Espresso Cafe furniture obstacles in front-left corner
+  const loungeCenter: Vec3 = [-8.2, OFFICE_FLOOR_Y, 5.7 + extraDepth * 0.6];
+  const cafeCenter: Vec3 = [-3.2, OFFICE_FLOOR_Y, 6.9 + extraDepth * 0.85];
+  obstacles.push(
+    { id: 'lounge-sofa', minX: loungeCenter[0] - 1.8, maxX: loungeCenter[0] + 0.8, minZ: loungeCenter[2] - 0.5, maxZ: loungeCenter[2] + 1.1 },
+    { id: 'lounge-table', minX: loungeCenter[0] - 0.7, maxX: loungeCenter[0] + 0.6, minZ: loungeCenter[2] - 1.55, maxZ: loungeCenter[2] - 0.75 },
+    { id: 'cafe-counter', minX: cafeCenter[0] - 1.5, maxX: cafeCenter[0] + 1.5, minZ: cafeCenter[2] - 0.45, maxZ: cafeCenter[2] + 0.55 },
+  );
+
+  // Place live Tectonic module workstations along each room's functional wall with clear front standing points
   const grouped: Record<Exclude<CampusZoneKind, 'command'>, string[]> = {
     hub: [],
     content: [],
@@ -254,183 +338,140 @@ export function layoutOffice(order: string[], agents: Record<string, AgentMeta>,
   }
 
   const stations: Record<string, Vec3> = {};
-  const placeOnZone = (ids: string[], zone: CampusZone, slots: [number, number][]) => {
+  const stationStandPoints: Record<string, Vec3> = {};
+  const stationFacings: Record<string, number> = {};
+
+  interface StationSlot {
+    ox: number;
+    oz: number;
+    standDx: number;
+    standDz: number;
+    yaw: number;
+  }
+
+  const placeOnZone = (ids: string[], zone: CampusZone, slots: StationSlot[]) => {
     ids.forEach((m, idx) => {
-      const [ox, oz] = slots[idx % slots.length];
-      stations[m] = [zone.center[0] + ox, zone.height, zone.center[2] + oz];
+      const slot = slots[idx % slots.length];
+      const sx = zone.center[0] + slot.ox;
+      const sz = zone.center[2] + slot.oz;
+      stations[m] = [sx, OFFICE_FLOOR_Y, sz];
+      stationStandPoints[m] = [sx + slot.standDx, OFFICE_FLOOR_Y, sz + slot.standDz];
+      stationFacings[m] = slot.yaw;
+      obstacles.push({
+        id: `station-${m}`,
+        minX: sx - 0.72,
+        maxX: sx + 0.72,
+        minZ: sz - 0.52,
+        maxZ: sz + 0.52,
+      });
     });
   };
 
   placeOnZone(grouped.hub, hubZone, [
-    [1.85, 1.85],
-    [-1.95, 1.85],
-    [1.95, -1.85],
-    [-1.95, -1.85],
+    { ox: -1.45, oz: -1.45, standDx: 0, standDz: 1.08, yaw: Math.PI },
+    { ox: 1.35, oz: -1.45, standDx: 0, standDz: 1.08, yaw: Math.PI },
+    { ox: -1.85, oz: 0.95, standDx: 1.05, standDz: 0, yaw: -Math.PI / 2 },
+    { ox: 1.55, oz: 0.95, standDx: 0, standDz: 1.05, yaw: Math.PI },
   ]);
+
   placeOnZone(grouped.content, contentZone, [
-    [-1.15, 0.35],
-    [1.25, 0.35],
-    [0, -1.2],
+    { ox: -1.45, oz: -1.1, standDx: 1.08, standDz: 0, yaw: -Math.PI / 2 },
+    { ox: -1.45, oz: 1.15, standDx: 1.08, standDz: 0, yaw: -Math.PI / 2 },
+    { ox: 0.7, oz: -1.35, standDx: 0, standDz: 1.05, yaw: Math.PI },
   ]);
+
   placeOnZone(grouped.memory, memoryZone, [
-    [-1.75, 0.75],
-    [1.75, 0.75],
-    [-1.75, -1.35],
-    [1.75, -1.35],
+    { ox: -2.2, oz: -1.45, standDx: 0, standDz: 1.08, yaw: Math.PI },
+    { ox: -0.75, oz: -1.45, standDx: 0, standDz: 1.08, yaw: Math.PI },
+    { ox: 0.75, oz: -1.45, standDx: 0, standDz: 1.08, yaw: Math.PI },
+    { ox: 2.2, oz: -1.45, standDx: 0, standDz: 1.08, yaw: Math.PI },
   ]);
+
   placeOnZone(grouped.process, processZone, [
-    [-1.95, 1.55],
-    [1.85, 1.55],
-    [-1.95, -1.25],
-    [1.85, -1.25],
+    { ox: -1.9, oz: -1.95, standDx: 0, standDz: 1.02, yaw: Math.PI },
+    { ox: 1.9, oz: -1.95, standDx: 0, standDz: 1.02, yaw: Math.PI },
+    { ox: 2.35, oz: 1.75, standDx: -1.02, standDz: 0, yaw: Math.PI / 2 },
+    { ox: -2.2, oz: 1.75, standDx: 1.02, standDz: 0, yaw: -Math.PI / 2 },
   ]);
+
   placeOnZone(grouped.tools, toolsZone, [
-    [1.75, 1.65],
-    [-1.85, 1.65],
-    [1.75, -1.65],
-    [-1.85, -1.65],
+    { ox: 1.45, oz: -1.3, standDx: -1.1, standDz: 0, yaw: Math.PI / 2 },
+    { ox: 1.45, oz: 1.35, standDx: -1.1, standDz: 0, yaw: Math.PI / 2 },
+    { ox: -1.05, oz: -1.8, standDx: 0, standDz: 1.05, yaw: Math.PI },
+    { ox: -1.05, oz: 1.8, standDx: 0, standDz: -1.05, yaw: 0 },
   ]);
 
-  // Glowing neon glass walkways linking every connected platform
-  const cmdLeft = commandZone.center[0] - commandZone.width / 2;
-  const cmdRight = commandZone.center[0] + commandZone.width / 2;
-  const cmdBack = commandZone.center[2] - commandZone.depth / 2;
-
+  // Architectural floor walkway markers linking functional zones (kept in bridges array for layout compatibility)
   const bridges: CampusBridge[] = [
-    // Agent Command Zone <-> Command Center
-    {
-      id: 'bridge-cmd-hub',
-      from: [cmdLeft + 0.08, COMMAND_DECK_Y, -1.0],
-      to: [hubZone.center[0] + hubZone.width / 2 - 0.08, HUB_DECK_Y, -1.0],
-      width: 1.5,
-      accent: '#00D8FF',
-      secondaryAccent: '#2563EB',
-    },
-    // Agent Command Zone <-> Content Studio - RCP
-    {
-      id: 'bridge-cmd-content',
-      from: [cmdLeft + 0.08, COMMAND_DECK_Y, 4.6],
-      to: [contentZone.center[0] + contentZone.width / 2 - 0.08, CONTENT_DECK_Y, 4.6],
-      width: 1.35,
-      accent: '#00D4FF',
-      secondaryAccent: '#38BDF8',
-    },
-    // Agent Command Zone <-> Short-Term & Long-Term Memory
-    {
-      id: 'bridge-cmd-memory',
-      from: [-1.4, COMMAND_DECK_Y, cmdBack + 0.08],
-      to: [-1.4, MEMORY_DECK_Y, memoryZone.center[2] + memoryZone.depth / 2 - 0.08],
-      width: 1.5,
-      accent: '#00D8FF',
-      secondaryAccent: '#A855F7',
-    },
-    // Memory <-> Process Studio
-    {
-      id: 'bridge-memory-process',
-      from: [memoryZone.center[0] + memoryZone.width / 2 - 0.08, MEMORY_DECK_Y, -7.8],
-      to: [processZone.center[0] - processZone.width / 2 + 0.08, PROCESS_DECK_Y, -7.8],
-      width: 1.45,
-      accent: '#38BDF8',
-      secondaryAccent: '#FF2AA6',
-    },
-    // Agent Command Zone <-> Process Studio
-    {
-      id: 'bridge-cmd-process',
-      from: [cmdRight - 0.08, COMMAND_DECK_Y, -1.6],
-      to: [processZone.center[0] - 0.6, PROCESS_DECK_Y, processZone.center[2] + processZone.depth / 2 - 0.08],
-      width: 1.35,
-      accent: '#38BDF8',
-      secondaryAccent: '#FF2AA6',
-    },
-    // Agent Command Zone <-> Tool Orchestration
-    {
-      id: 'bridge-cmd-tools',
-      from: [cmdRight - 0.08, COMMAND_DECK_Y, 3.0],
-      to: [toolsZone.center[0] - toolsZone.width / 2 + 0.08, TOOLS_DECK_Y, 3.0],
-      width: 1.55,
-      accent: '#00D8FF',
-      secondaryAccent: '#FFAE00',
-    },
-    // Command Center <-> Memory
-    {
-      id: 'bridge-hub-memory',
-      from: [hubZone.center[0] + hubZone.width / 2 - 0.08, HUB_DECK_Y, -4.4],
-      to: [memoryZone.center[0] - memoryZone.width / 2 + 0.08, MEMORY_DECK_Y, -6.4],
-      width: 1.15,
-      accent: '#00E5FF',
-      secondaryAccent: '#A855F7',
-    },
+    { id: 'aisle-main-north', from: [-6.5, OFFICE_FLOOR_Y, -2.5], to: [6.5, OFFICE_FLOOR_Y, -2.5], width: 1.8, accent: '#D6C7B2' },
+    { id: 'aisle-west', from: [-5.3, OFFICE_FLOOR_Y, -5.0], to: [-5.3, OFFICE_FLOOR_Y, 5.2], width: 1.7, accent: '#D6C7B2' },
+    { id: 'aisle-east', from: [5.3, OFFICE_FLOOR_Y, -5.0], to: [5.3, OFFICE_FLOOR_Y, 5.2], width: 1.7, accent: '#D6C7B2' },
+    { id: 'aisle-center-south', from: [-5.3, OFFICE_FLOOR_Y, 4.9 + extraDepth * 0.45], to: [5.3, OFFICE_FLOOR_Y, 4.9 + extraDepth * 0.45], width: 1.6, accent: '#D6C7B2' },
   ];
 
-  // Satellite pads: iconic front-left wireframe globe pad + subtle stepped glowing floor accent plinths
+  // Living office amenity corners (lounge sofa, coffee & water bar, indoor greenery cluster)
   const satellites: SatellitePad[] = [
     {
-      id: 'sat-globe',
-      center: [-10.1, 0.56, 10.6],
+      id: 'amenity-lounge',
+      center: loungeCenter,
+      width: 5.0,
+      depth: 3.8,
+      thickness: 0.04,
+      accent: '#D97706',
+      feature: 'lounge',
+    },
+    {
+      id: 'amenity-cafe',
+      center: cafeCenter,
+      width: 4.2,
+      depth: 2.2,
+      thickness: 0.04,
+      accent: '#78350F',
+      feature: 'cafe',
+    },
+    {
+      id: 'amenity-greenery',
+      center: [8.4, OFFICE_FLOOR_Y, 6.8 + extraDepth * 0.7],
       width: 3.4,
-      depth: 3.4,
-      thickness: 0.68,
-      accent: '#00F0FF',
-      feature: 'globe',
-      tetherTo: [contentZone.center[0] + 0.6, CONTENT_DECK_Y, contentZone.center[2] + contentZone.depth / 2],
-    },
-    {
-      id: 'sat-front-plinth',
-      center: [-3.8, 0.34, 11.4 + extraDepth * 0.5],
-      width: 2.3,
-      depth: 2.3,
-      thickness: 0.44,
-      accent: '#00D8FF',
-      feature: 'plinth',
-    },
-    {
-      id: 'sat-right-accent',
-      center: [16.2, 0.3, -2.5],
-      width: 2.0,
-      depth: 2.0,
-      thickness: 0.38,
-      accent: '#7C3AED',
-      feature: 'accent',
+      depth: 2.4,
+      thickness: 0.04,
+      accent: '#15803D',
+      feature: 'greenery',
     },
   ];
 
   const builderDais = hasBuilder
     ? {
         center: builderPos,
-        baseY: COMMAND_DECK_Y,
-        topY: BUILDER_DAIS_Y,
+        baseY: OFFICE_FLOOR_Y,
+        topY: BUILDER_PLATFORM_Y,
       }
     : null;
 
-  const boundXs: number[] = [];
-  const boundZs: number[] = [];
-  for (const z of zones) {
-    boundXs.push(z.center[0] - z.width / 2, z.center[0] + z.width / 2);
-    boundZs.push(z.center[2] - z.depth / 2, z.center[2] + z.depth / 2);
-  }
-  for (const s of satellites) {
-    boundXs.push(s.center[0] - s.width / 2, s.center[0] + s.width / 2);
-    boundZs.push(s.center[2] - s.depth / 2, s.center[2] + s.depth / 2);
-  }
-  const minX = Math.min(...boundXs) - 0.8;
-  const maxX = Math.max(...boundXs) + 0.8;
-  const minZ = Math.min(...boundZs) - 0.8;
-  const maxZ = Math.max(...boundZs) + 0.8;
   const width = maxX - minX;
   const depth = maxZ - minZ;
 
   return {
     desks,
+    deskStandPoints,
+    deskRotations,
     stations,
+    stationStandPoints,
+    stationFacings,
+    meetingTableCenter,
+    meetingSeats,
+    obstacles,
+    floorBounds: { minX, maxX, minZ, maxZ },
     zones,
     bridges,
     satellites,
     builderDais,
-    center: [(minX + maxX) / 2, 0.65, (minZ + maxZ) / 2],
-    radius: Math.max(width, depth) * 0.45,
+    center: [(minX + maxX) / 2, 0.85, (minZ + maxZ) / 2],
+    radius: Math.max(width, depth) * 0.48,
     width,
     depth,
   };
 }
+
 
 

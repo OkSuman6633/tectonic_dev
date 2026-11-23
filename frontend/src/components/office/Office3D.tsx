@@ -1,10 +1,9 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Sparkles } from '@react-three/drei';
+import { OrbitControls } from '@react-three/drei';
 import { ACESFilmicToneMapping, Vector3 } from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
-import { useReducedMotion } from 'framer-motion';
-import { Bot, Building2, Eye, EyeOff, Focus, LocateFixed, Play, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
+import { Building2, Eye, EyeOff, Focus, LocateFixed, Play, RotateCcw, Users, Wrench, ZoomIn, ZoomOut } from 'lucide-react';
 import { shallow } from 'zustand/shallow';
 import { useTelemetryStore } from '../../store/useTelemetryStore';
 import { startSimulation } from '../../services/telemetrySimulator';
@@ -12,45 +11,18 @@ import { AgentTelemetryPanel } from '../command/AgentTelemetryPanel';
 import { ModuleTelemetryPanel } from '../command/ModuleTelemetryPanel';
 import { STATE_STYLES } from '../command/agentStateStyles';
 import { MODULE_STATE_STYLES } from '../command/ModuleNode';
-import { DARK_PALETTE, Desk } from './Desk';
+import { Desk, LIGHT_PALETTE } from './Desk';
 import { Station } from './Station';
 import { COURIER_COLORS, Couriers } from './Couriers';
-import {
-  AgentCommandLandmarks,
-  CampusPlatform,
-  CommandCenterLandmarks,
-  ContentStudioLandmarks,
-  MemoryLandmarks,
-  NeonFloorAndBackdrop,
-  ProcessStudioLandmarks,
-  SatelliteCluster,
-  SkyBridge,
-  ToolOrchestrationLandmarks,
-} from './CampusArchitecture';
+import { OfficeEnvironment } from './OfficeEnvironment';
 import { layoutOffice, type OfficeLayout } from './officeLayout';
 import { getOfficeFocusTarget } from './officeCamera';
 
-/** Classic isometric diamond camera vector (~45° azimuth, ~33° elevation) matching Neon AI Operations Campus. */
-const VIEW_DIR = new Vector3(0.76, 0.62, 0.78).normalize();
+/** Warm isometric 3/4 room camera vector matching cozy sunlit diorama framing. */
+const VIEW_DIR = new Vector3(0.76, 0.64, 0.78).normalize();
 const LABELS_KEY = 'tectonic.office.labels';
 
-/** Isometric glowing 3D cube icon matching the reference HUD legend & module counter. */
-function NeonCubeIcon({ color, className = 'h-3.5 w-3.5' }: { color: string; className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      className={className}
-      style={{ filter: `drop-shadow(0 0 5px ${color})` }}
-      aria-hidden="true"
-    >
-      <path d="M12 2.5L20.5 7.25V16.75L12 21.5L3.5 16.75V7.25L12 2.5Z" fill={`${color}35`} stroke={color} strokeWidth="1.8" strokeLinejoin="round" />
-      <path d="M12 2.5V12M12 12L20.5 7.25M12 12L3.5 7.25M12 12V21.5" stroke={color} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-/** Glides the camera to frame the campus, focus a selected entity, reset the default isometric angle, or step zoom. */
+/** Glides the camera to frame the office, focus a selected employee or resource, reset angle, or step zoom. */
 function CameraRig({
   layout,
   fitNonce,
@@ -75,8 +47,8 @@ function CameraRig({
   const focusKey = `${focusTarget?.join(',') ?? ''}:${focusNonce}`;
 
   useEffect(() => {
-    const target = new Vector3(layout.center[0] + 0.15, layout.center[1] + 0.5, layout.center[2] + 0.2);
-    const distance = (layout.radius * 1.9 + 2.4) * Math.max(1, 1.38 / aspect);
+    const target = new Vector3(layout.center[0] - 0.35, layout.center[1] + 0.15, layout.center[2] - 0.25);
+    const distance = (layout.radius * 1.9 + 3.4) * Math.max(1, 1.32 / aspect);
     goal.current = {
       target,
       pos: target.clone().addScaledVector(VIEW_DIR, distance),
@@ -86,8 +58,8 @@ function CameraRig({
 
   useEffect(() => {
     if (!focusTarget) return;
-    const target = new Vector3(focusTarget[0], focusTarget[1] + 0.75, focusTarget[2]);
-    const distance = Math.max(11.5, Math.min(18.5, layout.radius * 0.85));
+    const target = new Vector3(focusTarget[0], focusTarget[1] + 0.85, focusTarget[2]);
+    const distance = Math.max(9.5, Math.min(16, layout.radius * 0.9));
     goal.current = {
       target,
       pos: target.clone().addScaledVector(VIEW_DIR, distance),
@@ -99,7 +71,7 @@ function CameraRig({
     if (zoomDelta.nonce === 0) return;
     const currentTarget = controls ? controls.target.clone() : new Vector3(...layout.center);
     const offset = camera.position.clone().sub(currentTarget);
-    const dist = Math.max(8, Math.min(125, offset.length() * (zoomDelta.step > 0 ? 0.8 : 1.25)));
+    const dist = Math.max(7, Math.min(85, offset.length() * (zoomDelta.step > 0 ? 0.8 : 1.25)));
     offset.normalize().multiplyScalar(dist);
     goal.current = {
       target: currentTarget,
@@ -132,8 +104,7 @@ function Scene({
   focusNonce: number;
   zoomDelta: { step: number; nonce: number };
 }) {
-  const reducedMotion = useReducedMotion();
-  const palette = DARK_PALETTE;
+  const palette = LIGHT_PALETTE;
   const topology = useTelemetryStore(
     (s) => ({
       order: s.agentOrder,
@@ -150,120 +121,73 @@ function Scene({
   const selectedAgentId = useTelemetryStore((s) => s.selectedAgentId);
   const selectedModuleId = useTelemetryStore((s) => s.selectedModuleId);
   const focusTarget = getOfficeFocusTarget(layout, selectedAgentId, selectedModuleId);
-
-  const commandZone = layout.zones.find((z) => z.kind === 'command') ?? null;
-  const hubZone = layout.zones.find((z) => z.kind === 'hub') ?? null;
-  const contentZone = layout.zones.find((z) => z.kind === 'content') ?? null;
-  const memoryZone = layout.zones.find((z) => z.kind === 'memory') ?? null;
-  const processZone = layout.zones.find((z) => z.kind === 'process') ?? null;
-  const toolsZone = layout.zones.find((z) => z.kind === 'tools') ?? null;
-  const shadowExtent = Math.max(26, layout.radius + 10);
+  const shadowExtent = Math.max(20, layout.radius + 7);
 
   return (
     <>
-      {/* Deep midnight neon-blue atmospheric fog */}
-      <fog attach="fog" args={['#02091E', 52, 130]} />
+      {/* Soft warm atmospheric depth matching studio backdrop */}
+      <fog attach="fog" args={['#EDE6DB', 48, 120]} />
 
-      {/* Crisp neon studio lighting rig for bright white robots, glossy dark decks & vivid accents */}
-      <ambientLight intensity={0.62} color="#B8D8FF" />
-      <hemisphereLight args={['#93C5FD', '#040C24', 1.05]} />
+      {/* Warm natural daylight lighting rig streaming through office windows */}
+      <ambientLight intensity={0.78} color="#FFF8EE" />
+      <hemisphereLight args={['#FFFDF7', '#C9B294', 0.85]} />
       <directionalLight
-        position={[layout.center[0] + 16, 26, layout.center[2] + 18]}
-        intensity={2.15}
-        color="#EBF5FF"
+        position={[layout.center[0] - 14, 24, layout.center[2] - 12]}
+        intensity={1.95}
+        color="#FFF5E1"
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-camera-near={2}
-        shadow-camera-far={105}
+        shadow-camera-far={95}
         shadow-camera-left={-shadowExtent}
         shadow-camera-right={shadowExtent}
         shadow-camera-top={shadowExtent}
         shadow-camera-bottom={-shadowExtent}
         shadow-bias={-0.0004}
-        shadow-normalBias={0.04}
+        shadow-normalBias={0.035}
       />
+      {/* Gentle cool sky bounce fill from opposite side for soft cozy shading */}
       <directionalLight
-        position={[layout.center[0] - 20, 15, layout.center[2] - 18]}
-        intensity={0.95}
-        color="#38BDF8"
+        position={[layout.center[0] + 18, 14, layout.center[2] + 16]}
+        intensity={0.58}
+        color="#DCEBFF"
       />
+      {/* Warm interior pendant & lounge lamp accents */}
+      <pointLight position={[-7.2, 3.0, -5.4]} color="#FFE8B8" intensity={1.1} distance={14} decay={2} />
+      <pointLight position={[7.4, 3.0, -5.4]} color="#FFE8B8" intensity={1.1} distance={14} decay={2} />
+      <pointLight position={[-7.5, 2.1, 6.0]} color="#FFDDA1" intensity={0.95} distance={10} decay={2} />
 
-      {/* Zone-specific neon atmospheric light pools casting realistic colored specular highlights */}
-      {commandZone && (
-        <pointLight position={[commandZone.center[0], 6.5, commandZone.center[2]]} color="#00D8FF" intensity={3.2} distance={26} decay={1.5} />
-      )}
-      {hubZone && (
-        <pointLight position={[hubZone.center[0], 5.8, hubZone.center[2]]} color="#00E5FF" intensity={3.6} distance={20} decay={1.5} />
-      )}
-      {contentZone && (
-        <pointLight position={[contentZone.center[0], 5.2, contentZone.center[2]]} color="#00D4FF" intensity={2.6} distance={18} decay={1.5} />
-      )}
-      {memoryZone && (
-        <pointLight position={[memoryZone.center[0], 5.8, memoryZone.center[2]]} color="#A855F7" intensity={3.8} distance={20} decay={1.5} />
-      )}
-      {processZone && (
-        <pointLight position={[processZone.center[0], 5.8, processZone.center[2]]} color="#FF2AA6" intensity={4.0} distance={22} decay={1.5} />
-      )}
-      {toolsZone && (
-        <pointLight position={[toolsZone.center[0], 5.6, toolsZone.center[2]]} color="#FFAE00" intensity={4.0} distance={22} decay={1.5} />
-      )}
+      {/* Sunlit modern isometric office shell, glass partitions, lounge, cafe, plants & conference room */}
+      <OfficeEnvironment layout={layout} />
 
-      {/* Glossy dark cyber floor + distant dark-blue background monolith silhouettes */}
-      <NeonFloorAndBackdrop center={layout.center} />
-
-      {/* All 6 Neon AI Operations Campus stepped platforms */}
-      {layout.zones.map((zone) => (
-        <CampusPlatform key={zone.id} zone={zone} />
-      ))}
-
-      {/* Illuminated neon glass walkways with flowing light pulses */}
-      {layout.bridges.map((bridge) => (
-        <SkyBridge key={bridge.id} bridge={bridge} />
-      ))}
-
-      {/* Front-left wireframe geodesic globe pad + subtle outer floor accent plinths */}
-      <SatelliteCluster satellites={layout.satellites} />
-
-      {/* Signature hero landmarks matching each island of the reference image */}
-      {commandZone && (
-        <AgentCommandLandmarks zone={commandZone} builderDais={layout.builderDais} desks={layout.desks} />
-      )}
-      {hubZone && <CommandCenterLandmarks zone={hubZone} />}
-      {contentZone && <ContentStudioLandmarks zone={contentZone} />}
-      {memoryZone && <MemoryLandmarks zone={memoryZone} />}
-      {processZone && <ProcessStudioLandmarks zone={processZone} />}
-      {toolsZone && <ToolOrchestrationLandmarks zone={toolsZone} />}
-
-      {/* Subtle ambient cyber dust particles */}
-      <Sparkles
-        count={78}
-        scale={[layout.width + 6, 5.5, layout.depth + 6]}
-        position={[layout.center[0], 2.8, layout.center[2]]}
-        size={2.0}
-        speed={reducedMotion ? 0 : 0.16}
-        opacity={0.48}
-        color="#38BDF8"
-      />
-
-      {/* Interactive Live Tectonic Modules & Seated White Robot Agents */}
+      {/* Interactive Live Resource Workstations (Tectonic Modules) */}
       {Object.entries(layout.stations).map(([id, pos]) => (
-        <Station key={id} id={id} position={pos} palette={palette} showLabel={showLabels} />
+        <Station
+          key={id}
+          id={id}
+          position={pos}
+          facingYaw={layout.stationFacings[id]}
+          palette={palette}
+          showLabel={showLabels}
+        />
       ))}
+
+      {/* Modern Ergonomic Employee Desks & Chairs */}
       {Object.entries(layout.desks).map(([id, pos]) => (
         <Desk key={id} id={id} position={pos} palette={palette} showLabel={showLabels} />
       ))}
 
-      {/* Live runtime-driven communication paths & courier fleet */}
-      <Couriers layout={layout} />
+      {/* Living Articulated Human Employees with A* Pathfinding & Real Telemetry Workflows */}
+      <Couriers layout={layout} showLabels={showLabels} />
 
       <OrbitControls
         makeDefault
         enableDamping
         dampingFactor={0.08}
-        minPolarAngle={0.22}
-        maxPolarAngle={1.28}
-        minDistance={8}
-        maxDistance={125}
+        minPolarAngle={0.28}
+        maxPolarAngle={1.32}
+        minDistance={7}
+        maxDistance={85}
       />
       <CameraRig
         layout={layout}
@@ -301,7 +225,7 @@ function Hud({
   );
   const staff = useTelemetryStore((s) => s.agentOrder.length);
   const serving = useTelemetryStore((s) => {
-    const cutoff = Date.now() / 1000 - 1.1;
+    const cutoff = Date.now() / 1000 - 1.6;
     return s.moduleOrder.filter(
       (id) => ['busy', 'booting'].includes(s.modules[id]?.state ?? '') || (s.moduleCalls[id]?.at(-1)?.startedAt ?? 0) > cutoff,
     ).length;
@@ -309,47 +233,47 @@ function Hud({
   const modules = useTelemetryStore((s) => s.moduleOrder.length);
 
   const pillSurface =
-    'rounded-xl border border-[#38BDF8]/45 bg-[#040E26]/82 shadow-[0_0_22px_rgba(0,165,255,0.22),inset_0_1px_0_rgba(125,211,252,0.18)] backdrop-blur-xl';
+    'rounded-xl border border-stone-300/80 bg-white/88 shadow-[0_6px_24px_rgba(30,24,18,0.10)] backdrop-blur-md';
   const pillBtn =
-    'flex h-8 items-center gap-1.5 px-3 text-[12.5px] font-medium text-[#E6F4FF] transition-colors hover:bg-[#38BDF8]/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-40';
+    'flex h-8 items-center gap-1.5 px-3 text-[12.5px] font-medium text-slate-700 transition-colors hover:bg-stone-100 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-40';
   const iconBtn =
-    'flex h-8 w-7 items-center justify-center rounded-lg text-[#B8D9F8] transition-colors hover:bg-[#38BDF8]/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-35';
+    'flex h-8 w-7 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-stone-100 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-35';
 
   return (
     <>
-      {/* Top-Left Stats Pill matching reference image (Bot icon + agents working | Cube icon + modules serving) */}
+      {/* Top-Left Live Office Stats Pill */}
       <div className={`pointer-events-none absolute left-3.5 top-3.5 z-10 flex items-center gap-3.5 px-3.5 py-2 ${pillSurface}`}>
         <span className="flex items-center gap-2">
-          <Bot className="h-4 w-4 text-[#38BDF8]" style={{ filter: 'drop-shadow(0 0 6px #38BDF8)' }} />
-          <Stat value={working} of={staff} label="agents working" color={STATE_STYLES.thinking.color} />
+          <Users className="h-4 w-4 text-blue-600" />
+          <Stat value={working} of={staff} label="employees active" color={STATE_STYLES.running.color} />
         </span>
-        <span className="h-4 w-px bg-[#38BDF8]/30" />
+        <span className="h-4 w-px bg-stone-300" />
         <span className="flex items-center gap-2">
-          <NeonCubeIcon color="#38BDF8" className="h-4 w-4" />
-          <Stat value={serving} of={modules} label="modules serving" color={MODULE_STATE_STYLES.busy.color} />
+          <Wrench className="h-4 w-4 text-amber-600" />
+          <Stat value={serving} of={modules} label="resources in use" color={MODULE_STATE_STYLES.busy.color} />
         </span>
       </div>
 
-      {/* Top-Right Controls matching reference image ([Fit] and [Labels: on hover] + compact utility controls) */}
+      {/* Top-Right Camera & Simulation Controls */}
       <div className="absolute right-3.5 top-3.5 z-10 flex items-center gap-2">
         <div className={`flex items-center gap-0.5 px-1 ${pillSurface}`}>
           <button
             type="button"
-            className="flex h-8 items-center gap-1 rounded-lg px-2 text-[12px] font-medium text-[#7DD3FC] transition-colors hover:bg-[#38BDF8]/15 hover:text-white"
+            className="flex h-8 items-center gap-1 rounded-lg px-2 text-[12px] font-medium text-blue-700 transition-colors hover:bg-blue-50 hover:text-blue-900"
             onClick={() => void startSimulation()}
-            title="Simulate an agent campus workflow"
+            title="Simulate an employee workflow across the office"
           >
             <Play className="h-3.5 w-3.5" />
             <span className="hidden xl:inline">Simulate</span>
           </button>
-          <span className="mx-0.5 h-3.5 w-px bg-[#38BDF8]/25" />
+          <span className="mx-0.5 h-3.5 w-px bg-stone-300" />
           <button type="button" className={iconBtn} onClick={onZoomIn} title="Zoom in">
             <ZoomIn className="h-3.5 w-3.5" />
           </button>
           <button type="button" className={iconBtn} onClick={onZoomOut} title="Zoom out">
             <ZoomOut className="h-3.5 w-3.5" />
           </button>
-          <button type="button" className={iconBtn} onClick={onFocus} disabled={!hasFocus} title="Focus selected agent or module">
+          <button type="button" className={iconBtn} onClick={onFocus} disabled={!hasFocus} title="Focus selected employee or workstation">
             <LocateFixed className="h-3.5 w-3.5" />
           </button>
           <button type="button" className={iconBtn} onClick={onReset} title="Reset isometric camera">
@@ -361,9 +285,9 @@ function Hud({
           type="button"
           className={`${pillSurface} ${pillBtn}`}
           onClick={onFit}
-          title="Frame the entire 3D campus"
+          title="Frame the entire 3D office"
         >
-          <Focus className="h-3.5 w-3.5 text-[#7DD3FC]" />
+          <Focus className="h-3.5 w-3.5 text-blue-600" />
           <span>Fit</span>
         </button>
 
@@ -371,37 +295,36 @@ function Hud({
           type="button"
           className={`${pillSurface} ${pillBtn}`}
           onClick={toggleLabels}
-          title={showLabels ? 'Show name tags only when you hover a desk or module' : 'Always show every name tag'}
+          title={showLabels ? 'Show name tags only on hover or active tasks' : 'Always show every employee and workstation tag'}
         >
-          {showLabels ? <Eye className="h-3.5 w-3.5 text-[#7DD3FC]" /> : <EyeOff className="h-3.5 w-3.5 text-[#7DD3FC]" />}
+          {showLabels ? <Eye className="h-3.5 w-3.5 text-blue-600" /> : <EyeOff className="h-3.5 w-3.5 text-slate-500" />}
           <span>Labels: {showLabels ? 'always' : 'on hover'}</span>
         </button>
       </div>
 
-      {/* Bottom-Left Status & Courier Legend Pill matching reference image */}
+      {/* Bottom-Left Human Workflow Status Legend */}
       <div
-        className={`pointer-events-none absolute bottom-3.5 left-3.5 z-10 flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 text-[12px] text-[#DCEEFF] ${pillSurface}`}
+        className={`pointer-events-none absolute bottom-3.5 left-3.5 z-10 flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 text-[12px] text-slate-700 ${pillSurface}`}
       >
         {[
-          { label: 'Thinking', color: '#FBBF24', bold: false },
-          { label: 'Calling tool', color: '#3B82F6', bold: true },
-          { label: 'Ready', color: '#10B981', bold: false },
-          { label: 'Error', color: '#EF4444', bold: false },
-        ].map(({ label, color, bold }) => (
-          <span key={label} className={`flex items-center gap-2 ${bold ? 'font-semibold text-white' : 'font-normal'}`}>
-            <span className="h-2.5 w-2.5 rounded-full" style={{ background: color, boxShadow: `0 0 8px ${color}` }} />
-            {label}
-          </span>
-        ))}
-        {[
-          { label: 'Courier - delegation', color: COURIER_COLORS.delegation },
-          { label: 'Courier - module call', color: COURIER_COLORS.module },
+          { label: 'Thinking', color: '#D97706' },
+          { label: 'Working', color: '#2563EB' },
+          { label: 'At desk', color: '#10B981' },
+          { label: 'Error', color: '#EF4444' },
         ].map(({ label, color }) => (
-          <span key={label} className="flex items-center gap-1.5">
-            <NeonCubeIcon color={color} className="h-3.5 w-3.5" />
+          <span key={label} className="flex items-center gap-1.5 font-medium">
+            <span className="h-2.5 w-2.5 rounded-full" style={{ background: color }} />
             {label}
           </span>
         ))}
+        <span className="flex items-center gap-1.5 font-medium">
+          <span className="h-0.5 w-3.5 rounded-full" style={{ background: COURIER_COLORS.delegation }} />
+          Team collaboration
+        </span>
+        <span className="flex items-center gap-1.5 font-medium">
+          <span className="h-0.5 w-3.5 rounded-full" style={{ background: COURIER_COLORS.module }} />
+          Resource visit
+        </span>
       </div>
     </>
   );
@@ -410,10 +333,12 @@ function Hud({
 function Stat({ value, of, label, color }: { value: number; of: number; label: string; color: string }) {
   return (
     <span className="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap">
-      <span className="font-mono text-[14px] font-bold tabular-nums" style={{ color: value > 0 ? color : '#FFFFFF' }}>
+      <span className="font-mono text-[14px] font-bold tabular-nums" style={{ color: value > 0 ? color : '#0F172A' }}>
         {value}
       </span>
-      <span className="text-[12.5px] font-medium text-[#C2DDFB]">/ {of} {label}</span>
+      <span className="text-[12.5px] font-medium text-slate-600">
+        / {of} {label}
+      </span>
     </span>
   );
 }
@@ -421,16 +346,16 @@ function Stat({ value, of, label, color }: { value: number; of: number; label: s
 function EmptyOffice() {
   return (
     <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-      <div className="pointer-events-auto max-w-xs rounded-xl border border-[#38BDF8]/40 bg-[#040E26]/88 p-5 text-center shadow-[0_0_32px_rgba(0,165,255,0.28)] backdrop-blur-xl">
-        <Building2 className="mx-auto mb-2 h-6 w-6 text-cyan-300" />
-        <h3 className="typo-panel-heading text-white">The campus is on standby</h3>
-        <p className="typo-secondary mt-1 text-slate-300">
-          Command workstations appear as agents spawn; memory and tool infrastructure light up as agents invoke them.
+      <div className="pointer-events-auto max-w-xs rounded-2xl border border-stone-300/90 bg-white/94 p-5 text-center shadow-xl backdrop-blur-md">
+        <Building2 className="mx-auto mb-2 h-6 w-6 text-amber-600" />
+        <h3 className="typo-panel-heading text-slate-900">The office is ready for the team</h3>
+        <p className="typo-secondary mt-1 text-slate-600">
+          Employees take their desks as agents come online and walk to specialized workstations as tasks execute.
         </p>
         <button
           type="button"
           onClick={() => void startSimulation()}
-          className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-sky-400/45 bg-sky-400/15 px-3 py-1.5 text-[12px] font-medium text-sky-200 hover:bg-sky-400/25"
+          className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-1.5 text-[12px] font-medium text-white shadow-sm hover:bg-blue-700"
         >
           <Play className="h-3.5 w-3.5" /> Simulate office
         </button>
@@ -439,7 +364,7 @@ function EmptyOffice() {
   );
 }
 
-/** Blueprint: Neon AI Operations Campus 3D view mirroring live telemetry (same store, same selection). */
+/** Living 3D AI Office view mirroring live Tectonic telemetry with articulated human employees. */
 export function Office3D() {
   const [showLabels, setShowLabels] = useState(() => {
     try {
@@ -473,21 +398,21 @@ export function Office3D() {
     document.body.style.cursor = '';
   }, []);
 
-  const campusBackground =
-    'radial-gradient(ellipse at 50% 44%, #09215E 0%, #041033 48%, #010615 100%)';
+  const studioBackdrop =
+    'radial-gradient(ellipse at 50% 42%, #FAF6F0 0%, #EFE8DC 55%, #E3D9CA 100%)';
 
   return (
-    <div className="relative h-full w-full overflow-hidden" style={{ background: campusBackground }}>
+    <div className="relative h-full w-full overflow-hidden" style={{ background: studioBackdrop }}>
       <Canvas
         shadows
         dpr={[1, 1.75]}
-        camera={{ fov: 25, position: [28, 23, 29], near: 0.2, far: 450 }}
+        camera={{ fov: 26, position: [24, 20, 24], near: 0.2, far: 300 }}
         gl={{
           antialias: true,
           alpha: true,
           powerPreference: 'high-performance',
           toneMapping: ACESFilmicToneMapping,
-          toneMappingExposure: 1.24,
+          toneMappingExposure: 1.04,
         }}
         onPointerMissed={() => {
           const s = useTelemetryStore.getState();

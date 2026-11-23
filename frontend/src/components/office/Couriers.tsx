@@ -1,498 +1,488 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useFrame } from '@react-three/fiber';
-import { Line } from '@react-three/drei';
-import { useReducedMotion } from 'framer-motion';
-import { CatmullRomCurve3, Vector3, type Group, type Mesh, type MeshBasicMaterial, type Sprite } from 'three';
-import { shallow } from 'zustand/shallow';
+import { memo, useMemo, useRef, useState } from 'react';
+import { useFrame, type ThreeEvent } from '@react-three/fiber';
+import { Html, Line } from '@react-three/drei';
+import type { Group } from 'three';
 import { useTelemetryStore } from '../../store/useTelemetryStore';
-import type { Packet } from '../../types/telemetry';
-import { Halo } from './glow';
-import { moduleZoneKind, type OfficeLayout, type Vec3 } from './officeLayout';
+import { STATE_STYLES, agentRole, formatCount } from '../command/agentStateStyles';
+import { HumanCharacter, type HumanPoseInput } from './HumanCharacter';
+import {
+  getEmployeeAppearance,
+  resolveEmployeeDirective,
+  type EmployeePhase,
+  type TaskDirective,
+} from './employeeWorkflow';
+import { buildNavGrid, computeAvoidanceOffset, findOfficePath, type NavGrid, type Point2D } from './officePathfinding';
+import { OFFICE_FLOOR_Y, type OfficeLayout, type Vec3 } from './officeLayout';
 
 /**
- * Runtime-Driven Communication System & Courier Fleet:
- * 1. Persistent architectural topology conduits between real agents & modules (subtle when idle).
- * 2. When real runtime packets occur, routes brighten with directional flowing light particles,
- *    glowing arched splines clearing island gaps, destination arrival rings, and humanoid/drone couriers.
- *    Never generates random or fake traffic when no runtime events are occurring.
+ * Human-Operated Employee Activity Controller (replaces flying robot couriers).
+ * Each live agent in Tectonic is represented by an articulated 3D human employee who:
+ * 1. Works naturally at their assigned desk while idle (typing, reading, reviewing).
+ * 2. Reacts immediately when a real backend task, tool call, module call, or A2A collaboration starts.
+ * 3. Stands up from their chair, navigates along collision-free A* floor paths with smooth turning,
+ *    and avoids colliding with other walking employees.
+ * 4. Performs resource-specific working animations at the destination workstation or conference table.
+ * 5. Displays a brief completion reaction when done, then walks back to their desk (or directly to the next task).
  */
 
-const DELEGATION = '#2DD4FF';
-const MODULE = '#A78BFA';
-const SPEED = 6.2; // campus units per second
-const MIN_S = 1.4;
-const MAX_S = 3.2;
-const PING_S = 0.65; // arrival ring after landing
-const MAX_TRIPS = 12; // keep busy offices smooth
-const STAND_OFF = 1.15; // take off / land cleanly beside a workstation or module plinth
+const WALK_SPEED = 2.85; // office floor units per second
+const REACT_DURATION_S = 0.32;
+const STAND_SIT_DURATION_S = 0.45;
+const COMPLETE_DURATION_S = 0.65;
+const MIN_INTERACT_HOLD_S = 1.35; // ensures rapid backend module calls remain visibly clear without faking tasks
 
-interface Trip {
-  key: string;
-  edgeId: string;
-  from: Vec3;
-  to: Vec3;
-  color: string;
-  isModule: boolean;
-  bornAt: number;
-  duration: number;
+const DELEGATION_COLOR = '#2563EB';
+const MODULE_COLOR = '#7C3AED';
+
+function shortestAngleDiff(from: number, to: number): number {
+  let diff = ((to - from + Math.PI) % (Math.PI * 2)) - Math.PI;
+  if (diff < -Math.PI) diff += Math.PI * 2;
+  return diff;
 }
 
-interface NetworkRoute {
+interface ActorRuntime {
+  phase: EmployeePhase;
+  phaseTime: number;
+  x: number;
+  y: number;
+  z: number;
+  yaw: number;
+  standBlend: number;
+  directive: TaskDirective | null;
+  waypoints: Point2D[];
+  waypointIndex: number;
+  interactHeldS: number;
+  completedBanner: string | null;
+}
+
+const HumanEmployeeActor = memo(function HumanEmployeeActor({
+  id,
+  layout,
+  navGrid,
+  sharedPositions,
+  showLabels,
+  indexSeed,
+}: {
   id: string;
-  fromId: string;
-  toId: string;
-  from: Vec3;
-  to: Vec3;
-  isModule: boolean;
-  color: string;
-  points: [number, number, number][];
-  curve: CatmullRomCurve3;
-}
-
-function routeColor(isModule: boolean, toId: string): string {
-  if (!isModule) return DELEGATION;
-  const kind = moduleZoneKind(toId);
-  if (kind === 'tools') return '#FFAE00';
-  if (kind === 'process') return '#FF2AA6';
-  if (kind === 'hub' || kind === 'content') return '#00D8FF';
-  return MODULE;
-}
-
-function endpoints(edgeId: string, layout: OfficeLayout): { from: Vec3; to: Vec3; module: boolean; fromId: string; toId: string } | null {
-  let a: Vec3 | undefined;
-  let b: Vec3 | undefined;
-  let module = false;
-  let fromId = '';
-  let toId = '';
-  if (edgeId.startsWith('h:')) {
-    const [parent, child] = edgeId.slice(2).split('->');
-    [a, b] = [layout.desks[parent], layout.desks[child]];
-    fromId = parent;
-    toId = child;
-  } else if (edgeId.startsWith('m:')) {
-    const [agent, mod] = edgeId.slice(2).split('->');
-    [a, b] = [layout.desks[agent], layout.stations[mod]];
-    module = true;
-    fromId = agent;
-    toId = mod;
-  } else if (edgeId.startsWith('x:')) {
-    const [x, y] = edgeId.slice(2).split('<->');
-    [a, b] = [layout.desks[x], layout.desks[y]];
-    fromId = x;
-    toId = y;
-  }
-  return a && b ? { from: a, to: b, module, fromId, toId } : null;
-}
-
-function toTrip(p: Packet, layout: OfficeLayout): Trip | null {
-  const ends = endpoints(p.edgeId, layout);
-  if (!ends) return null;
-  const [from, to] = p.reverse ? [ends.to, ends.from] : [ends.from, ends.to];
-  const a = new Vector3(from[0], from[1], from[2]);
-  const b = new Vector3(to[0], to[1], to[2]);
-  const dir = new Vector3(b.x - a.x, 0, b.z - a.z);
-  const dist = dir.length();
-  if (dist < 0.5) return null;
-  dir.normalize();
-  const start = a.clone().addScaledVector(dir, STAND_OFF);
-  const end = b.clone().addScaledVector(dir, -STAND_OFF);
-  return {
-    key: p.key,
-    edgeId: p.edgeId,
-    from: [start.x, from[1], start.z],
-    to: [end.x, to[1], end.z],
-    color: routeColor(ends.module, ends.toId),
-    isModule: ends.module,
-    bornAt: performance.now(),
-    duration: Math.min(MAX_S, Math.max(MIN_S, dist / SPEED)),
-  };
-}
-
-const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
-
-/** Runtime-driven communication pathway: subtle topology line when idle; directional particles only during real active trips. */
-const CommunicationPathway = memo(function CommunicationPathway({
-  route,
-  activeTrip,
-}: {
-  route: NetworkRoute;
-  activeTrip: Trip | undefined;
+  layout: OfficeLayout;
+  navGrid: NavGrid;
+  sharedPositions: React.MutableRefObject<Record<string, Point2D>>;
+  showLabels: boolean;
+  indexSeed: number;
 }) {
-  const reducedMotion = useReducedMotion();
-  const pulseA = useRef<Mesh>(null);
-  const pulseB = useRef<Mesh>(null);
-  const pulseC = useRef<Mesh>(null);
-  const destRing = useRef<Mesh>(null);
-  const isActive = !!activeTrip;
+  const agent = useTelemetryStore((s) => s.agents[id]);
+  const selected = useTelemetryStore((s) => s.selectedAgentId === id);
+  const selectAgent = useTelemetryStore((s) => s.selectAgent);
 
-  useFrame(({ clock }) => {
-    const t = reducedMotion ? 0.5 : clock.elapsedTime;
-    const speed = 0.92;
+  const appearance = useMemo(() => getEmployeeAppearance(id), [id]);
+  const deskPos = layout.desks[id] ?? ([0, OFFICE_FLOOR_Y, 0] as Vec3);
+  const standPoint = layout.deskStandPoints[id] ?? ([deskPos[0], OFFICE_FLOOR_Y, deskPos[2] + 1.15] as Vec3);
+  const deskYaw = layout.deskRotations[id] ?? Math.PI;
+  const chairPos: Vec3 = [deskPos[0], deskPos[1], deskPos[2] + 0.5];
 
-    if (pulseA.current) {
-      pulseA.current.visible = isActive;
-      if (isActive) {
-        pulseA.current.position.copy(route.curve.getPointAt((t * speed) % 1));
-      }
-    }
-    if (pulseB.current) {
-      pulseB.current.visible = isActive;
-      if (isActive) {
-        pulseB.current.position.copy(route.curve.getPointAt((t * speed + 0.33) % 1));
-      }
-    }
-    if (pulseC.current) {
-      pulseC.current.visible = isActive;
-      if (isActive) {
-        pulseC.current.position.copy(route.curve.getPointAt((t * speed + 0.66) % 1));
-      }
-    }
-    if (destRing.current) {
-      destRing.current.visible = isActive;
-      if (isActive) {
-        const s = 0.88 + 0.22 * Math.sin(t * 7);
-        destRing.current.scale.set(s, s, 1);
-      }
-    }
+  const groupRef = useRef<Group>(null);
+  const [hovered, setHovered] = useState(false);
+  const [badgeState, setBadgeState] = useState<{
+    phase: EmployeePhase;
+    taskLabel: string | null;
+    completedLabel: string | null;
+    pathPoints: [number, number, number][] | null;
+    pathColor: string;
+  }>({
+    phase: 'seated_idle',
+    taskLabel: null,
+    completedLabel: null,
+    pathPoints: null,
+    pathColor: MODULE_COLOR,
   });
 
-  return (
-    <group>
-      <Line
-        points={route.points}
-        color={route.color}
-        lineWidth={isActive ? 2.6 : 1.0}
-        transparent
-        opacity={isActive ? 0.82 : 0.14}
-      />
-      {/* Directional flowing light particles — active only during live runtime transmissions */}
-      <mesh ref={pulseA} visible={false}>
-        <sphereGeometry args={[0.095, 10, 10]} />
-        <meshBasicMaterial color={route.color} transparent opacity={0.95} toneMapped={false} />
-      </mesh>
-      <mesh ref={pulseB} visible={false}>
-        <sphereGeometry args={[0.085, 10, 10]} />
-        <meshBasicMaterial color="#FFFFFF" transparent opacity={0.92} toneMapped={false} />
-      </mesh>
-      <mesh ref={pulseC} visible={false}>
-        <sphereGeometry args={[0.08, 10, 10]} />
-        <meshBasicMaterial color={route.color} transparent opacity={0.85} toneMapped={false} />
-      </mesh>
-      {/* Active destination highlight ring */}
-      <mesh
-        ref={destRing}
-        position={[route.to[0], route.to[1] + 0.14, route.to[2]]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        visible={false}
-      >
-        <ringGeometry args={[0.92, 1.08, 32]} />
-        <meshBasicMaterial color={route.color} transparent opacity={0.72} toneMapped={false} depthWrite={false} />
-      </mesh>
-    </group>
-  );
-});
-
-/** Upgraded futuristic humanoid/drone courier with distinct visuals for Delegation vs. Module Calls. */
-function CourierRobot({
-  color,
-  isModule,
-  eyes,
-  bulb,
-  flame,
-  cube,
-}: {
-  color: string;
-  isModule: boolean;
-  eyes: React.Ref<Group>;
-  bulb: React.Ref<MeshBasicMaterial>;
-  flame: React.Ref<Sprite>;
-  cube: React.Ref<Mesh>;
-}) {
-  const shell = isModule ? '#E9D5FF' : '#E0F2FE';
-  const trim = isModule ? '#6D28D9' : '#0284C7';
-  const darkMetal = '#09152B';
-  return (
-    <group scale={0.8}>
-      {/* Thruster nozzle + plasma flame */}
-      <mesh position={[0, 0.16, 0]}>
-        <cylinderGeometry args={[0.11, 0.17, 0.16, 16]} />
-        <meshStandardMaterial color={trim} metalness={0.65} roughness={0.28} />
-      </mesh>
-      <Halo ref={flame} color={isModule ? '#C084FC' : '#38BDF8'} size={0.75} opacity={0.9} position={[0, 0.02, 0]} />
-
-      {/* Articulated lower thrusters / legs */}
-      {[-0.12, 0.12].map((lx) => (
-        <mesh key={lx} position={[lx, 0.28, -0.04]} rotation={[0.35, 0, 0]} castShadow>
-          <capsuleGeometry args={[0.042, 0.18, 4, 10]} />
-          <meshStandardMaterial color={darkMetal} metalness={0.6} roughness={0.3} />
-        </mesh>
-      ))}
-
-      {/* Armored Torso */}
-      <mesh position={[0, 0.64, 0]} castShadow>
-        <capsuleGeometry args={[0.3, 0.3, 8, 20]} />
-        <meshStandardMaterial color={shell} metalness={0.45} roughness={0.25} />
-      </mesh>
-
-      {/* Distinct back wing stabilizers for delegation vs orbital ring for module calls */}
-      {isModule ? (
-        <mesh position={[0, 0.68, -0.05]} rotation={[Math.PI / 3, 0, 0]}>
-          <torusGeometry args={[0.42, 0.024, 10, 28]} />
-          <meshBasicMaterial color={color} transparent opacity={0.8} toneMapped={false} />
-        </mesh>
-      ) : (
-        [-1, 1].map((side) => (
-          <mesh key={side} position={[side * 0.36, 0.72, -0.12]} rotation={[0.2, side * -0.35, side * 0.4]}>
-            <boxGeometry args={[0.28, 0.08, 0.03]} />
-            <meshBasicMaterial color={color} transparent opacity={0.85} toneMapped={false} />
-          </mesh>
-        ))
-      )}
-
-      {/* Chest reactor core */}
-      <mesh position={[0, 0.68, 0.3]}>
-        <circleGeometry args={[0.1, 24]} />
-        <meshBasicMaterial color={color} toneMapped={false} />
-      </mesh>
-
-      {/* Robotic Head */}
-      <group position={[0, 1.22, 0]}>
-        <mesh castShadow>
-          <sphereGeometry args={[0.28, 28, 28]} />
-          <meshStandardMaterial color={shell} metalness={0.45} roughness={0.25} />
-        </mesh>
-        {/* Visor */}
-        <mesh position={[0, 0.0, 0.16]} scale={[1, 0.7, 0.55]}>
-          <sphereGeometry args={[0.23, 24, 24]} />
-          <meshStandardMaterial color={darkMetal} metalness={0.75} roughness={0.15} />
-        </mesh>
-        <group ref={eyes} position={[0, 0.02, 0.28]}>
-          {[-0.08, 0.08].map((x) => (
-            <mesh key={x} position={[x, 0, 0]}>
-              <capsuleGeometry args={[0.032, 0.048, 4, 10]} />
-              <meshBasicMaterial color={color} toneMapped={false} />
-            </mesh>
-          ))}
-        </group>
-        {/* Ear transceivers */}
-        {[-0.29, 0.29].map((x) => (
-          <mesh key={x} position={[x, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.065, 0.065, 0.055, 14]} />
-            <meshStandardMaterial color={trim} metalness={0.65} roughness={0.28} />
-          </mesh>
-        ))}
-        {/* Crown Antenna */}
-        <mesh position={[0, 0.34, 0]}>
-          <cylinderGeometry args={[0.014, 0.014, 0.16, 6]} />
-          <meshStandardMaterial color={trim} />
-        </mesh>
-        <mesh position={[0, 0.44, 0]}>
-          <sphereGeometry args={[0.052, 14, 14]} />
-          <meshBasicMaterial ref={bulb} color={color} toneMapped={false} transparent />
-        </mesh>
-      </group>
-
-      {/* Articulated arms holding payload */}
-      {[-1, 1].map((s) => (
-        <mesh key={s} position={[s * 0.34, 0.7, 0.16]} rotation={[-1.1, 0, s * 0.25]} castShadow>
-          <capsuleGeometry args={[0.058, 0.24, 4, 10]} />
-          <meshStandardMaterial color={trim} metalness={0.5} roughness={0.3} />
-        </mesh>
-      ))}
-
-      {/* Payload: Octahedron crystal for Delegation, Data Cube for Module Call */}
-      <mesh ref={cube} position={[0, 0.66, 0.5]}>
-        {isModule ? <boxGeometry args={[0.21, 0.21, 0.21]} /> : <octahedronGeometry args={[0.16, 0]} />}
-        <meshBasicMaterial color={color} toneMapped={false} />
-      </mesh>
-      <Halo color={color} size={0.82} opacity={0.65} position={[0, 0.66, 0.5]} />
-    </group>
-  );
-}
-
-const Courier = memo(function Courier({ trip, onDone }: { trip: Trip; onDone: (key: string) => void }) {
-  const body = useRef<Group>(null);
-  const eyes = useRef<Group>(null);
-  const bulb = useRef<MeshBasicMaterial>(null);
-  const flame = useRef<Sprite>(null);
-  const cube = useRef<Mesh>(null);
-  const shadow = useRef<Mesh>(null);
-  const ping = useRef<Mesh>(null);
-  const done = useRef(false);
-
-  const { a, b, heading, cruise, arcPoints } = useMemo(() => {
-    const from = new Vector3(...trip.from);
-    const to = new Vector3(...trip.to);
-    const d = from.distanceTo(to);
-    const h = 1.45 + d * 0.1;
-    const mid = from.clone().lerp(to, 0.5);
-    mid.y = Math.max(from.y, to.y) + h * 0.65;
-    const curve = new CatmullRomCurve3([
-      new Vector3(from.x, from.y + 0.15, from.z),
-      mid,
-      new Vector3(to.x, to.y + 0.15, to.z),
-    ]);
-    const pts = curve.getPoints(24).map((p) => [p.x, p.y, p.z] as [number, number, number]);
-    return {
-      a: from,
-      b: to,
-      heading: Math.atan2(to.x - from.x, to.z - from.z),
-      cruise: h,
-      arcPoints: pts,
-    };
-  }, [trip]);
-
-  useFrame(({ clock }) => {
-    const elapsed = (performance.now() - trip.bornAt) / 1000;
-    const t = Math.min(1, elapsed / trip.duration);
-    const e = easeInOut(t);
-    const now = clock.elapsedTime;
-
-    if (body.current) {
-      const x = a.x + (b.x - a.x) * e;
-      const z = a.z + (b.z - a.z) * e;
-      const baseY = a.y + (b.y - a.y) * e;
-      const lift = Math.sin(Math.PI * e) * cruise;
-      body.current.position.set(x, baseY + 0.05 + lift + 0.05 * Math.sin(now * 9), z);
-      body.current.rotation.set(0.28 * Math.sin(Math.PI * t), heading, 0.06 * Math.sin(now * 5));
-      body.current.visible = t < 1;
-    }
-    if (eyes.current) eyes.current.scale.y = Math.sin(now * 2.3 + trip.bornAt) > 0.96 ? 0.15 : 1;
-    if (bulb.current) bulb.current.opacity = 0.55 + 0.45 * Math.sin(now * 10);
-    if (cube.current) {
-      cube.current.rotation.y = now * 3.2;
-      cube.current.rotation.x = now * 2.1;
-    }
-    if (flame.current) {
-      const s = t < 1 ? 0.58 + 0.2 * Math.sin(now * 18) + Math.sin(Math.PI * e) * 0.35 : 0;
-      flame.current.scale.set(s, s * 1.4, 1);
-    }
-    if (shadow.current && body.current) {
-      const h = body.current.position.y;
-      const groundY = a.y + (b.y - a.y) * e + 0.02;
-      shadow.current.position.set(body.current.position.x, groundY, body.current.position.z);
-      const s = Math.max(0.32, 1 - h * 0.2);
-      shadow.current.scale.set(s, s, s);
-      shadow.current.visible = t < 1;
-    }
-
-    const after = elapsed - trip.duration;
-    if (ping.current) {
-      ping.current.visible = after > -0.1 && after < PING_S;
-      const p = Math.max(0, after) / PING_S;
-      ping.current.scale.setScalar(0.45 + p * 1.75);
-      (ping.current.material as MeshBasicMaterial).opacity = 0.9 * (1 - p);
-    }
-    if (after > PING_S && !done.current) {
-      done.current = true;
-      onDone(trip.key);
-    }
+  const actor = useRef<ActorRuntime>({
+    phase: 'seated_idle',
+    phaseTime: 0,
+    x: chairPos[0],
+    y: chairPos[1],
+    z: chairPos[2],
+    yaw: deskYaw,
+    standBlend: 0,
+    directive: null,
+    waypoints: [],
+    waypointIndex: 0,
+    interactHeldS: 0,
+    completedBanner: null,
   });
 
-  return (
-    <group>
-      {/* Glowing arched telemetry beam while courier is in flight */}
-      <Line points={arcPoints} color={trip.color} lineWidth={2.2} transparent opacity={0.55} />
-      <mesh ref={shadow} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[0.32, 24]} />
-        <meshBasicMaterial color="#000000" transparent opacity={0.32} depthWrite={false} />
-      </mesh>
-      <group ref={body}>
-        <CourierRobot color={trip.color} isModule={trip.isModule} eyes={eyes} bulb={bulb} flame={flame} cube={cube} />
-      </group>
-      <mesh ref={ping} position={[b.x, b.y + 0.04, b.z]} rotation={[-Math.PI / 2, 0, 0]} visible={false}>
-        <ringGeometry args={[0.58, 0.74, 40]} />
-        <meshBasicMaterial color={trip.color} transparent opacity={0} toneMapped={false} depthWrite={false} />
-      </mesh>
-    </group>
-  );
-});
+  const poseRef = useRef<HumanPoseInput>({
+    phase: 'seated_idle',
+    activity: 'coding',
+    standBlend: 0,
+    walkSpeed: 0,
+    seed: indexSeed * 1.73,
+    workingAtDesk: false,
+  });
 
-function CouriersImpl({ layout }: { layout: OfficeLayout }) {
-  const [trips, setTrips] = useState<Trip[]>([]);
-  const seen = useRef(new Set<string>());
-  const layoutRef = useRef(layout);
-  layoutRef.current = layout;
+  const lastBadgeKey = useRef('');
 
-  // Build persistent communication pathways from actual store topology (hierarchy, extraEdges, moduleLinks)
-  const edgeTopology = useTelemetryStore(
-    (s) => ({
-      hierarchy: s.agentOrder
-        .map((id) => (s.agents[id]?.parentId ? `h:${s.agents[id].parentId}->${id}` : ''))
-        .filter(Boolean)
-        .join('|'),
-      extra: s.extraEdges.map((e) => e.id).join('|'),
-      modules: s.moduleLinks.map((m) => m.id).join('|'),
-    }),
-    shallow,
-  );
+  useFrame((_, rawDelta) => {
+    const dt = Math.min(rawDelta, 0.05);
+    const store = useTelemetryStore.getState();
+    const liveAgent = store.agents[id];
+    if (!liveAgent) return;
 
-  const routes = useMemo<NetworkRoute[]>(() => {
-    const edgeIds = [
-      ...edgeTopology.hierarchy.split('|').filter(Boolean),
-      ...edgeTopology.extra.split('|').filter(Boolean),
-      ...edgeTopology.modules.split('|').filter(Boolean),
-    ];
-    const built: NetworkRoute[] = [];
-    for (const id of edgeIds) {
-      const ends = endpoints(id, layout);
-      if (!ends) continue;
-      const p0 = new Vector3(ends.from[0], ends.from[1] + 0.16, ends.from[2]);
-      const p2 = new Vector3(ends.to[0], ends.to[1] + 0.16, ends.to[2]);
-      const dist = p0.distanceTo(p2);
-      const mid = p0.clone().lerp(p2, 0.5);
-      // Graceful elevated arc so inter-island conduits clear platform edges & structures cleanly
-      mid.y = Math.max(p0.y, p2.y) + (ends.module ? 0.85 + Math.min(1.4, dist * 0.07) : 0.35 + Math.min(0.6, dist * 0.04));
-      const curve = new CatmullRomCurve3([p0, mid, p2]);
-      const points = curve.getPoints(24).map((pt) => [pt.x, pt.y, pt.z] as [number, number, number]);
-      built.push({
-        id,
-        fromId: ends.fromId,
-        toId: ends.toId,
-        from: ends.from,
-        to: ends.to,
-        isModule: ends.module,
-        color: routeColor(ends.module, ends.toId),
-        points,
-        curve,
+    const a = actor.current;
+    a.phaseTime += dt;
+
+    // Resolve live backend task directive from real telemetry
+    const liveDirective = resolveEmployeeDirective(
+      id,
+      liveAgent,
+      layout,
+      store.toolCalls,
+      store.moduleCalls,
+      store.packets,
+      store.agentOrder,
+      Date.now(),
+    );
+
+    const needsWalkTo = (d: TaskDirective | null): d is TaskDirective =>
+      Boolean(d && (d.targetKind === 'station' || d.targetKind === 'meeting'));
+
+    // Handle live task assignment / reassignment / cancellation cleanly
+    if (needsWalkTo(liveDirective)) {
+      const sameTarget = a.directive && a.directive.targetId === liveDirective.targetId && a.directive.targetKind === liveDirective.targetKind;
+      if (!sameTarget) {
+        a.directive = liveDirective;
+        a.completedBanner = null;
+        a.interactHeldS = 0;
+        if (a.phase === 'seated_idle' || a.phase === 'sitting_down') {
+          a.phase = 'reacting';
+          a.phaseTime = 0;
+        } else {
+          // Already standing/walking/interacting -> smoothly reroute via A* directly to new resource
+          a.waypoints = findOfficePath(navGrid, [a.x, OFFICE_FLOOR_Y, a.z], liveDirective.destination);
+          a.waypointIndex = 0;
+          a.phase = 'walking_to_resource';
+          a.phaseTime = 0;
+        }
+      } else if (a.directive) {
+        // Keep updated label/activity while staying on the same resource
+        a.directive = liveDirective;
+      }
+    } else if (a.directive && needsWalkTo(a.directive)) {
+      // Backend finished the remote resource operation
+      if (a.phase === 'interacting' && a.interactHeldS >= MIN_INTERACT_HOLD_S) {
+        a.completedBanner = a.directive.label;
+        a.directive = null;
+        a.phase = 'completing';
+        a.phaseTime = 0;
+      } else if (a.phase === 'reacting' || a.phase === 'standing_up') {
+        // Task cancelled or finished before employee left desk -> sit back smoothly
+        a.directive = null;
+        a.phase = 'sitting_down';
+        a.phaseTime = 0;
+      }
+      // If currently walking_to_resource, let them arrive and briefly interact before completing so motion never snaps
+    }
+
+    let walkSpeedNorm = 0;
+
+    switch (a.phase) {
+      case 'seated_idle': {
+        a.x += (chairPos[0] - a.x) * Math.min(1, dt * 8);
+        a.y += (chairPos[1] - a.y) * Math.min(1, dt * 8);
+        a.z += (chairPos[2] - a.z) * Math.min(1, dt * 8);
+        a.yaw += shortestAngleDiff(a.yaw, deskYaw) * Math.min(1, dt * 8);
+        a.standBlend = Math.max(0, a.standBlend - dt * 3);
+        break;
+      }
+
+      case 'reacting': {
+        a.standBlend = Math.max(0, a.standBlend - dt * 2);
+        if (a.phaseTime >= REACT_DURATION_S) {
+          a.phase = 'standing_up';
+          a.phaseTime = 0;
+        }
+        break;
+      }
+
+      case 'standing_up': {
+        const p = Math.min(1, a.phaseTime / STAND_SIT_DURATION_S);
+        a.standBlend = p;
+        // Smoothly step out from chair onto desk stand point
+        a.x = chairPos[0] + (standPoint[0] - chairPos[0]) * p;
+        a.y = chairPos[1] + (standPoint[1] - chairPos[1]) * p;
+        a.z = chairPos[2] + (standPoint[2] - chairPos[2]) * p;
+        if (p >= 1) {
+          if (a.directive && needsWalkTo(a.directive)) {
+            a.waypoints = findOfficePath(navGrid, [a.x, OFFICE_FLOOR_Y, a.z], a.directive.destination);
+            a.waypointIndex = 0;
+            a.phase = 'walking_to_resource';
+            a.phaseTime = 0;
+          } else {
+            a.phase = 'sitting_down';
+            a.phaseTime = 0;
+          }
+        }
+        break;
+      }
+
+      case 'walking_to_resource':
+      case 'walking_back': {
+        a.standBlend = 1;
+        a.y += (OFFICE_FLOOR_Y - a.y) * Math.min(1, dt * 10);
+        const wp = a.waypoints[a.waypointIndex];
+        if (!wp) {
+          if (a.phase === 'walking_to_resource') {
+            a.phase = 'interacting';
+            a.phaseTime = 0;
+            a.interactHeldS = 0;
+          } else {
+            a.phase = 'sitting_down';
+            a.phaseTime = 0;
+          }
+          break;
+        }
+        const dx = wp.x - a.x;
+        const dz = wp.z - a.z;
+        const dist = Math.hypot(dx, dz);
+        if (dist < 0.14) {
+          a.waypointIndex += 1;
+          if (a.waypointIndex >= a.waypoints.length) {
+            if (a.phase === 'walking_to_resource') {
+              a.phase = 'interacting';
+              a.phaseTime = 0;
+              a.interactHeldS = 0;
+            } else {
+              a.phase = 'sitting_down';
+              a.phaseTime = 0;
+            }
+          }
+          break;
+        }
+
+        // Pairwise collision avoidance with other walking/standing employees
+        const avoid = computeAvoidanceOffset(id, { x: a.x, z: a.z }, sharedPositions.current);
+        const dirX = dx / dist + avoid.x;
+        const dirZ = dz / dist + avoid.z;
+        const mag = Math.hypot(dirX, dirZ) || 1;
+        const step = Math.min(dist, WALK_SPEED * dt);
+        a.x += (dirX / mag) * step;
+        a.z += (dirZ / mag) * step;
+
+        const targetYaw = Math.atan2(dirX, dirZ);
+        a.yaw += shortestAngleDiff(a.yaw, targetYaw) * Math.min(1, dt * 10);
+        walkSpeedNorm = Math.min(1, step / Math.max(0.001, WALK_SPEED * dt));
+        break;
+      }
+
+      case 'interacting': {
+        a.standBlend = 1;
+        a.interactHeldS += dt;
+        if (a.directive) {
+          a.x += (a.directive.destination[0] - a.x) * Math.min(1, dt * 6);
+          a.z += (a.directive.destination[2] - a.z) * Math.min(1, dt * 6);
+          a.yaw += shortestAngleDiff(a.yaw, a.directive.facingYaw) * Math.min(1, dt * 8);
+        }
+        // Complete once backend finishes AND minimum readable interaction window elapsed
+        const stillSameRemote =
+          liveDirective &&
+          a.directive &&
+          liveDirective.targetId === a.directive.targetId &&
+          liveDirective.targetKind === a.directive.targetKind;
+        if (!stillSameRemote && a.interactHeldS >= MIN_INTERACT_HOLD_S) {
+          a.completedBanner = a.directive?.label ?? 'Task done';
+          a.directive = null;
+          a.phase = 'completing';
+          a.phaseTime = 0;
+        }
+        break;
+      }
+
+      case 'completing': {
+        a.standBlend = 1;
+        if (a.phaseTime >= COMPLETE_DURATION_S) {
+          a.completedBanner = null;
+          a.waypoints = findOfficePath(navGrid, [a.x, OFFICE_FLOOR_Y, a.z], standPoint);
+          a.waypointIndex = 0;
+          a.phase = 'walking_back';
+          a.phaseTime = 0;
+        }
+        break;
+      }
+
+      case 'sitting_down': {
+        const p = Math.min(1, a.phaseTime / STAND_SIT_DURATION_S);
+        a.standBlend = 1 - p;
+        a.x = standPoint[0] + (chairPos[0] - standPoint[0]) * p;
+        a.y = standPoint[1] + (chairPos[1] - standPoint[1]) * p;
+        a.z = standPoint[2] + (chairPos[2] - standPoint[2]) * p;
+        a.yaw += shortestAngleDiff(a.yaw, deskYaw) * Math.min(1, dt * 10);
+        if (p >= 1) {
+          a.phase = 'seated_idle';
+          a.phaseTime = 0;
+        }
+        break;
+      }
+    }
+
+    // Publish live floor coordinates for multi-employee collision avoidance
+    sharedPositions.current[id] = { x: a.x, z: a.z };
+
+    if (groupRef.current) {
+      groupRef.current.position.set(a.x, a.y, a.z);
+      groupRef.current.rotation.y = a.yaw;
+    }
+
+    // Update pose ref (zero React re-renders)
+    const workingAtDesk = Boolean(liveDirective && liveDirective.targetKind === 'desk');
+    poseRef.current.phase = a.phase;
+    poseRef.current.activity = a.directive?.activity ?? liveDirective?.activity ?? 'coding';
+    poseRef.current.standBlend = a.standBlend;
+    poseRef.current.walkSpeed = walkSpeedNorm;
+    poseRef.current.workingAtDesk = workingAtDesk;
+
+    // Sync lightweight UI badge/path state only when phase or label changes
+    const taskLabel = a.directive?.label ?? (workingAtDesk ? liveDirective?.label ?? null : null);
+    const showPath = a.phase === 'walking_to_resource' || a.phase === 'walking_back';
+    const badgeKey = `${a.phase}|${taskLabel ?? ''}|${a.completedBanner ?? ''}|${showPath ? a.waypoints.length : 0}`;
+    if (badgeKey !== lastBadgeKey.current) {
+      lastBadgeKey.current = badgeKey;
+      setBadgeState({
+        phase: a.phase,
+        taskLabel,
+        completedLabel: a.completedBanner,
+        pathPoints:
+          showPath && a.waypoints.length >= 2
+            ? a.waypoints.map((pt) => [pt.x, OFFICE_FLOOR_Y + 0.035, pt.z])
+            : null,
+        pathColor: a.directive?.targetKind === 'meeting' ? DELEGATION_COLOR : MODULE_COLOR,
       });
     }
-    return built;
-  }, [edgeTopology, layout]);
+  });
 
-  useEffect(() =>
-    useTelemetryStore.subscribe((s, prev) => {
-      if (s.packets === prev.packets) return;
-      const fresh = s.packets.filter((p) => !seen.current.has(p.key));
-      if (fresh.length === 0) return;
-      fresh.forEach((p) => seen.current.add(p.key));
-      if (seen.current.size > 2000) seen.current = new Set(s.packets.map((p) => p.key));
-      const added = fresh.map((p) => toTrip(p, layoutRef.current)).filter((t): t is Trip => !!t);
-      if (added.length) setTrips((cur) => [...cur, ...added].slice(-MAX_TRIPS));
-    }), []);
+  if (!agent) return null;
+  const style = STATE_STYLES[agent.state];
+  const role = agentRole(id);
+  const isWorking =
+    badgeState.phase !== 'seated_idle' ||
+    agent.state === 'thinking' ||
+    agent.state === 'tool_execution' ||
+    agent.state === 'running' ||
+    agent.state === 'waiting';
+  const showTag = showLabels || hovered || selected || isWorking || agent.state === 'error';
 
-  const finish = useCallback((key: string) => setTrips((cur) => cur.filter((t) => t.key !== key)), []);
-
-  const activeByEdge = useMemo(() => {
-    const map = new Map<string, Trip>();
-    for (const t of trips) map.set(t.edgeId, t);
-    return map;
-  }, [trips]);
+  const onClick = (e: ThreeEvent<MouseEvent>) => {
+    e.stopPropagation();
+    selectAgent(id, 'office');
+  };
+  const hover = (on: boolean) => (e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation();
+    document.body.style.cursor = on ? 'pointer' : '';
+    setHovered(on);
+  };
 
   return (
     <group>
-      {routes.map((route) => (
-        <CommunicationPathway key={route.id} route={route} activeTrip={activeByEdge.get(route.id)} />
-      ))}
-      {trips.map((t) => (
-        <Courier key={t.key} trip={t} onDone={finish} />
+      {/* Subtle floor walking-path breadcrumb shown only while employee is actively walking to a real task */}
+      {badgeState.pathPoints && (
+        <Line
+          points={badgeState.pathPoints}
+          color={badgeState.pathColor}
+          lineWidth={2}
+          dashed
+          dashSize={0.28}
+          gapSize={0.18}
+          transparent
+          opacity={0.55}
+        />
+      )}
+
+      <group
+        ref={groupRef}
+        position={chairPos}
+        rotation={[0, deskYaw, 0]}
+        onClick={onClick}
+        onDoubleClick={onClick}
+        onPointerOver={hover(true)}
+        onPointerOut={hover(false)}
+      >
+        <HumanCharacter appearance={appearance} poseRef={poseRef} />
+
+        {showTag && (
+          <Html position={[0, 1.88, 0]} center distanceFactor={12} zIndexRange={[25, 0]} style={{ pointerEvents: 'none' }}>
+            <div
+              className={`office-tag flex min-w-[146px] max-w-[220px] flex-col rounded-xl border px-2.5 py-1.5 shadow-lg backdrop-blur-md transition-all ${
+                selected
+                  ? 'border-blue-500/80 bg-white/95 text-slate-900'
+                  : 'border-stone-300/90 bg-white/92 text-slate-800'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate text-[11.5px] font-semibold text-slate-900">
+                  {appearance.displayFirstName} · <span className="font-mono text-[10.5px] text-slate-600">{agent.id}</span>
+                </span>
+                <span className="rounded bg-stone-100 px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wider text-stone-600">
+                  {role}
+                </span>
+              </div>
+              <div className="mt-0.5 flex items-center justify-between gap-2 text-[10.5px]">
+                <span className="flex items-center gap-1 font-medium text-slate-700">
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: style.color }} />
+                  {badgeState.phase === 'walking_to_resource'
+                    ? 'Walking to resource'
+                    : badgeState.phase === 'interacting'
+                      ? 'Working at resource'
+                      : badgeState.phase === 'completing'
+                        ? 'Completed'
+                        : badgeState.phase === 'walking_back'
+                          ? 'Returning to desk'
+                          : style.label}
+                </span>
+                <span className="font-mono text-[9.5px] text-slate-500">
+                  {agent.toolCallCount} tools · {formatCount(agent.tokens.total)} tok
+                </span>
+              </div>
+              {(badgeState.taskLabel || badgeState.completedLabel) && (
+                <div
+                  className={`mt-0.5 truncate border-t border-stone-200 pt-0.5 font-mono text-[9.5px] ${
+                    badgeState.completedLabel ? 'font-semibold text-emerald-700' : 'text-blue-700'
+                  }`}
+                >
+                  {badgeState.completedLabel ? `✓ ${badgeState.completedLabel}` : `→ ${badgeState.taskLabel}`}
+                </div>
+              )}
+            </div>
+          </Html>
+        )}
+      </group>
+    </group>
+  );
+});
+
+function EmployeeWorkforceImpl({ layout, showLabels = false }: { layout: OfficeLayout; showLabels?: boolean }) {
+  const navGrid = useMemo(() => buildNavGrid(layout), [layout]);
+  const sharedPositions = useRef<Record<string, Point2D>>({});
+  const agentIds = useMemo(() => Object.keys(layout.desks), [layout.desks]);
+
+  return (
+    <group>
+      {agentIds.map((id, idx) => (
+        <HumanEmployeeActor
+          key={id}
+          id={id}
+          layout={layout}
+          navGrid={navGrid}
+          sharedPositions={sharedPositions}
+          showLabels={showLabels}
+          indexSeed={idx + 1}
+        />
       ))}
     </group>
   );
 }
 
-export const Couriers = memo(CouriersImpl);
+export const Couriers = memo(EmployeeWorkforceImpl);
 
-/** For the legend: the two courier colours. */
-export const COURIER_COLORS = { delegation: DELEGATION, module: MODULE };
+/** Legend colors for active walking paths (team collaboration vs resource visit). */
+export const COURIER_COLORS = { delegation: DELEGATION_COLOR, module: MODULE_COLOR };
+
 
