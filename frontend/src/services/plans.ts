@@ -42,6 +42,10 @@ export interface PlanStatus {
   allowed_connectors: string[];
   allow_byok: boolean;
   usage: PlanUsage;
+  subscription_status?: 'active' | 'expired' | 'cancelled';
+  plan_started_at?: number;
+  plan_expires_at?: number;
+  is_expired?: boolean;
 }
 
 export async function getPlans(): Promise<PlanSummary[]> {
@@ -71,6 +75,22 @@ export async function choosePlan(planId: string): Promise<PlanStatus> {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.detail || `Could not switch plan (${res.status})`);
   return data as PlanStatus;
+}
+
+export async function simulateExpiration(): Promise<void> {
+  const res = await fetch('/api/subscription/simulate-expiration', { method: 'POST' });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || 'Could not simulate plan expiration');
+  }
+}
+
+export async function resetStarterTrial(): Promise<void> {
+  const res = await fetch('/api/subscription/reset-trial', { method: 'POST' });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || 'Could not reset starter trial');
+  }
 }
 
 // --- plan-compliance report (lead-presentable: what was built vs. what the plan allows) ----------

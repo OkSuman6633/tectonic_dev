@@ -31,6 +31,27 @@ from .tools.memory import (
 from .tools.review import review_code, review_design
 from .tools.web_search import web_search
 from .tracing import TRACE_CALLBACKS
+from google.adk.tools.google_search_tool import (
+    GoogleSearchTool,
+    is_gemini_model,
+    is_gemini_model_id_check_disabled,
+    _is_managed_agent,
+)
+
+
+class AdaptiveGoogleSearchTool(GoogleSearchTool):
+    """Google Search tool enabled by default for Gemini models, and safely bypassed for non-Gemini models."""
+
+    def __init__(self):
+        super().__init__(bypass_multi_tools_limit=True)
+
+    async def process_llm_request(self, *, tool_context=None, llm_request) -> None:
+        if is_gemini_model(llm_request.model) or is_gemini_model_id_check_disabled() or _is_managed_agent(llm_request):
+            await super().process_llm_request(tool_context=tool_context, llm_request=llm_request)
+        else:
+            # Safely skip for non-Gemini models so they use DuckDuckGo web_search
+            pass
+
 
 try:  # shared core-module runtime (tectonic_runtime/); the Builder still runs without it
     from tectonic_runtime.adk_tools import builder_tools
@@ -98,6 +119,7 @@ root_agent = LlmAgent(
         read_text_file,
         list_files,
         web_search,
+        AdaptiveGoogleSearchTool(),
         *builder_tools(),
     ],
     **TRACE_CALLBACKS,

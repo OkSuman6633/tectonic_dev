@@ -316,6 +316,7 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
       codeReview: resp.codeReview,
       autopilot: resp.autopilot,
       images: resp.images,
+      webSearchResults: resp.webSearchResults,
     };
     set((state) => ({
       // A question routed to an existing agent belongs to that agent (deleted together with it).

@@ -30,6 +30,7 @@ import { StreamingAgentDisplay } from './StreamingAgentDisplay';
 import { StreamingCodePanel } from '../StreamingCodePanel';
 import { AutopilotAnswerCard, IdeasCard, ReviewCard } from './ReviewCards';
 import { ConnectorNoticeCard } from '../connectors/ConnectorNoticeCard';
+import { WebSearchResultsCard } from './WebSearchResultsCard';
 import type { ChatMessage } from '../../types/agent';
 
 const AUTOPILOT_KEY = 'tectonic-autopilot';
@@ -349,6 +350,7 @@ export const SimplifiedChat: React.FC = () => {
                         )}
 
                         <GeneratedImages images={msg.images} />
+                        {msg.webSearchResults && <WebSearchResultsCard data={msg.webSearchResults} />}
                         {msg.autopilot && <AutopilotAnswerCard run={msg.autopilot} />}
                         {msg.designIdeas && <IdeasCard ideas={msg.designIdeas} />}
                         {msg.designReview && <ReviewCard review={msg.designReview} />}

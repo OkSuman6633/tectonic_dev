@@ -1,0 +1,385 @@
+"""Local persistence layer: SQLite database and repository pattern.
+
+Replaces loose json files with a thread-safe local SQLite database (tectonic.db),
+providing a clean repository abstraction layer ready for PostgreSQL/cloud migration.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import sqlite3
+import threading
+import time
+from pathlib import Path
+from typing import Any
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+_db_lock = threading.RLock()
+_local = threading.local()
+
+
+def data_dir() -> Path:
+    raw = os.getenv("TECTONIC_DATA_DIR")
+    path = Path(raw) if raw else PROJECT_ROOT / "data"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def get_db_path() -> Path:
+    return data_dir() / "tectonic.db"
+
+
+def get_connection() -> sqlite3.Connection:
+    """Thread-local SQLite connection with WAL mode and foreign keys enabled."""
+    db_file = str(get_db_path())
+    conn = getattr(_local, "connection", None)
+    conn_path = getattr(_local, "connection_path", None)
+
+    if conn is None or conn_path != db_file:
+        conn = sqlite3.connect(db_file, timeout=20.0, check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode = WAL;")
+        conn.execute("PRAGMA synchronous = NORMAL;")
+        conn.execute("PRAGMA foreign_keys = ON;")
+        _local.connection = conn
+        _local.connection_path = db_file
+
+    return conn
+
+
+def init_db() -> None:
+    """Initialize schema tables and run legacy file migrations."""
+    with _db_lock:
+        conn = get_connection()
+        with conn:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS users (
+                    id TEXT PRIMARY KEY,
+                    username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+                    email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+                    password_hash TEXT NOT NULL,
+                    salt TEXT NOT NULL DEFAULT '',
+                    is_admin INTEGER NOT NULL DEFAULT 0,
+                    created_at REAL NOT NULL,
+                    updated_at REAL NOT NULL
+                );
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS subscriptions (
+                    id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL UNIQUE,
+                    plan_id TEXT NOT NULL DEFAULT 'starter',
+                    status TEXT NOT NULL DEFAULT 'active',
+                    started_at REAL NOT NULL,
+                    expires_at REAL NOT NULL,
+                    created_at REAL NOT NULL,
+                    updated_at REAL NOT NULL,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                );
+                """
+            )
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id);")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_subscriptions_expires_at ON subscriptions(expires_at);")
+
+        _migrate_legacy_data(conn)
+
+
+def _migrate_legacy_data(conn: sqlite3.Connection) -> None:
+    """Migrate legacy users.json and plans.json to SQLite if present."""
+    users_json_path = data_dir() / "users.json"
+    plans_json_path = data_dir() / "plans.json"
+
+    plans_data: dict[str, str] = {}
+    if plans_json_path.exists():
+        try:
+            plans_data = json.loads(plans_json_path.read_text(encoding="utf-8"))
+        except Exception:
+            plans_data = {}
+
+    if users_json_path.exists():
+        try:
+            users_dict = json.loads(users_json_path.read_text(encoding="utf-8"))
+            if isinstance(users_dict, dict):
+                now = time.time()
+                for key, u in users_dict.items():
+                    if not isinstance(u, dict) or "id" not in u:
+                        continue
+                    user_id = u["id"]
+                    username = u.get("username", key)
+                    email = u.get("email") or f"{username.lower()}@tectonic.local"
+                    pw_hash = u.get("hash", "")
+                    salt = u.get("salt", "")
+                    is_admin = 1 if u.get("first") else 0
+                    created_at = float(u.get("created", now))
+
+                    # Check if user already in DB
+                    cur = conn.execute("SELECT id FROM users WHERE id = ?", (user_id,))
+                    if not cur.fetchone():
+                        with conn:
+                            conn.execute(
+                                """
+                                INSERT INTO users (id, username, email, password_hash, salt, is_admin, created_at, updated_at)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                """,
+                                (user_id, username, email, pw_hash, salt, is_admin, created_at, now),
+                            )
+
+                            # Assign subscription: existing plan from plans.json, else Starter
+                            user_plan = plans_data.get(user_id, "starter")
+                            # If plan is starter, grant 7 days from created_at or now
+                            expires_at = created_at + 7 * 86400 if user_plan == "starter" else now + 30 * 86400
+                            sub_status = "active" if expires_at > now else "expired"
+                            sub_id = f"sub_{user_id}"
+
+                            conn.execute(
+                                """
+                                INSERT OR IGNORE INTO subscriptions
+                                (id, user_id, plan_id, status, started_at, expires_at, created_at, updated_at)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                """,
+                                (sub_id, user_id, user_plan, sub_status, created_at, expires_at, created_at, now),
+                            )
+        except Exception:
+            pass  # Fail-safe: don't crash on corrupted legacy json
+
+
+# --- UserRepository -------------------------------------------------------------------------------
+class UserRepository:
+    @staticmethod
+    def get_by_id(user_id: str) -> dict[str, Any] | None:
+        init_db()
+        conn = get_connection()
+        cur = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+        row = cur.fetchone()
+        return dict(row) if row else None
+
+    @staticmethod
+    def get_by_username(username: str) -> dict[str, Any] | None:
+        init_db()
+        conn = get_connection()
+        cur = conn.execute("SELECT * FROM users WHERE LOWER(username) = LOWER(?)", (username.strip(),))
+        row = cur.fetchone()
+        return dict(row) if row else None
+
+    @staticmethod
+    def get_by_email(email: str) -> dict[str, Any] | None:
+        init_db()
+        conn = get_connection()
+        cur = conn.execute("SELECT * FROM users WHERE LOWER(email) = LOWER(?)", (email.strip(),))
+        row = cur.fetchone()
+        return dict(row) if row else None
+
+    @staticmethod
+    def get_by_login(identifier: str) -> dict[str, Any] | None:
+        """Finds user by either username or email."""
+        clean = (identifier or "").strip()
+        if "@" in clean:
+            user = UserRepository.get_by_email(clean)
+            if user:
+                return user
+        return UserRepository.get_by_username(clean)
+
+    @staticmethod
+    def count() -> int:
+        init_db()
+        conn = get_connection()
+        cur = conn.execute("SELECT COUNT(*) AS total FROM users")
+        row = cur.fetchone()
+        return int(row["total"]) if row else 0
+
+    @staticmethod
+    def create(
+        user_id: str,
+        username: str,
+        email: str,
+        password_hash: str,
+        salt: str = "",
+        is_admin: bool = False,
+        created_at: float | None = None,
+    ) -> dict[str, Any]:
+        init_db()
+        now = time.time()
+        created = created_at if created_at is not None else now
+        conn = get_connection()
+        with _db_lock:
+            with conn:
+                conn.execute(
+                    """
+                    INSERT INTO users (id, username, email, password_hash, salt, is_admin, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (user_id, username.strip(), email.strip(), password_hash, salt, 1 if is_admin else 0, created, now),
+                )
+        user = UserRepository.get_by_id(user_id)
+        if user is None:
+            raise RuntimeError(f"Failed to create user record for {user_id}")
+        return user
+
+    @staticmethod
+    def update_password(user_id: str, password_hash: str, salt: str = "") -> None:
+        init_db()
+        conn = get_connection()
+        now = time.time()
+        with _db_lock:
+            with conn:
+                conn.execute(
+                    "UPDATE users SET password_hash = ?, salt = ?, updated_at = ? WHERE id = ?",
+                    (password_hash, salt, now, user_id),
+                )
+
+    @staticmethod
+    def list_all() -> list[dict[str, Any]]:
+        init_db()
+        conn = get_connection()
+        cur = conn.execute("SELECT * FROM users ORDER BY created_at ASC")
+        return [dict(r) for r in cur.fetchall()]
+
+
+# --- SubscriptionRepository -----------------------------------------------------------------------
+class SubscriptionRepository:
+    STARTER_TRIAL_DAYS = 7
+    STANDARD_PLAN_DAYS = 30
+
+    @staticmethod
+    def get_by_user_id(user_id: str | None) -> dict[str, Any] | None:
+        if not user_id:
+            return None
+        init_db()
+        conn = get_connection()
+        cur = conn.execute("SELECT * FROM subscriptions WHERE user_id = ?", (user_id,))
+        row = cur.fetchone()
+        if not row:
+            return None
+        sub = dict(row)
+
+        # Check for automatic expiration
+        now = time.time()
+        if sub["status"] == "active" and now >= sub["expires_at"]:
+            SubscriptionRepository.update_status(user_id, "expired")
+            sub["status"] = "expired"
+
+        return sub
+
+    @staticmethod
+    def create_starter(user_id: str, started_at: float | None = None, duration_days: int = STARTER_TRIAL_DAYS) -> dict[str, Any]:
+        """Provisions the default 7-day Starter subscription for newly registered accounts."""
+        init_db()
+        if UserRepository.get_by_id(user_id) is None:
+            UserRepository.create(
+                user_id=user_id,
+                username=user_id,
+                email=f"{user_id}@tectonic.local",
+                password_hash="",
+            )
+        now = time.time()
+        start = started_at if started_at is not None else now
+        expires = start + duration_days * 86400
+        sub_id = f"sub_{user_id}"
+
+        conn = get_connection()
+        with _db_lock:
+            with conn:
+                conn.execute(
+                    """
+                    INSERT INTO subscriptions (id, user_id, plan_id, status, started_at, expires_at, created_at, updated_at)
+                    VALUES (?, ?, 'starter', 'active', ?, ?, ?, ?)
+                    ON CONFLICT(user_id) DO UPDATE SET
+                        plan_id = 'starter',
+                        status = 'active',
+                        started_at = excluded.started_at,
+                        expires_at = excluded.expires_at,
+                        updated_at = excluded.updated_at
+                    """,
+                    (sub_id, user_id, start, expires, now, now),
+                )
+        sub = SubscriptionRepository.get_by_user_id(user_id)
+        if sub is None:
+            raise RuntimeError(f"Failed to create subscription record for {user_id}")
+        return sub
+
+    @staticmethod
+    def set_plan(
+        user_id: str,
+        plan_id: str,
+        duration_days: int = STANDARD_PLAN_DAYS,
+        status: str = "active",
+    ) -> dict[str, Any]:
+        """Modular plan upgrade handler.
+
+        Enables selecting/switching plans and is ready for payment gateway integration
+        (Stripe/Razorpay webhook callbacks).
+        """
+        init_db()
+        if UserRepository.get_by_id(user_id) is None:
+            UserRepository.create(
+                user_id=user_id,
+                username=user_id,
+                email=f"{user_id}@tectonic.local",
+                password_hash="",
+            )
+        now = time.time()
+        days = SubscriptionRepository.STARTER_TRIAL_DAYS if plan_id.lower() == "starter" else duration_days
+        expires = now + days * 86400
+        sub_id = f"sub_{user_id}"
+
+        conn = get_connection()
+        with _db_lock:
+            with conn:
+                conn.execute(
+                    """
+                    INSERT INTO subscriptions (id, user_id, plan_id, status, started_at, expires_at, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(user_id) DO UPDATE SET
+                        plan_id = excluded.plan_id,
+                        status = excluded.status,
+                        started_at = excluded.started_at,
+                        expires_at = excluded.expires_at,
+                        updated_at = excluded.updated_at
+                    """,
+                    (sub_id, user_id, plan_id.lower(), status, now, expires, now, now),
+                )
+        sub = SubscriptionRepository.get_by_user_id(user_id)
+        if sub is None:
+            raise RuntimeError(f"Failed to update subscription record for {user_id}")
+        return sub
+
+    @staticmethod
+    def update_status(user_id: str, status: str) -> None:
+        init_db()
+        conn = get_connection()
+        now = time.time()
+        with _db_lock:
+            with conn:
+                conn.execute(
+                    "UPDATE subscriptions SET status = ?, updated_at = ? WHERE user_id = ?",
+                    (status, now, user_id),
+                )
+
+    @staticmethod
+    def simulate_expiration(user_id: str) -> dict[str, Any]:
+        """Testing utility: sets subscription expiration to 1 minute in the past."""
+        init_db()
+        past = time.time() - 60
+        conn = get_connection()
+        with _db_lock:
+            with conn:
+                conn.execute(
+                    "UPDATE subscriptions SET status = 'expired', expires_at = ?, updated_at = ? WHERE user_id = ?",
+                    (past, time.time(), user_id),
+                )
+        sub = SubscriptionRepository.get_by_user_id(user_id)
+        if sub is None:
+            raise RuntimeError(f"Failed to fetch subscription for {user_id}")
+        return sub
+
+    @staticmethod
+    def reset_starter_trial(user_id: str) -> dict[str, Any]:
+        """Testing utility: restores a fresh 7-day active Starter subscription."""
+        return SubscriptionRepository.create_starter(user_id)
