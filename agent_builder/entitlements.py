@@ -694,8 +694,7 @@ def public_plans(user_id: str | None) -> list[dict[str, Any]]:
             else:
                 p["available"] = False
                 p["unavailable_reason"] = (
-                    "Available only for admin accounts (username containing 'admin', "
-                    "e.g. 'data admin', 'admin portal', 'admin account')."
+                    "Available only for Owner accounts."
                 )
         result.append(p)
     return result
