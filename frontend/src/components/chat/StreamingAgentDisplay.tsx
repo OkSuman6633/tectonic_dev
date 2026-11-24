@@ -46,6 +46,7 @@ const TOOL_LABELS: Record<string, string> = {
   ask_agent: 'Asking agent…',
   edit_agent: 'Editing the agent',
   delete_agent: 'Deleting the agent',
+  web_search: 'Searching the web',
 };
 
 const labelFor = (call: ToolCallRecord): string => {
@@ -54,6 +55,7 @@ const labelFor = (call: ToolCallRecord): string => {
   const detail = p && typeof p === 'object'
     ? (call.toolName === 'ask_agent' && typeof p.agent === 'string' ? `@${p.agent}`
       : call.toolName === 'write_project_file' && typeof p.relative_path === 'string' ? String(p.relative_path).split('/').pop()
+      : call.toolName === 'web_search' && typeof p.query === 'string' ? `"${p.query}"`
         : '')
     : '';
   return detail ? `${base.replace(/…$/, '')} ${detail}` : base;

@@ -16,7 +16,8 @@ import {
   Sparkles,
   MessageSquare,
   Play,
-  Wand2
+  Wand2,
+  Square,
 } from 'lucide-react';
 import { useAgentStudioStore } from '../../store/useAgentStudioStore';
 import { DecisionCardGroup } from './DecisionCardGroup';
@@ -125,6 +126,7 @@ export const ArchitectChat: React.FC = () => {
   const {
     chatMessages,
     sendArchitectMessage,
+    stopExecution,
     isChatLoading,
     spec,
     hudCollapsed,
@@ -206,6 +208,11 @@ export const ArchitectChat: React.FC = () => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Escape' && (isChatLoading || isGeneratingAgent)) {
+      e.preventDefault();
+      stopExecution();
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       handleSubmit(e);
@@ -539,6 +546,20 @@ export const ArchitectChat: React.FC = () => {
         {/* AI Agent Processing Display */}
         {(isChatLoading || isGeneratingAgent) && (
           <div className="space-y-3 animate-in fade-in duration-300">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-mono font-medium uppercase tracking-wider text-sky-700 dark:text-sky-300">
+                Architect is active...
+              </span>
+              <button
+                type="button"
+                onClick={stopExecution}
+                className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 border border-rose-500/35 hover:border-rose-500/60 backdrop-blur-md shadow-sm transition-all active:scale-95"
+                title="Stop execution and free chat (Esc)"
+              >
+                <Square className="h-2.5 w-2.5 fill-current" />
+                <span>Stop</span>
+              </button>
+            </div>
             <StreamingAgentDisplay
               isActive={isChatLoading || isGeneratingAgent}
               onPhaseChange={setCurrentAgentPhase}
@@ -621,14 +642,25 @@ export const ArchitectChat: React.FC = () => {
                 : 'Describe an agent to build, or type @ to pick one…'}
             className="typo-body w-full resize-none bg-white/85 dark:bg-slate-950/70 backdrop-blur-xl border border-slate-900/12 dark:border-white/15 rounded-2xl pl-9 pr-10 py-2.5 text-slate-950 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:border-sky-500/70 focus:ring-2 focus:ring-sky-500/25 transition-all min-h-[42px] shadow-[inset_0_1px_2px_rgba(15,23,42,0.06)] dark:shadow-inner"
           />
-          <button
-            type="submit"
-            disabled={(!inputVal.trim() && attach.files.length === 0) || isChatLoading}
-            className="absolute bottom-[7px] right-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold transition-all disabled:opacity-30 disabled:hover:from-sky-500 disabled:hover:to-blue-600 shadow-md shadow-sky-500/35 active:scale-95"
-            title={autopilot && !target ? 'Send (autopilot)' : 'Send'}
-          >
-            <Send className="h-3.5 w-3.5" />
-          </button>
+          {isChatLoading || isGeneratingAgent ? (
+            <button
+              type="button"
+              onClick={stopExecution}
+              className="absolute bottom-[7px] right-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-rose-500 hover:bg-rose-600 text-white font-bold transition-all shadow-md shadow-rose-500/35 active:scale-95 group"
+              title="Stop execution and free chat (Esc)"
+            >
+              <Square className="h-3 w-3 fill-current group-hover:scale-90 transition-transform" />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={!inputVal.trim() && attach.files.length === 0}
+              className="absolute bottom-[7px] right-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold transition-all disabled:opacity-30 disabled:hover:from-sky-500 disabled:hover:to-blue-600 shadow-md shadow-sky-500/35 active:scale-95"
+              title={autopilot && !target ? 'Send (autopilot)' : 'Send'}
+            >
+              <Send className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
       </form>
     </div>

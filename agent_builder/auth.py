@@ -1,12 +1,11 @@
 """Username + password accounts and the request gate that keeps every user in their own workspace.
 
-* Accounts live in ``<TECTONIC_DATA_DIR>/users.json`` (PBKDF2-SHA256 password hashes, never plain text).
-* A sign-in returns a signed bearer token (HMAC-SHA256, 7 days). Set ``TECTONIC_AUTH_SECRET`` so tokens
+* Accounts are stored in a local SQLite database (tectonic.db) using bcrypt password hashing.
+* Each registration provisions a 7-day Starter subscription trial out of the box.
+* Sign-in returns a signed JWT / bearer token (7 days). Set ``TECTONIC_AUTH_SECRET`` so tokens
   survive restarts and redeploys; without it a secret is generated into the data folder.
-* ``AuthMiddleware`` (pure ASGI) authenticates every API / ADK / WebSocket request, binds the user as the
-  current workspace (see workspace.py) and *rewrites* the ADK user id in ``/run`` bodies and
-  ``/apps/<app>/users/<user>/...`` paths to the signed-in user, so nobody can read or drive another
-  user's sessions, and only their own generated apps can be run.
+* ``AuthMiddleware`` authenticates requests, enforces 7-day subscription expiration,
+  binds the current workspace, and scopes execution.
 """
 
 from __future__ import annotations
@@ -23,12 +22,16 @@ import time
 from pathlib import Path
 from typing import Any
 
+import bcrypt
+
+from .db import SubscriptionRepository, UserRepository, data_dir as _get_data_dir, init_db
 from .shared_libraries.constants import PROJECT_ROOT
 from .workspace import as_user, is_user_id, owner_of_app
 
 TOKEN_TTL_SECONDS = 7 * 24 * 3600
 _PBKDF2_ROUNDS = 240_000
 _USERNAME = re.compile(r"^[A-Za-z0-9_.-]{3,32}$")
+_EMAIL = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
 _MAX_FAILURES, _LOCKOUT_SECONDS = 8, 300
 BUILDER_APP = "agent_builder"
 
@@ -39,10 +42,7 @@ class AuthError(ValueError):
 
 # --- account store --------------------------------------------------------------------------------
 def data_dir() -> Path:
-    raw = os.getenv("TECTONIC_DATA_DIR")
-    path = Path(raw) if raw else PROJECT_ROOT / "data"
-    path.mkdir(parents=True, exist_ok=True)
-    return path
+    return _get_data_dir()
 
 
 _lock = threading.Lock()
@@ -53,67 +53,147 @@ def _users_file() -> Path:
     return data_dir() / "users.json"
 
 
-def _load() -> dict[str, dict]:
-    try:
-        return json.loads(_users_file().read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return {}
-
-
-def _save(users: dict[str, dict]) -> None:
-    tmp = _users_file().with_suffix(".tmp")
-    tmp.write_text(json.dumps(users, indent=2), encoding="utf-8")
-    tmp.replace(_users_file())
-
-
-def _hash(password: str, salt: bytes) -> str:
+def _hash_pbkdf2(password: str, salt: bytes) -> str:
     return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, _PBKDF2_ROUNDS).hex()
 
 
+def _hash_bcrypt(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def _sync_legacy_users_json(user: dict) -> None:
+    """Keep legacy users.json synchronized for backward compatibility with external tools/tests."""
+    try:
+        path = _users_file()
+        current: dict[str, Any] = {}
+        if path.exists():
+            try:
+                current = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                current = {}
+        uname = user["username"].lower()
+        current[uname] = {
+            "id": user["id"],
+            "username": user["username"],
+            "email": user.get("email", ""),
+            "salt": user.get("salt", ""),
+            "hash": user.get("password_hash", ""),
+            "created": user.get("created_at", time.time()),
+            "first": bool(user.get("is_admin")),
+        }
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(current, indent=2), encoding="utf-8")
+        tmp.replace(path)
+    except Exception:
+        pass
+
+
 def _public(user: dict) -> dict:
-    return {"id": user["id"], "username": user["username"], "admin": is_admin(user)}
+    return {
+        "id": user["id"],
+        "username": user["username"],
+        "email": user.get("email", ""),
+        "admin": is_admin(user),
+    }
 
 
 def is_admin(user: dict) -> bool:
     """Admins (TECTONIC_ADMINS=alice,bob; by default the first account) may change server-wide settings."""
     admins = {u.strip().lower() for u in os.getenv("TECTONIC_ADMINS", "").split(",") if u.strip()}
-    return user["username"].lower() in admins if admins else bool(user.get("first"))
+    if admins:
+        return user["username"].lower() in admins
+    return bool(user.get("is_admin") or user.get("admin") or user.get("first"))
 
 
-def register(username: str, password: str) -> dict:
+def register(username: str, password: str, email: str | None = None) -> dict:
     username = (username or "").strip()
     if not _USERNAME.match(username):
         raise AuthError("Username must be 3-32 characters: letters, digits, '_', '.' or '-'.")
     if len(password or "") < 8:
         raise AuthError("Password must be at least 8 characters.")
+
+    clean_email = (email or "").strip()
+    if clean_email:
+        if not _EMAIL.match(clean_email):
+            raise AuthError("Please provide a valid email address.")
+    else:
+        clean_email = f"{username.lower()}@tectonic.local"
+
+    init_db()
     with _lock:
-        users = _load()
-        if username.lower() in users:
+        if UserRepository.get_by_username(username):
             raise AuthError("That username is taken.")
-        salt = secrets.token_bytes(16)
-        user = {"id": f"u_{secrets.token_hex(6)}", "username": username, "salt": salt.hex(), "hash": _hash(password, salt),
-                "created": time.time(), "first": not users}
-        users[username.lower()] = user
-        _save(users)
+        if UserRepository.get_by_email(clean_email):
+            raise AuthError("An account with that email already exists.")
+
+        is_first = UserRepository.count() == 0
+        pw_hash = _hash_bcrypt(password)
+        salt = secrets.token_bytes(16).hex()
+        user_id = f"u_{secrets.token_hex(6)}"
+
+        user = UserRepository.create(
+            user_id=user_id,
+            username=username,
+            email=clean_email,
+            password_hash=pw_hash,
+            salt=salt,
+            is_admin=is_first,
+        )
+
+        # Automatic 7-Day Starter Trial assignment
+        SubscriptionRepository.create_starter(user_id)
+
+        _sync_legacy_users_json(user)
+
     return _public(user)
 
 
-def login(username: str, password: str) -> dict:
-    key = (username or "").strip().lower()
+def login(identifier: str, password: str) -> dict:
+    key = (identifier or "").strip().lower()
     now = time.time()
     recent = [t for t in _failures.get(key, []) if now - t < _LOCKOUT_SECONDS]
     if len(recent) >= _MAX_FAILURES:
         raise AuthError("Too many failed attempts. Try again in a few minutes.")
-    user = _load().get(key)
-    if user is None or not hmac.compare_digest(_hash(password or "", bytes.fromhex(user["salt"])), user["hash"]):
+
+    init_db()
+    user = UserRepository.get_by_login(key)
+
+    if user is None:
         _failures[key] = [*recent, now]
         raise AuthError("Wrong username or password.")
+
+    stored_hash = user.get("password_hash", "")
+    salt = user.get("salt", "")
+    verified = False
+
+    # Check bcrypt first
+    if stored_hash.startswith(("$2a$", "$2b$", "$2y$")):
+        try:
+            verified = bcrypt.checkpw(password.encode("utf-8"), stored_hash.encode("utf-8"))
+        except Exception:
+            verified = False
+    elif salt and len(stored_hash) == 64:
+        # Legacy PBKDF2 hash verification
+        legacy_hash = _hash_pbkdf2(password, bytes.fromhex(salt))
+        verified = hmac.compare_digest(legacy_hash, stored_hash)
+        if verified:
+            # Transparently upgrade to bcrypt
+            new_hash = _hash_bcrypt(password)
+            UserRepository.update_password(user["id"], new_hash, salt)
+            user["password_hash"] = new_hash
+
+    if not verified:
+        _failures[key] = [*recent, now]
+        raise AuthError("Wrong username or password.")
+
     _failures.pop(key, None)
     return _public(user)
 
 
 def get_user(user_id: str) -> dict | None:
-    return next((_public(u) for u in _load().values() if u["id"] == user_id), None)
+    init_db()
+    u = UserRepository.get_by_id(user_id)
+    return _public(u) if u else None
 
 
 # --- tokens ---------------------------------------------------------------------------------------
@@ -143,30 +223,78 @@ def _unb64(text: str) -> bytes:
 
 
 def issue_token(user: dict) -> str:
-    body = _b64(json.dumps({"u": user["id"], "exp": int(time.time()) + TOKEN_TTL_SECONDS}).encode())
-    return f"{body}.{_b64(hmac.new(_secret(), body.encode(), hashlib.sha256).digest())}"
+    """Issue a secure signed bearer token carrying user details and expiration."""
+    body = _b64(
+        json.dumps(
+            {
+                "u": user["id"],
+                "sub": user["id"],
+                "username": user["username"],
+                "admin": is_admin(user),
+                "exp": int(time.time()) + TOKEN_TTL_SECONDS,
+                "iat": int(time.time()),
+            }
+        ).encode()
+    )
+    sig = _b64(hmac.new(_secret(), body.encode(), hashlib.sha256).digest())
+    return f"{body}.{sig}"
 
 
 def verify_token(token: str | None) -> str | None:
     """The user id a token was issued to, or None if it is missing, forged or expired."""
-    try:
-        body, sig = (token or "").split(".", 1)
-        if not hmac.compare_digest(_unb64(sig), hmac.new(_secret(), body.encode(), hashlib.sha256).digest()):
-            return None
-        claims = json.loads(_unb64(body))
-    except (ValueError, TypeError):
+    if not token or not isinstance(token, str):
         return None
-    user_id = claims.get("u")
-    return user_id if is_user_id(user_id) and claims.get("exp", 0) > time.time() else None
+
+    parts = token.split(".")
+    # Support 2-part signed bearer token (body.signature)
+    if len(parts) == 2:
+        body, sig = parts
+        try:
+            expected_sig = _b64(hmac.new(_secret(), body.encode(), hashlib.sha256).digest())
+            if not hmac.compare_digest(sig, expected_sig):
+                return None
+            claims = json.loads(_unb64(body))
+            if claims.get("exp", 0) <= time.time():
+                return None
+            user_id = claims.get("u") or claims.get("sub")
+            if user_id and is_user_id(user_id):
+                return user_id
+        except Exception:
+            return None
+
+    # Support 3-part standard JWT (header.payload.signature)
+    elif len(parts) == 3:
+        try:
+            import jwt
+            claims = jwt.decode(token, _secret().decode("utf-8", errors="ignore"), algorithms=["HS256"])
+            user_id = claims.get("u") or claims.get("sub")
+            if user_id and is_user_id(user_id):
+                return user_id
+        except Exception:
+            return None
+
+    return None
 
 
 # --- request gate ---------------------------------------------------------------------------------
 # Paths that need a signed-in user; everything else is the public SPA, its assets and /auth/*.
-_PROTECTED = ("/api/", "/modules", "/directory", "/studio", "/connectors", "/media/", "/run", "/apps/", "/list-apps", "/ws/", "/auth/me",
-              "/dev-ui", "/debug", "/builder", "/agent-identity", "/eval", "/version")
-_ADK_PREFIXES = ("/run", "/apps/", "/list-apps", "/dev-ui", "/debug", "/builder", "/agent-identity", "/eval", "/version")
+_PROTECTED = (
+    "/api/", "/modules", "/directory", "/studio", "/connectors", "/media/",
+    "/run", "/apps/", "/list-apps", "/ws/", "/auth/me",
+    "/dev-ui", "/debug", "/builder", "/agent-identity", "/eval", "/version",
+)
+_ADK_PREFIXES = (
+    "/run", "/apps/", "/list-apps", "/dev-ui", "/debug", "/builder",
+    "/agent-identity", "/eval", "/version",
+)
 _SESSION_PATH = re.compile(r"^/apps/([^/]+)/users/([^/]+)(/.*)?$")
 _APP_INFO_PATH = re.compile(r"^/apps/([^/]+)/app-info$")
+
+# Routes permitted even when the account's subscription is expired (so the user can view & choose a plan)
+_EXPIRED_ALLOWED_PATHS = (
+    "/api/plans", "/api/plan", "/api/subscription", "/auth/me", "/auth/config",
+    "/api/env", "/health", "/healthz", "/api/web-search",
+)
 
 
 def _adk_allowed(path: str) -> bool:
@@ -189,8 +317,16 @@ def _token_from(scope: dict) -> str | None:
 
 async def _send_json(send, status: int, payload: dict) -> None:
     body = json.dumps(payload).encode()
-    await send({"type": "http.response.start", "status": status,
-                "headers": [(b"content-type", b"application/json"), (b"content-length", str(len(body)).encode())]})
+    await send(
+        {
+            "type": "http.response.start",
+            "status": status,
+            "headers": [
+                (b"content-type", b"application/json"),
+                (b"content-length", str(len(body)).encode()),
+            ],
+        }
+    )
     await send({"type": "http.response.body", "body": body})
 
 
@@ -207,9 +343,10 @@ async def _read_body(receive) -> bytes:
 
 
 class AuthMiddleware:
-    """Authenticates API calls and confines each one to the caller's workspace (see module docstring).
+    """Authenticates API calls and confines each one to the caller's workspace.
 
-    ``list_apps`` returns the caller's own generated app names (for ``/list-apps``)."""
+    Enforces 7-day Starter subscription expiration across all protected execution endpoints.
+    """
 
     def __init__(self, app, list_apps) -> None:
         self.app = app
@@ -222,14 +359,39 @@ class AuthMiddleware:
         if not path.startswith(_PROTECTED):
             return await self.app(scope, receive, send)
         if scope["type"] == "http" and scope.get("method") == "OPTIONS":
-            return await self.app(scope, receive, send)  # CORS preflight carries no credentials
+            return await self.app(scope, receive, send)
 
         user_id = verify_token(_token_from(scope))
         if user_id is None or get_user(user_id) is None:
             if scope["type"] == "websocket":
-                await receive()  # websocket.connect
+                await receive()
                 return await send({"type": "websocket.close", "code": 4401})
             return await _send_json(send, 401, {"detail": "Sign in required"})
+
+        # Check subscription expiration
+        sub = SubscriptionRepository.get_by_user_id(user_id)
+        if sub:
+            now = time.time()
+            is_expired = sub["status"] == "expired" or now >= sub["expires_at"]
+            if is_expired:
+                is_allowed_path = any(
+                    path == p or path.startswith(p + "/") or path.startswith(p + "?")
+                    for p in _EXPIRED_ALLOWED_PATHS
+                )
+                if not is_allowed_path:
+                    if scope["type"] == "websocket":
+                        await receive()
+                        return await send({"type": "websocket.close", "code": 4403})
+                    return await _send_json(
+                        send,
+                        403,
+                        {
+                            "code": "PLAN_EXPIRED",
+                            "detail": "Your 7-day Starter plan has expired. Please select a plan to continue.",
+                            "plan_id": sub.get("plan_id", "starter"),
+                            "expires_at": sub.get("expires_at"),
+                        },
+                    )
 
         if path.startswith(_ADK_PREFIXES) and not _adk_allowed(path):
             return await _send_json(send, 404, {"detail": "Not found"})
@@ -244,7 +406,6 @@ class AuthMiddleware:
                 if not may_use_app(app_name, user_id) or "/trigger/" in path:
                     return await _send_json(send, 403, {"detail": "Not your agent"})
                 if _SESSION_PATH.match(path) and match.group(2) != user_id:
-                    # Whatever user id the browser asked for, the session store only ever sees the signed-in one.
                     new_path = f"/apps/{app_name}/users/{user_id}{match.group(3) or ''}"
                     scope = {**scope, "path": new_path, "raw_path": new_path.encode()}
 

@@ -7,6 +7,7 @@ export const SearchProviderPicker: React.FC = () => {
   const [status, setStatus] = useState<WebSearchStatus | null>(null);
   const [open, setOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [pickerError, setPickerError] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   const load = () => {
@@ -16,7 +17,10 @@ export const SearchProviderPicker: React.FC = () => {
   useEffect(() => {
     load();
     const close = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setPickerError(null);
+      }
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
@@ -24,11 +28,12 @@ export const SearchProviderPicker: React.FC = () => {
 
   const choose = async (id: string) => {
     setBusyId(id);
+    setPickerError(null);
     try {
       setStatus(await setWebSearchProvider(id));
       setOpen(false);
-    } catch {
-      /* keep the previous selection */
+    } catch (err: any) {
+      setPickerError(err.message || 'Could not change provider');
     } finally {
       setBusyId(null);
     }
@@ -81,6 +86,11 @@ export const SearchProviderPicker: React.FC = () => {
               )}
             </button>
           ))}
+          {pickerError && (
+            <div className="mt-1 px-2 py-1 text-[11px] text-rose-500 bg-rose-500/10 rounded-lg">
+              {pickerError}
+            </div>
+          )}
         </div>
       )}
     </div>

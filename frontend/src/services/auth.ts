@@ -8,7 +8,15 @@
 export interface AuthUser {
   id: string;
   username: string;
+  email?: string;
   admin: boolean;
+}
+
+export interface UserSubscription {
+  plan_id: string;
+  status: 'active' | 'expired' | 'cancelled';
+  started_at: number;
+  expires_at: number;
 }
 
 interface StoredAuth {
@@ -71,6 +79,17 @@ export const installAuthFetch = () => {
     const res = await original(input, { ...init, headers });
     const path = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url, window.location.href).pathname;
     if (res.status === 401 && !path.startsWith('/auth/')) signOut();
+    if (res.status === 403) {
+      try {
+        const cloned = res.clone();
+        const data = await cloned.json();
+        if (data && data.code === 'PLAN_EXPIRED') {
+          window.dispatchEvent(new CustomEvent('tectonic:plan-expired', { detail: data }));
+        }
+      } catch {
+        /* ignore non-json error */
+      }
+    }
     return res;
   };
 };
@@ -104,11 +123,19 @@ export const verifySession = async (): Promise<boolean> => {
   }
 };
 
-export const signIn = async (mode: 'login' | 'register', username: string, password: string): Promise<AuthUser> => {
+export const signIn = async (
+  mode: 'login' | 'register',
+  identifier: string,
+  password: string,
+  email?: string
+): Promise<AuthUser> => {
+  const payload = mode === 'register'
+    ? { username: identifier, password, email: email?.trim() || undefined }
+    : { username: identifier, password };
   const res = await fetch(`/auth/${mode}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify(payload),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.detail || `Sign-in failed (${res.status})`);

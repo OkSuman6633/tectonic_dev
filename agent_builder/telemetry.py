@@ -239,6 +239,12 @@ class TelemetryPlugin(BasePlugin):
     # --- runs -------------------------------------------------------------------------------
     async def before_run_callback(self, *, invocation_context: Any) -> None:
         hub._loop = asyncio.get_running_loop()
+        try:
+            from .execution_manager import manager
+            sid = getattr(invocation_context, "session_id", None) or getattr(getattr(invocation_context, "session", None), "id", None)
+            manager.register_task(sid)
+        except Exception:
+            pass
         ent = _entitlements()
         if ent is not None:
             try:
@@ -296,6 +302,12 @@ class TelemetryPlugin(BasePlugin):
 
     # --- agents -----------------------------------------------------------------------------
     async def before_agent_callback(self, *, agent: Any, callback_context: Any) -> None:
+        try:
+            from .execution_manager import manager
+            sid = getattr(callback_context, "session_id", None) or getattr(getattr(callback_context, "session", None), "id", None)
+            manager.register_task(sid)
+        except Exception:
+            pass
         agent_id = agent.name
         if not hub.knows(agent_id):
             parent = getattr(agent, "parent_agent", None)
@@ -422,6 +434,12 @@ class TelemetryPlugin(BasePlugin):
 
     # --- tools ------------------------------------------------------------------------------
     async def before_tool_callback(self, *, tool: Any, tool_args: dict, tool_context: Any) -> None:
+        try:
+            from .execution_manager import manager
+            sid = getattr(tool_context, "session_id", None) or getattr(getattr(tool_context, "session", None), "id", None)
+            manager.register_task(sid)
+        except Exception:
+            pass
         agent_id = tool_context.agent_name
         call_id = tool_context.function_call_id or f"{agent_id}:{tool.name}:{time.time_ns()}"
         self._tool_started[call_id] = time.perf_counter()
