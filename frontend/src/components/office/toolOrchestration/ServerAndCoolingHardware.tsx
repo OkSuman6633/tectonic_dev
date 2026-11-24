@@ -83,6 +83,7 @@ export const EnterpriseBladeRack = memo(function EnterpriseBladeRack({
   secondaryLed = '#7DD3FC',
   accentStyle = 'cyan',
   hoodColor = '#475569',
+  isDark = true,
 }: {
   position: Vec3;
   rotation?: [number, number, number];
@@ -91,51 +92,62 @@ export const EnterpriseBladeRack = memo(function EnterpriseBladeRack({
   secondaryLed?: string;
   accentStyle?: 'cyan' | 'amber-vertical';
   hoodColor?: string;
+  isDark?: boolean;
 }) {
   const [w, h, d] = size;
   const faceTex = useMemo(
-    () => getEnterpriseRackFaceTexture(primaryLed, secondaryLed, accentStyle),
-    [primaryLed, secondaryLed, accentStyle],
+    () => getEnterpriseRackFaceTexture(primaryLed, secondaryLed, accentStyle, isDark),
+    [primaryLed, secondaryLed, accentStyle, isDark],
   );
+  const resolvedHood = isDark ? hoodColor : '#F5F7FA';
 
   return (
     <group position={position} rotation={rotation}>
       {/* Grounded Steel Plinth Base */}
       <mesh position={[0, 0.045, 0]} castShadow receiveShadow>
         <boxGeometry args={[w + 0.04, 0.09, d + 0.04]} />
-        <meshStandardMaterial color="#0A0F1A" roughness={0.45} metalness={0.78} />
+        <meshStandardMaterial color={isDark ? '#0A0F1A' : '#536B83'} roughness={isDark ? 0.45 : 0.36} metalness={isDark ? 0.78 : 0.72} />
       </mesh>
 
-      {/* Main Dark Gunmetal Structural Chassis */}
+      {/* Main Structural Chassis (Pearl Titanium #DCE4EB in light mode) */}
       <RoundedBox args={[w, h - 0.14, d]} radius={0.035} smoothness={2} position={[0, 0.09 + (h - 0.14) / 2, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color="#182132" roughness={0.34} metalness={0.82} />
+        <meshStandardMaterial color={isDark ? '#182132' : '#DCE4EB'} roughness={isDark ? 0.34 : 0.28} metalness={isDark ? 0.82 : 0.68} />
       </RoundedBox>
 
-      {/* Overhanging Brushed-Titanium Beveled Top Hood & Exhaust Louver Bed */}
+      {/* Frosted Steel Blue (#9EAFBF) Side Panels on Left & Right Flanks in light mode */}
+      {!isDark &&
+        [-1, 1].map((side) => (
+          <mesh key={`sp-${side}`} position={[side * (w / 2 + 0.002), 0.09 + (h - 0.16) / 2, 0]}>
+            <boxGeometry args={[0.008, h - 0.22, d - 0.1]} />
+            <meshStandardMaterial color="#9EAFBF" roughness={0.32} metalness={0.68} />
+          </mesh>
+        ))}
+
+      {/* Overhanging Beveled Top Hood (Arctic White #F5F7FA highlight in light mode) & Exhaust Louver Bed */}
       <RoundedBox args={[w + 0.05, 0.12, d + 0.05]} radius={0.04} smoothness={2} position={[0, h - 0.02, 0]} castShadow>
-        <meshStandardMaterial color={hoodColor} roughness={0.24} metalness={0.88} />
+        <meshStandardMaterial color={resolvedHood} roughness={isDark ? 0.24 : 0.22} metalness={isDark ? 0.88 : 0.58} />
       </RoundedBox>
       <mesh position={[0, h + 0.042, 0]}>
         <boxGeometry args={[w * 0.72, 0.02, d * 0.72]} />
-        <meshStandardMaterial color="#090E18" roughness={0.7} metalness={0.5} />
+        <meshStandardMaterial color={isDark ? '#090E18' : '#121B28'} roughness={0.7} metalness={0.5} />
       </mesh>
       {/* Top exhaust slat louvers */}
       {[-0.22, -0.08, 0.08, 0.22].map((lz, i) => (
         <mesh key={`slat-${i}`} position={[0, h + 0.05, lz * d]}>
           <boxGeometry args={[w * 0.66, 0.012, 0.035]} />
-          <meshStandardMaterial color="#334155" metalness={0.85} roughness={0.28} />
+          <meshStandardMaterial color={isDark ? '#334155' : '#536B83'} metalness={isDark ? 0.85 : 0.72} roughness={0.28} />
         </mesh>
       ))}
 
-      {/* Twin Vertical Brushed-Silver Front Bezel Rails */}
+      {/* Twin Vertical Front Bezel Rails (Arctic White #F5F7FA in light mode) */}
       {[-w / 2 + 0.032, w / 2 - 0.032].map((rx, i) => (
         <mesh key={`rail-${i}`} position={[rx, 0.09 + (h - 0.16) / 2, d / 2 + 0.005]}>
           <boxGeometry args={[0.045, h - 0.2, 0.02]} />
-          <meshStandardMaterial color="#7C8BA1" metalness={0.88} roughness={0.24} />
+          <meshStandardMaterial color={isDark ? '#7C8BA1' : '#F5F7FA'} metalness={isDark ? 0.88 : 0.62} roughness={0.22} />
         </mesh>
       ))}
 
-      {/* Recessed High-Resolution Illuminated Server Blade Faceplate */}
+      {/* Recessed High-Resolution Illuminated Server Blade Faceplate (Slate Blue #536B83 in light mode) */}
       <mesh position={[0, 0.09 + (h - 0.18) / 2, d / 2 + 0.01]}>
         <planeGeometry args={[w - 0.13, h - 0.26]} />
         {faceTex ? (
@@ -143,20 +155,20 @@ export const EnterpriseBladeRack = memo(function EnterpriseBladeRack({
             map={faceTex}
             emissive="#FFFFFF"
             emissiveMap={faceTex}
-            emissiveIntensity={0.95}
+            emissiveIntensity={isDark ? 0.95 : 0.55}
             roughness={0.32}
             metalness={0.45}
           />
         ) : (
-          <meshStandardMaterial color="#0B1324" roughness={0.4} />
+          <meshStandardMaterial color={isDark ? '#0B1324' : '#536B83'} roughness={0.4} />
         )}
       </mesh>
 
-      {/* Recessed Side Cooling Vent Slots (Left & Right Flanks) */}
+      {/* Preserved Dark Recessed Side Cooling Vent Openings (Left & Right Flanks) */}
       {[-1, 1].map((side) => (
-        <mesh key={`sv-${side}`} position={[side * (w / 2 + 0.006), 0.09 + (h - 0.24) / 2, 0]}>
+        <mesh key={`sv-${side}`} position={[side * (w / 2 + 0.008), 0.09 + (h - 0.24) / 2, 0]}>
           <boxGeometry args={[0.014, h * 0.62, d * 0.64]} />
-          <meshStandardMaterial color="#0C121E" roughness={0.62} metalness={0.65} />
+          <meshStandardMaterial color={isDark ? '#0C121E' : '#141E2C'} roughness={0.62} metalness={0.65} />
         </mesh>
       ))}
     </group>
@@ -165,49 +177,51 @@ export const EnterpriseBladeRack = memo(function EnterpriseBladeRack({
 
 /**
  * Slim Silver-Titanium Hazard & Diagnostic Cabinet (Front-Right End of Server Row):
- * - +Z face: recessed dark door with yellow industrial warning triangle
+ * - +Z face: recessed door with yellow industrial warning triangle
  * - +X face: 3 stacked glowing electric-cyan diagnostic screens
  */
 export const HazardDiagnosticCabinet = memo(function HazardDiagnosticCabinet({
   position,
   size = [0.66, 1.74, 0.72],
+  isDark = true,
 }: {
   position: Vec3;
   size?: Vec3;
+  isDark?: boolean;
 }) {
   const [w, h, d] = size;
-  const diagTex = useMemo(() => getDiagStackTexture(), []);
-  const hazardTex = useMemo(() => getHazardDoorTexture(), []);
+  const diagTex = useMemo(() => getDiagStackTexture(isDark), [isDark]);
+  const hazardTex = useMemo(() => getHazardDoorTexture(isDark), [isDark]);
 
   return (
     <group position={position}>
-      {/* Heavy Dark Stepped Base Plinth */}
+      {/* Heavy Stepped Base Plinth */}
       <mesh position={[0, 0.06, 0]} castShadow receiveShadow>
         <boxGeometry args={[w + 0.08, 0.12, d + 0.08]} />
-        <meshStandardMaterial color="#111827" metalness={0.82} roughness={0.38} />
+        <meshStandardMaterial color={isDark ? '#111827' : '#536B83'} metalness={isDark ? 0.82 : 0.72} roughness={0.38} />
       </mesh>
 
-      {/* Brushed Silver-Titanium Main Enclosure */}
+      {/* Main Enclosure (Pearl Titanium #DCE4EB in light mode) */}
       <RoundedBox args={[w, h - 0.14, d]} radius={0.04} smoothness={2} position={[0, 0.12 + (h - 0.14) / 2, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color="#6D7B91" roughness={0.26} metalness={0.84} />
+        <meshStandardMaterial color={isDark ? '#6D7B91' : '#DCE4EB'} roughness={0.26} metalness={isDark ? 0.84 : 0.68} />
       </RoundedBox>
 
-      {/* Beveled Top Cap */}
+      {/* Beveled Top Cap (Arctic White #F5F7FA highlight in light mode) */}
       <RoundedBox args={[w + 0.04, 0.1, d + 0.04]} radius={0.03} smoothness={2} position={[0, h, 0]} castShadow>
-        <meshStandardMaterial color="#8A98AE" roughness={0.22} metalness={0.88} />
+        <meshStandardMaterial color={isDark ? '#8A98AE' : '#F5F7FA'} roughness={0.22} metalness={isDark ? 0.88 : 0.6} />
       </RoundedBox>
 
-      {/* +Z Flank: Industrial Dark Door Panel with Yellow Warning Triangle */}
+      {/* +Z Flank: Industrial Door Panel with Yellow Warning Triangle */}
       <mesh position={[0, 0.12 + (h - 0.18) / 2, d / 2 + 0.008]}>
         <planeGeometry args={[w - 0.12, h - 0.28]} />
         {hazardTex ? (
           <meshStandardMaterial map={hazardTex} roughness={0.42} metalness={0.5} />
         ) : (
-          <meshStandardMaterial color="#1E293B" roughness={0.5} />
+          <meshStandardMaterial color={isDark ? '#1E293B' : '#9EAFBF'} roughness={0.5} />
         )}
       </mesh>
 
-      {/* +X Face: 3 Stacked Glowing Electric-Cyan Diagnostic Readout Displays */}
+      {/* +X Face: 3 Stacked Glowing Electric-Cyan Diagnostic Readout Displays (Deep Navy #263B52 screens in light mode) */}
       <mesh position={[w / 2 + 0.008, 0.12 + (h - 0.18) / 2, 0]} rotation={[0, Math.PI / 2, 0]}>
         <planeGeometry args={[d - 0.12, h - 0.26]} />
         {diagTex ? (
@@ -215,7 +229,7 @@ export const HazardDiagnosticCabinet = memo(function HazardDiagnosticCabinet({
             map={diagTex}
             emissive="#FFFFFF"
             emissiveMap={diagTex}
-            emissiveIntensity={1.1}
+            emissiveIntensity={isDark ? 1.1 : 0.62}
             roughness={0.25}
             metalness={0.35}
           />
@@ -233,10 +247,12 @@ export const HazardDiagnosticCabinet = memo(function HazardDiagnosticCabinet({
  */
 export const IndustrialHeatExchangerBay = memo(function IndustrialHeatExchangerBay({
   position = [2.08, 0, 0.48] as Vec3,
+  isDark = true,
 }: {
   position?: Vec3;
+  isDark?: boolean;
 }) {
-  const faceTex = useMemo(() => getEnterpriseRackFaceTexture('#00E5FF', '#F59E0B', 'cyan'), []);
+  const faceTex = useMemo(() => getEnterpriseRackFaceTexture('#00E5FF', '#F59E0B', 'cyan', isDark), [isDark]);
 
   // Dual parallel thick chrome cooling pipes curving boldly out the +X manifold and plunging down
   const pipeA: Vec3[] = useMemo(
@@ -262,14 +278,22 @@ export const IndustrialHeatExchangerBay = memo(function IndustrialHeatExchangerB
 
   return (
     <group position={position}>
-      {/* Main Heavy Brushed-Gunmetal Industrial Cabinet */}
+      {/* Main Heavy Industrial Cabinet (Pearl Titanium #DCE4EB in light mode) */}
       <RoundedBox args={[1.26, 1.88, 1.24]} radius={0.05} smoothness={2} position={[0, 0.94, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color="#253043" roughness={0.3} metalness={0.84} />
+        <meshStandardMaterial color={isDark ? '#253043' : '#DCE4EB'} roughness={isDark ? 0.3 : 0.28} metalness={isDark ? 0.84 : 0.68} />
       </RoundedBox>
 
-      {/* Beveled Top Metallic Cover Plate */}
+      {/* Frosted Steel Blue (#9EAFBF) Side Panel Accent in light mode */}
+      {!isDark && (
+        <mesh position={[0, 0.94, 0.624]}>
+          <planeGeometry args={[1.08, 1.62]} />
+          <meshStandardMaterial color="#9EAFBF" roughness={0.32} metalness={0.68} />
+        </mesh>
+      )}
+
+      {/* Beveled Top Metallic Cover Plate (Arctic White #F5F7FA in light mode) */}
       <RoundedBox args={[1.18, 0.09, 1.16]} radius={0.03} smoothness={2} position={[0, 1.9, 0]} castShadow>
-        <meshStandardMaterial color="#475569" roughness={0.24} metalness={0.88} />
+        <meshStandardMaterial color={isDark ? '#475569' : '#F5F7FA'} roughness={isDark ? 0.24 : 0.22} metalness={isDark ? 0.88 : 0.6} />
       </RoundedBox>
 
       {/* Warm Amber Illuminated Edge Trim along Core-Facing Corner (-X / +Z edge) */}
@@ -290,9 +314,9 @@ export const IndustrialHeatExchangerBay = memo(function IndustrialHeatExchangerB
       <mesh position={[0.636, 0.92, 0]} rotation={[0, Math.PI / 2, 0]}>
         <planeGeometry args={[1.02, 1.54]} />
         {faceTex ? (
-          <meshStandardMaterial map={faceTex} emissive="#FFFFFF" emissiveMap={faceTex} emissiveIntensity={0.85} roughness={0.35} />
+          <meshStandardMaterial map={faceTex} emissive="#FFFFFF" emissiveMap={faceTex} emissiveIntensity={isDark ? 0.85 : 0.52} roughness={0.35} />
         ) : (
-          <meshStandardMaterial color="#0F172A" />
+          <meshStandardMaterial color={isDark ? '#0F172A' : '#536B83'} />
         )}
       </mesh>
 
@@ -303,11 +327,11 @@ export const IndustrialHeatExchangerBay = memo(function IndustrialHeatExchangerB
       {/* Compact Auxiliary Junction / Pump Box tucked on Front-Left Side */}
       <group position={[-0.52, 0, 0.88]}>
         <RoundedBox args={[0.52, 1.14, 0.52]} radius={0.035} smoothness={2} position={[0, 0.57, 0]} castShadow receiveShadow>
-          <meshStandardMaterial color="#334155" roughness={0.32} metalness={0.82} />
+          <meshStandardMaterial color={isDark ? '#334155' : '#9EAFBF'} roughness={0.32} metalness={isDark ? 0.82 : 0.68} />
         </RoundedBox>
         <mesh position={[0, 0.62, 0.265]}>
           <planeGeometry args={[0.36, 0.64]} />
-          <meshStandardMaterial color="#0A1220" roughness={0.4} metalness={0.5} />
+          <meshStandardMaterial color={isDark ? '#0A1220' : '#263B52'} roughness={0.4} metalness={0.5} />
         </mesh>
         <mesh position={[0, 0.82, 0.27]}>
           <boxGeometry args={[0.24, 0.05, 0.012]} />
@@ -321,19 +345,21 @@ export const IndustrialHeatExchangerBay = memo(function IndustrialHeatExchangerB
 /** Tall Industrial Power & Server Cabinet with Yellow Hazard Door (+Z) and Blue Rack Array (+X). */
 export const TallPowerServerCabinet = memo(function TallPowerServerCabinet({
   position = [2.48, 0, -1.45] as Vec3,
+  isDark = true,
 }: {
   position?: Vec3;
+  isDark?: boolean;
 }) {
-  const hazardTex = useMemo(() => getHazardDoorTexture(), []);
-  const rackTex = useMemo(() => getEnterpriseRackFaceTexture('#00E5FF', '#60A5FA', 'cyan'), []);
+  const hazardTex = useMemo(() => getHazardDoorTexture(isDark), [isDark]);
+  const rackTex = useMemo(() => getEnterpriseRackFaceTexture('#00E5FF', '#60A5FA', 'cyan', isDark), [isDark]);
 
   return (
     <group position={position}>
       <RoundedBox args={[1.24, 2.28, 1.22]} radius={0.05} smoothness={2} position={[0, 1.14, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color="#1E293B" roughness={0.32} metalness={0.84} />
+        <meshStandardMaterial color={isDark ? '#1E293B' : '#DCE4EB'} roughness={isDark ? 0.32 : 0.28} metalness={isDark ? 0.84 : 0.68} />
       </RoundedBox>
       <RoundedBox args={[1.28, 0.11, 1.26]} radius={0.04} smoothness={2} position={[0, 2.3, 0]} castShadow>
-        <meshStandardMaterial color="#526075" roughness={0.24} metalness={0.88} />
+        <meshStandardMaterial color={isDark ? '#526075' : '#F5F7FA'} roughness={isDark ? 0.24 : 0.22} metalness={isDark ? 0.88 : 0.6} />
       </RoundedBox>
       {/* Subtle amber trim along front top bevel */}
       <mesh position={[-0.63, 2.22, 0]}>
@@ -343,15 +369,15 @@ export const TallPowerServerCabinet = memo(function TallPowerServerCabinet({
       {/* +Z Hazard Door Panel */}
       <mesh position={[0, 1.12, 0.618]}>
         <planeGeometry args={[1.04, 1.98]} />
-        {hazardTex ? <meshStandardMaterial map={hazardTex} roughness={0.4} metalness={0.5} /> : <meshStandardMaterial color="#1E293B" />}
+        {hazardTex ? <meshStandardMaterial map={hazardTex} roughness={0.4} metalness={0.5} /> : <meshStandardMaterial color={isDark ? '#1E293B' : '#9EAFBF'} />}
       </mesh>
       {/* +X Full-Height Illuminated Server Rack Face */}
       <mesh position={[0.628, 1.12, 0]} rotation={[0, Math.PI / 2, 0]}>
         <planeGeometry args={[1.02, 2.02]} />
         {rackTex ? (
-          <meshStandardMaterial map={rackTex} emissive="#FFFFFF" emissiveMap={rackTex} emissiveIntensity={0.95} roughness={0.32} />
+          <meshStandardMaterial map={rackTex} emissive="#FFFFFF" emissiveMap={rackTex} emissiveIntensity={isDark ? 0.95 : 0.55} roughness={0.32} />
         ) : (
-          <meshStandardMaterial color="#0A1220" />
+          <meshStandardMaterial color={isDark ? '#0A1220' : '#536B83'} />
         )}
       </mesh>
     </group>
@@ -362,9 +388,11 @@ export const TallPowerServerCabinet = memo(function TallPowerServerCabinet({
 export const StackSignalTower = memo(function StackSignalTower({
   position,
   activeRef,
+  isDark = true,
 }: {
   position: Vec3;
   activeRef?: React.RefObject<boolean>;
+  isDark?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
   const redRef = useRef<MeshStandardMaterial>(null);
@@ -385,7 +413,7 @@ export const StackSignalTower = memo(function StackSignalTower({
       {/* Stainless Mast & Base Collar */}
       <mesh position={[0, 0.04, 0]}>
         <cylinderGeometry args={[0.075, 0.09, 0.08, 14]} />
-        <meshStandardMaterial color="#334155" metalness={0.88} roughness={0.24} />
+        <meshStandardMaterial color={isDark ? '#334155' : '#536B83'} metalness={0.88} roughness={0.24} />
       </mesh>
       <mesh position={[0, 0.22, 0]}>
         <cylinderGeometry args={[0.028, 0.028, 0.32, 12]} />
@@ -409,7 +437,7 @@ export const StackSignalTower = memo(function StackSignalTower({
       {/* Top Cap */}
       <mesh position={[0, 0.71, 0]}>
         <cylinderGeometry args={[0.06, 0.06, 0.036, 16]} />
-        <meshStandardMaterial color="#1E293B" metalness={0.9} roughness={0.22} />
+        <meshStandardMaterial color={isDark ? '#1E293B' : '#DCE4EB'} metalness={0.9} roughness={0.22} />
       </mesh>
     </group>
   );
@@ -419,28 +447,30 @@ export const StackSignalTower = memo(function StackSignalTower({
 export const CornerBeaconMainframe = memo(function CornerBeaconMainframe({
   position = [3.58, 0, -2.95] as Vec3,
   activeRef,
+  isDark = true,
 }: {
   position?: Vec3;
   activeRef: React.RefObject<boolean>;
+  isDark?: boolean;
 }) {
-  const rackTex = useMemo(() => getEnterpriseRackFaceTexture('#00E5FF', '#38BDF8', 'cyan'), []);
+  const rackTex = useMemo(() => getEnterpriseRackFaceTexture('#00E5FF', '#38BDF8', 'cyan', isDark), [isDark]);
 
   return (
     <group position={position}>
       <RoundedBox args={[1.16, 2.68, 1.16]} radius={0.05} smoothness={2} position={[0, 1.34, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color="#141C2B" roughness={0.3} metalness={0.86} />
+        <meshStandardMaterial color={isDark ? '#141C2B' : '#DCE4EB'} roughness={isDark ? 0.3 : 0.28} metalness={isDark ? 0.86 : 0.68} />
       </RoundedBox>
       <RoundedBox args={[1.2, 0.12, 1.2]} radius={0.04} smoothness={2} position={[0, 2.7, 0]} castShadow>
-        <meshStandardMaterial color="#475569" roughness={0.22} metalness={0.88} />
+        <meshStandardMaterial color={isDark ? '#475569' : '#F5F7FA'} roughness={0.22} metalness={isDark ? 0.88 : 0.6} />
       </RoundedBox>
 
       {/* Front (+Z) Recessed Blade Bay */}
       <mesh position={[0, 1.32, 0.588]}>
         <planeGeometry args={[0.94, 2.34]} />
         {rackTex ? (
-          <meshStandardMaterial map={rackTex} emissive="#FFFFFF" emissiveMap={rackTex} emissiveIntensity={1.0} roughness={0.3} />
+          <meshStandardMaterial map={rackTex} emissive="#FFFFFF" emissiveMap={rackTex} emissiveIntensity={isDark ? 1.0 : 0.55} roughness={0.3} />
         ) : (
-          <meshStandardMaterial color="#0B132B" />
+          <meshStandardMaterial color={isDark ? '#0B132B' : '#536B83'} />
         )}
       </mesh>
 
@@ -449,23 +479,23 @@ export const CornerBeaconMainframe = memo(function CornerBeaconMainframe({
         <planeGeometry args={[0.88, 2.28]} />
         <meshStandardMaterial color="#38BDF8" emissive="#0088FF" emissiveIntensity={1.65} roughness={0.2} />
       </mesh>
-      {/* Horizontal dark louver slats over the blue side bay */}
+      {/* Horizontal dark louver slats over the blue side bay (preserved dark in both themes) */}
       {[-0.85, -0.45, -0.05, 0.35, 0.75].map((ly, i) => (
         <mesh key={i} position={[0.594, 1.32 + ly, 0]}>
           <boxGeometry args={[0.015, 0.045, 0.9]} />
-          <meshStandardMaterial color="#0F172A" metalness={0.85} roughness={0.3} />
+          <meshStandardMaterial color={isDark ? '#0F172A' : '#1E2C3C'} metalness={0.85} roughness={0.3} />
         </mesh>
       ))}
 
       {/* Patlite 3-Tier Industrial Stack Signal Light at Front-Top Corner */}
-      <StackSignalTower position={[-0.36, 2.75, 0.36]} activeRef={activeRef} />
+      <StackSignalTower position={[-0.36, 2.75, 0.36]} activeRef={activeRef} isDark={isDark} />
     </group>
   );
 });
 
 /**
  * Cryogenic Liquid Coolant Tank Cylinder matching the reference's vivid glowing blue chambers:
- * - Chamfered dark metallic base plinth + bolted circular flange
+ * - Chamfered metallic base plinth + bolted circular flange
  * - Glossy borosilicate glass cylinder with 4 brushed-chrome structural tie-rods
  * - Multi-layer electric cobalt-cyan glowing liquid core + animated rising plasma rings
  * - Heavy machined chrome top dome cap with bolts & manifold nozzle
@@ -474,10 +504,12 @@ export const CryogenicCoolantTank = memo(function CryogenicCoolantTank({
   position,
   activeRef,
   phaseOffset = 0,
+  isDark = true,
 }: {
   position: Vec3;
   activeRef?: React.RefObject<boolean>;
   phaseOffset?: number;
+  isDark?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
   const ring1Ref = useRef<Mesh>(null);
@@ -502,14 +534,14 @@ export const CryogenicCoolantTank = memo(function CryogenicCoolantTank({
 
   return (
     <group position={position}>
-      {/* Square Chamfered Industrial Base Plinth */}
+      {/* Square Chamfered Industrial Base Plinth (Pearl Titanium #DCE4EB in light mode) */}
       <RoundedBox args={[0.98, 0.14, 0.98]} radius={0.04} smoothness={2} position={[0, 0.07, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color="#1E293B" metalness={0.86} roughness={0.28} />
+        <meshStandardMaterial color={isDark ? '#1E293B' : '#DCE4EB'} metalness={isDark ? 0.86 : 0.68} roughness={0.28} />
       </RoundedBox>
       {/* Circular Flanged Base Collar */}
       <mesh position={[0, 0.19, 0]} castShadow>
         <cylinderGeometry args={[0.45, 0.49, 0.12, 20]} />
-        <meshStandardMaterial color="#64748B" metalness={0.92} roughness={0.2} />
+        <meshStandardMaterial color={isDark ? '#64748B' : '#9EAFBF'} metalness={isDark ? 0.92 : 0.78} roughness={0.2} />
       </mesh>
 
       {/* Outer Translucent Borosilicate Glass Wall */}
@@ -580,15 +612,17 @@ export const CryogenicCoolantTank = memo(function CryogenicCoolantTank({
   );
 });
 
-/** Reusable Industrial Safety-Yellow Handrail with Double Rails, Flanged Stanchions & Dark Kickplate. */
+/** Reusable Industrial Safety-Yellow Handrail with Double Rails, Flanged Stanchions & Kickplate. */
 export const IndustrialSafetyRail = memo(function IndustrialSafetyRail({
   start,
   length,
   rotation = [0, 0, 0],
+  isDark = true,
 }: {
   start: Vec3;
   length: number;
   rotation?: [number, number, number];
+  isDark?: boolean;
 }) {
   const postsCount = Math.max(2, Math.floor(length / 0.72) + 1);
   const railColor = '#EAB308';
@@ -604,10 +638,10 @@ export const IndustrialSafetyRail = memo(function IndustrialSafetyRail({
         <cylinderGeometry args={[0.018, 0.018, length, 10]} />
         <meshStandardMaterial color={railColor} metalness={0.62} roughness={0.28} />
       </mesh>
-      {/* Dark Steel Kickplate */}
+      {/* Steel Kickplate */}
       <mesh position={[length / 2, 0.06, 0]}>
         <boxGeometry args={[length, 0.11, 0.022]} />
-        <meshStandardMaterial color="#1E293B" metalness={0.84} roughness={0.32} />
+        <meshStandardMaterial color={isDark ? '#1E293B' : '#536B83'} metalness={isDark ? 0.84 : 0.72} roughness={0.32} />
       </mesh>
       {/* Flanged Vertical Stanchions */}
       {Array.from({ length: postsCount }).map((_, idx) => {
@@ -620,7 +654,7 @@ export const IndustrialSafetyRail = memo(function IndustrialSafetyRail({
             </mesh>
             <mesh position={[0, -0.27, 0]}>
               <cylinderGeometry args={[0.055, 0.055, 0.026, 10]} />
-              <meshStandardMaterial color="#0F172A" metalness={0.88} roughness={0.24} />
+              <meshStandardMaterial color={isDark ? '#0F172A' : '#536B83'} metalness={isDark ? 0.88 : 0.75} roughness={0.24} />
             </mesh>
           </group>
         );
@@ -636,12 +670,14 @@ export const IndustrialSafetyRail = memo(function IndustrialSafetyRail({
 export const HolographicMonitoringWall = memo(function HolographicMonitoringWall({
   position = [0.68, 2.55, -3.72] as Vec3,
   activeRef,
+  isDark = true,
 }: {
   position?: Vec3;
   activeRef: React.RefObject<boolean>;
+  isDark?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
-  const wallTex = useMemo(() => getHoloWallTexture(), []);
+  const wallTex = useMemo(() => getHoloWallTexture(isDark), [isDark]);
   const borderMatRef = useRef<MeshStandardMaterial>(null);
 
   useFrame(({ clock }) => {
@@ -704,13 +740,13 @@ export const HolographicMonitoringWall = memo(function HolographicMonitoringWall
       {[-1.55, 1.55].map((px, i) => (
         <mesh key={i} position={[px, -1.3, -0.08]} castShadow>
           <boxGeometry args={[0.12, 2.55, 0.12]} />
-          <meshStandardMaterial color="#1E293B" metalness={0.86} roughness={0.28} />
+          <meshStandardMaterial color={isDark ? '#1E293B' : '#9EAFBF'} metalness={isDark ? 0.86 : 0.72} roughness={0.28} />
         </mesh>
       ))}
 
       {/* Lower Rear Manifold Cabinets + Horizontal Chrome Coolant Header Pipes */}
       <RoundedBox args={[3.35, 0.88, 0.62]} radius={0.04} smoothness={2} position={[0, -2.1, 0.25]} castShadow receiveShadow>
-        <meshStandardMaterial color="#1B2538" metalness={0.82} roughness={0.34} />
+        <meshStandardMaterial color={isDark ? '#1B2538' : '#DCE4EB'} metalness={isDark ? 0.82 : 0.68} roughness={isDark ? 0.34 : 0.28} />
       </RoundedBox>
       {[-1.1, 0, 1.1].map((mx, i) => (
         <mesh key={`rm-${i}`} position={[mx, -2.02, 0.568]}>
@@ -728,9 +764,11 @@ export const HolographicMonitoringWall = memo(function HolographicMonitoringWall
 export const SculptedCyberPlant = memo(function SculptedCyberPlant({
   position,
   scale = 1,
+  isDark = true,
 }: {
   position: Vec3;
   scale?: number;
+  isDark?: boolean;
 }) {
   const fronds = useMemo(
     () => [
@@ -747,14 +785,14 @@ export const SculptedCyberPlant = memo(function SculptedCyberPlant({
 
   return (
     <group position={position} scale={[scale, scale, scale]}>
-      {/* Sleek Dark Anodized Planter Pot */}
+      {/* Sleek Planter Pot */}
       <mesh position={[0, 0.13, 0]} castShadow>
         <cylinderGeometry args={[0.16, 0.13, 0.26, 12]} />
-        <meshStandardMaterial color="#111827" metalness={0.78} roughness={0.34} />
+        <meshStandardMaterial color={isDark ? '#111827' : '#DCE4EB'} metalness={isDark ? 0.78 : 0.52} roughness={0.34} />
       </mesh>
       <mesh position={[0, 0.26, 0]}>
         <cylinderGeometry args={[0.17, 0.17, 0.025, 12]} />
-        <meshStandardMaterial color="#475569" metalness={0.85} roughness={0.25} />
+        <meshStandardMaterial color={isDark ? '#475569' : '#F5F7FA'} metalness={isDark ? 0.85 : 0.58} roughness={0.25} />
       </mesh>
       {/* Layered Angled Foliage Fronds */}
       <group position={[0, 0.26, 0]}>

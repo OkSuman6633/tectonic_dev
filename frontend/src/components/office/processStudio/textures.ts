@@ -77,13 +77,19 @@ function drawWorkflowGlyph(
   ctx.restore();
 }
 
-/** Dark polished mirror-sheen modular metal deck plate matching the reference's reflective floor. */
-export function getProcessDeckTexture(): CanvasTexture | null {
-  const tex = cached('proc-deck-v1', 512, 512, (ctx, w, h) => {
+/** Polished modular metal deck plate (dark & light mode). */
+export function getProcessDeckTexture(isDark = true): CanvasTexture | null {
+  const tex = cached(`proc-deck-v1:${isDark ? 'dark' : 'light'}`, 512, 512, (ctx, w, h) => {
     const grad = ctx.createLinearGradient(0, 0, w, h);
-    grad.addColorStop(0, '#0D1322');
-    grad.addColorStop(0.5, '#162033');
-    grad.addColorStop(1, '#0C1220');
+    if (isDark) {
+      grad.addColorStop(0, '#0D1322');
+      grad.addColorStop(0.5, '#162033');
+      grad.addColorStop(1, '#0C1220');
+    } else {
+      grad.addColorStop(0, '#CDD6E0');
+      grad.addColorStop(0.5, '#D9E1EA');
+      grad.addColorStop(1, '#C3CDD8');
+    }
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
 
@@ -93,15 +99,17 @@ export function getProcessDeckTexture(): CanvasTexture | null {
       for (let c = 0; c < cells; c++) {
         const x = c * step;
         const y = r * step;
-        ctx.fillStyle = (r + c) % 2 === 0 ? 'rgba(30,41,59,0.22)' : 'rgba(15,23,42,0.3)';
+        ctx.fillStyle = isDark
+          ? (r + c) % 2 === 0 ? 'rgba(30,41,59,0.22)' : 'rgba(15,23,42,0.3)'
+          : (r + c) % 2 === 0 ? 'rgba(245,247,250,0.44)' : 'rgba(158,175,191,0.28)';
         ctx.fillRect(x + 3, y + 3, step - 6, step - 6);
-        ctx.strokeStyle = 'rgba(148,163,184,0.16)';
+        ctx.strokeStyle = isDark ? 'rgba(148,163,184,0.16)' : 'rgba(83,107,131,0.28)';
         ctx.lineWidth = 1.2;
         ctx.strokeRect(x + 2.5, y + 2.5, step - 5, step - 5);
       }
     }
 
-    ctx.strokeStyle = '#040812';
+    ctx.strokeStyle = isDark ? '#040812' : '#7C8EA0';
     ctx.lineWidth = 2.5;
     for (let i = 0; i <= cells; i++) {
       const p = i * step;
@@ -124,12 +132,18 @@ export function getProcessDeckTexture(): CanvasTexture | null {
 }
 
 /** Front chamfered "PROCESS STUDIO" signboard with glowing purple workflow icon & purple-cyan outline. */
-export function getProcessFrontSignTexture(): CanvasTexture | null {
-  return cached('proc-front-sign-v1', 1024, 240, (ctx, w, h) => {
+export function getProcessFrontSignTexture(isDark = true): CanvasTexture | null {
+  return cached(`proc-front-sign-v1:${isDark ? 'dark' : 'light'}`, 1024, 240, (ctx, w, h) => {
     const bg = ctx.createLinearGradient(0, 0, w, h);
-    bg.addColorStop(0, '#090D1C');
-    bg.addColorStop(0.5, '#11182D');
-    bg.addColorStop(1, '#080C18');
+    if (isDark) {
+      bg.addColorStop(0, '#090D1C');
+      bg.addColorStop(0.5, '#11182D');
+      bg.addColorStop(1, '#080C18');
+    } else {
+      bg.addColorStop(0, '#1E3147');
+      bg.addColorStop(0.5, '#263B52');
+      bg.addColorStop(1, '#1B2D41');
+    }
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, w, h);
 
@@ -177,13 +191,19 @@ export function getProcessFrontSignTexture(): CanvasTexture | null {
 }
 
 /** Central Holographic Workflow Monitoring Display showing BUILD, TEST, DEPLOY, MONITOR pipeline. */
-export function getWorkflowDisplayTexture(): CanvasTexture | null {
-  return cached('proc-workflow-holo-v1', 1024, 768, (ctx, w, h) => {
-    // Deep translucent electric-blue holographic glass background
+export function getWorkflowDisplayTexture(isDark = true): CanvasTexture | null {
+  return cached(`proc-workflow-holo-v1:${isDark ? 'dark' : 'light'}`, 1024, 768, (ctx, w, h) => {
+    // Deep translucent electric-blue holographic glass background (higher Deep Navy contrast in light mode)
     const bg = ctx.createRadialGradient(w * 0.5, h * 0.48, 30, w * 0.5, h * 0.5, w * 0.62);
-    bg.addColorStop(0, 'rgba(14, 165, 233, 0.32)');
-    bg.addColorStop(0.55, 'rgba(7, 36, 78, 0.42)');
-    bg.addColorStop(1, 'rgba(4, 16, 40, 0.58)');
+    if (isDark) {
+      bg.addColorStop(0, 'rgba(14, 165, 233, 0.32)');
+      bg.addColorStop(0.55, 'rgba(7, 36, 78, 0.42)');
+      bg.addColorStop(1, 'rgba(4, 16, 40, 0.58)');
+    } else {
+      bg.addColorStop(0, 'rgba(38, 59, 82, 0.84)');
+      bg.addColorStop(0.55, 'rgba(30, 49, 71, 0.90)');
+      bg.addColorStop(1, 'rgba(22, 38, 56, 0.94)');
+    }
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, w, h);
 
@@ -328,23 +348,25 @@ export function getWorkflowDisplayTexture(): CanvasTexture | null {
 }
 
 /** Realistic enterprise server rack blade faceplate (clean blue/cyan status LEDs). */
-export function getProcessServerFaceTexture(): CanvasTexture | null {
-  return cached('proc-server-face-v1', 256, 512, (ctx, w, h) => {
-    ctx.fillStyle = '#060A14';
+export function getProcessServerFaceTexture(isDark = true): CanvasTexture | null {
+  return cached(`proc-server-face-v1:${isDark ? 'dark' : 'light'}`, 256, 512, (ctx, w, h) => {
+    ctx.fillStyle = isDark ? '#060A14' : '#3F556B';
     ctx.fillRect(0, 0, w, h);
 
     const rows = 14;
     const rowH = (h - 24) / rows;
     for (let i = 0; i < rows; i++) {
       const y = 12 + i * rowH;
-      ctx.fillStyle = i % 2 === 0 ? '#111827' : '#0B1220';
+      ctx.fillStyle = isDark
+        ? i % 2 === 0 ? '#111827' : '#0B1220'
+        : i % 2 === 0 ? '#536B83' : '#496077';
       ctx.fillRect(12, y + 2, w - 24, rowH - 5);
-      ctx.strokeStyle = '#1E293B';
+      ctx.strokeStyle = isDark ? '#1E293B' : '#7B93AB';
       ctx.lineWidth = 1;
       ctx.strokeRect(12, y + 2, w - 24, rowH - 5);
 
       // Clean dark perforated drive slots
-      ctx.fillStyle = '#030712';
+      ctx.fillStyle = isDark ? '#030712' : '#121B28';
       for (let sx = 22; sx < w - 82; sx += 13) {
         ctx.fillRect(sx, y + 7, 8, rowH - 15);
       }
@@ -363,17 +385,23 @@ export function getProcessServerFaceTexture(): CanvasTexture | null {
 }
 
 /** Right-most signature enterprise monolith front panel with glowing purple workflow glyph & dual cyan bars. */
-export function getProcessMonolithTexture(): CanvasTexture | null {
-  return cached('proc-monolith-face-v1', 256, 512, (ctx, w, h) => {
+export function getProcessMonolithTexture(isDark = true): CanvasTexture | null {
+  return cached(`proc-monolith-face-v1:${isDark ? 'dark' : 'light'}`, 256, 512, (ctx, w, h) => {
     const bg = ctx.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, '#141B2D');
-    bg.addColorStop(0.5, '#0F172A');
-    bg.addColorStop(1, '#0A101D');
+    if (isDark) {
+      bg.addColorStop(0, '#141B2D');
+      bg.addColorStop(0.5, '#0F172A');
+      bg.addColorStop(1, '#0A101D');
+    } else {
+      bg.addColorStop(0, '#2B425C');
+      bg.addColorStop(0.5, '#263B52');
+      bg.addColorStop(1, '#1E3147');
+    }
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, w, h);
 
     // Subtle metallic bevel frame
-    ctx.strokeStyle = 'rgba(148,163,184,0.22)';
+    ctx.strokeStyle = isDark ? 'rgba(148,163,184,0.22)' : 'rgba(220,228,235,0.38)';
     ctx.lineWidth = 4;
     ctx.strokeRect(8, 8, w - 16, h - 16);
 
@@ -393,9 +421,9 @@ export function getProcessMonolithTexture(): CanvasTexture | null {
 }
 
 /** Operator 3-monitor cyan workflow telemetry screens. */
-export function getProcessMonitorTexture(mode: 'metrics' | 'radar' | 'graph'): CanvasTexture | null {
-  return cached(`proc-monitor-${mode}-v1`, 384, 256, (ctx, w, h) => {
-    ctx.fillStyle = '#051126';
+export function getProcessMonitorTexture(mode: 'metrics' | 'radar' | 'graph', isDark = true): CanvasTexture | null {
+  return cached(`proc-monitor-${mode}-v1:${isDark ? 'dark' : 'light'}`, 384, 256, (ctx, w, h) => {
+    ctx.fillStyle = isDark ? '#051126' : '#263B52';
     ctx.fillRect(0, 0, w, h);
 
     ctx.strokeStyle = '#38E8FF';

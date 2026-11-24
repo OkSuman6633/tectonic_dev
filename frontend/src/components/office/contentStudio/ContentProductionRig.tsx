@@ -11,24 +11,26 @@ const StudioFlightCase = memo(function StudioFlightCase({
   size = [0.68, 0.56, 0.56],
   rotation = [0, 0, 0],
   showHazardSticker = false,
+  isDark = true,
 }: {
   position: Vec3;
   size?: Vec3;
   rotation?: [number, number, number];
   showHazardSticker?: boolean;
+  isDark?: boolean;
 }) {
   const [w, h, d] = size;
   return (
     <group position={position} rotation={rotation}>
-      {/* Matte-black textured equipment shell */}
+      {/* Equipment case shell */}
       <RoundedBox args={[w, h, d]} radius={0.025} smoothness={2} position={[0, h / 2, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color="#111827" roughness={0.44} metalness={0.55} />
+        <meshStandardMaterial color={isDark ? '#111827' : '#536B83'} roughness={isDark ? 0.44 : 0.36} metalness={isDark ? 0.55 : 0.62} />
       </RoundedBox>
       {/* Brushed-aluminum edge frame rails (top, bottom, lid seam) */}
       {[0.025, h * 0.74, h - 0.025].map((ey, i) => (
         <mesh key={i} position={[0, ey, 0]}>
           <boxGeometry args={[w + 0.02, 0.028, d + 0.02]} />
-          <meshStandardMaterial color="#CBD5E1" metalness={0.9} roughness={0.2} />
+          <meshStandardMaterial color={isDark ? '#CBD5E1' : '#F5F7FA'} metalness={isDark ? 0.9 : 0.64} roughness={0.2} />
         </mesh>
       ))}
       {/* Vertical corner aluminum extrusion angles */}
@@ -40,14 +42,14 @@ const StudioFlightCase = memo(function StudioFlightCase({
       ].map(([cx, cz], i) => (
         <mesh key={i} position={[cx, h / 2, cz]}>
           <boxGeometry args={[0.036, h + 0.01, 0.036]} />
-          <meshStandardMaterial color="#CBD5E1" metalness={0.9} roughness={0.2} />
+          <meshStandardMaterial color={isDark ? '#CBD5E1' : '#F5F7FA'} metalness={isDark ? 0.9 : 0.64} roughness={0.2} />
         </mesh>
       ))}
       {/* Recessed chrome butterfly latches on front (+Z) & side (+X) */}
       {[-w * 0.24, w * 0.24].map((lx, i) => (
         <mesh key={i} position={[lx, h * 0.74, d / 2 + 0.015]}>
           <boxGeometry args={[0.075, 0.095, 0.018]} />
-          <meshStandardMaterial color="#94A3B8" metalness={0.88} roughness={0.22} />
+          <meshStandardMaterial color={isDark ? '#94A3B8' : '#DCE4EB'} metalness={isDark ? 0.88 : 0.7} roughness={0.22} />
         </mesh>
       ))}
       {/* Optional tiny shipping label on side */}
@@ -221,8 +223,8 @@ const StudioPlanter = memo(function StudioPlanter({
  * Blue-Lit Media Server Rack + Row of 4 Flight Cases) AND Right Foreground Flight Case with Pro DSLR Camera
  * + Architectural Studio Planters.
  */
-export const ContentProductionRig = memo(function ContentProductionRig() {
-  const rackTex = useMemo(() => getContentServerRackTexture(), []);
+export const ContentProductionRig = memo(function ContentProductionRig({ isDark = true }: { isDark?: boolean }) {
+  const rackTex = useMemo(() => getContentServerRackTexture(isDark), [isDark]);
 
   return (
     <group>
@@ -232,22 +234,22 @@ export const ContentProductionRig = memo(function ContentProductionRig() {
 
       {/* Vibrant Chroma-Key Green Screen Backdrop Stand */}
       <group position={[-4.85, 0, -1.95]} rotation={[0, 0.24, 0]}>
-        {/* Twin matte-black upright C-stand poles + top crossbar */}
+        {/* Twin upright C-stand poles + top crossbar */}
         {[-1.12, 1.12].map((px, i) => (
           <group key={i} position={[px, 0, 0]}>
             <mesh position={[0, 1.44, 0]} castShadow>
               <cylinderGeometry args={[0.026, 0.028, 2.88, 10]} />
-              <meshStandardMaterial color="#111827" metalness={0.82} roughness={0.28} />
+              <meshStandardMaterial color={isDark ? '#111827' : '#536B83'} metalness={isDark ? 0.82 : 0.68} roughness={0.28} />
             </mesh>
             <mesh position={[0, 0.03, 0]}>
               <cylinderGeometry args={[0.14, 0.16, 0.06, 12]} />
-              <meshStandardMaterial color="#1E293B" metalness={0.8} roughness={0.32} />
+              <meshStandardMaterial color={isDark ? '#1E293B' : '#9EAFBF'} metalness={isDark ? 0.8 : 0.66} roughness={0.32} />
             </mesh>
           </group>
         ))}
         <mesh position={[0, 2.86, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
           <cylinderGeometry args={[0.03, 0.03, 2.48, 12]} />
-          <meshStandardMaterial color="#1E293B" metalness={0.84} roughness={0.26} />
+          <meshStandardMaterial color={isDark ? '#1E293B' : '#536B83'} metalness={isDark ? 0.84 : 0.68} roughness={0.26} />
         </mesh>
         {/* Seamless Chroma-Key Green Backdrop Cloth */}
         <mesh position={[0, 1.44, 0.03]} castShadow receiveShadow>
@@ -265,7 +267,7 @@ export const ContentProductionRig = memo(function ContentProductionRig() {
       {/* Tall Blue-Lit Media Storage & Render Server Rack + Roof Plant */}
       <group position={[-3.68, 0, -2.55]} rotation={[0, 0.08, 0]}>
         <RoundedBox args={[1.08, 2.55, 1.02]} radius={0.05} smoothness={2} position={[0, 1.275, 0]} castShadow receiveShadow>
-          <meshStandardMaterial color="#334155" roughness={0.28} metalness={0.86} />
+          <meshStandardMaterial color={isDark ? '#334155' : '#DCE4EB'} roughness={isDark ? 0.28 : 0.25} metalness={isDark ? 0.86 : 0.64} />
         </RoundedBox>
         <mesh position={[0, 1.28, 0.516]}>
           <planeGeometry args={[0.88, 2.3]} />
@@ -274,9 +276,9 @@ export const ContentProductionRig = memo(function ContentProductionRig() {
               map={rackTex}
               emissive="#FFFFFF"
               emissiveMap={rackTex}
-              emissiveIntensity={0.88}
+              emissiveIntensity={isDark ? 0.88 : 0.5}
               roughness={0.24}
-              metalness={0.62}
+              metalness={isDark ? 0.62 : 0.4}
             />
           ) : (
             <meshStandardMaterial color="#0A1224" emissive="#00B8FF" emissiveIntensity={0.6} />
@@ -303,9 +305,10 @@ export const ContentProductionRig = memo(function ContentProductionRig() {
           position={[fx, 0, 3.15]}
           size={[0.62, 0.52, 0.52]}
           rotation={[0, 0.06, 0]}
+          isDark={isDark}
         />
       ))}
-      <StudioFlightCase position={[-5.45, 0, 2.15]} size={[0.56, 0.54, 0.62]} rotation={[0, Math.PI / 2, 0]} />
+      <StudioFlightCase position={[-5.45, 0, 2.15]} size={[0.56, 0.54, 0.62]} rotation={[0, Math.PI / 2, 0]} isDark={isDark} />
 
       {/* ===================================================================== */}
       {/* RIGHT FOREGROUND: LARGE STUDIO FLIGHT CASE + PRO DSLR + PLANTER       */}
@@ -313,7 +316,7 @@ export const ContentProductionRig = memo(function ContentProductionRig() {
 
       {/* Large Rugged Studio Flight Case at Front-Right with Sculpted 3D Pro DSLR Camera on Top */}
       <group position={[3.35, 0, 2.45]} rotation={[0, -0.22, 0]}>
-        <StudioFlightCase position={[0, 0, 0]} size={[1.15, 0.86, 0.86]} showHazardSticker />
+        <StudioFlightCase position={[0, 0, 0]} size={[1.15, 0.86, 0.86]} showHazardSticker isDark={isDark} />
         <ProDslrCamera position={[0, 0.86, 0]} />
       </group>
 

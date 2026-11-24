@@ -28,7 +28,7 @@ const DeskMiniPlant = memo(function DeskMiniPlant({ position }: { position: Vec3
 /**
  * Sleek Black Ergonomic Swivel Command Chair facing the curved 4-monitor workstation.
  */
-const CommandSwivelChair = memo(function CommandSwivelChair({ position }: { position: Vec3 }) {
+const CommandSwivelChair = memo(function CommandSwivelChair({ position, isDark = true }: { position: Vec3; isDark?: boolean }) {
   return (
     <group position={position}>
       {/* 5-star chrome caster base */}
@@ -38,40 +38,40 @@ const CommandSwivelChair = memo(function CommandSwivelChair({ position }: { posi
           <group key={i} rotation={[0, ang, 0]}>
             <mesh position={[0.16, 0.04, 0]}>
               <boxGeometry args={[0.32, 0.025, 0.036]} />
-              <meshStandardMaterial color="#64748B" metalness={0.86} roughness={0.24} />
+              <meshStandardMaterial color={isDark ? '#64748B' : '#9EAFBF'} metalness={isDark ? 0.86 : 0.68} roughness={0.24} />
             </mesh>
             <mesh position={[0.31, 0.022, 0]}>
               <sphereGeometry args={[0.022, 8, 8]} />
-              <meshStandardMaterial color="#0F172A" roughness={0.5} />
+              <meshStandardMaterial color={isDark ? '#0F172A' : '#3B5066'} roughness={0.5} />
             </mesh>
           </group>
         );
       })}
       <mesh position={[0, 0.24, 0]}>
         <cylinderGeometry args={[0.032, 0.038, 0.38, 12]} />
-        <meshStandardMaterial color="#1E293B" metalness={0.85} roughness={0.25} />
+        <meshStandardMaterial color={isDark ? '#1E293B' : '#9EAFBF'} metalness={isDark ? 0.85 : 0.68} roughness={0.25} />
       </mesh>
       {/* Contoured cushioned seat */}
       <RoundedBox args={[0.52, 0.075, 0.48]} radius={0.03} smoothness={2} position={[0, 0.44, 0]} castShadow>
-        <meshStandardMaterial color="#0F172A" roughness={0.52} metalness={0.18} />
+        <meshStandardMaterial color={isDark ? '#0F172A' : '#3B5066'} roughness={0.52} metalness={0.18} />
       </RoundedBox>
       {/* High-back mesh/leather command backrest */}
       <RoundedBox args={[0.48, 0.64, 0.065]} radius={0.03} smoothness={2} position={[0, 0.8, 0.22]} rotation={[0.1, 0, 0]} castShadow>
-        <meshStandardMaterial color="#111827" roughness={0.48} metalness={0.22} />
+        <meshStandardMaterial color={isDark ? '#111827' : '#3B5066'} roughness={0.48} metalness={0.22} />
       </RoundedBox>
       {/* Headrest */}
       <RoundedBox args={[0.26, 0.13, 0.06]} radius={0.025} smoothness={2} position={[0, 1.18, 0.24]} castShadow>
-        <meshStandardMaterial color="#1E293B" roughness={0.42} metalness={0.25} />
+        <meshStandardMaterial color={isDark ? '#1E293B' : '#536B83'} roughness={0.42} metalness={0.25} />
       </RoundedBox>
       {/* Twin Armrests */}
       {[-0.27, 0.27].map((ax, i) => (
         <group key={i} position={[ax, 0.57, 0.02]}>
           <mesh position={[0, -0.05, 0.05]}>
             <boxGeometry args={[0.03, 0.16, 0.04]} />
-            <meshStandardMaterial color="#334155" metalness={0.8} roughness={0.28} />
+            <meshStandardMaterial color={isDark ? '#334155' : '#9EAFBF'} metalness={0.8} roughness={0.28} />
           </mesh>
           <RoundedBox args={[0.055, 0.032, 0.28]} radius={0.01} smoothness={2} position={[0, 0.04, 0]}>
-            <meshStandardMaterial color="#0F172A" roughness={0.5} />
+            <meshStandardMaterial color={isDark ? '#0F172A' : '#536B83'} roughness={0.5} />
           </RoundedBox>
         </group>
       ))}
@@ -84,19 +84,21 @@ const CommandSwivelChair = memo(function CommandSwivelChair({ position }: { posi
  * - Curved brushed-titanium & dark obsidian U-shaped command desk with blue under-desk LED accent strips
  * - 4 angled curved cyan-lit tactical monitors + keyboards + mice
  * - Twin small white desk accent plants at the outer wings
- * - Sleek black ergonomic command swivel chair facing the monitors & rear operations wall
+ * - Sleek ergonomic command swivel chair facing the monitors & rear operations wall
  */
 export const OperationsCommandDesk = memo(function OperationsCommandDesk({
   position = [-0.15, 0, 0.45],
   onSelect,
+  isDark = true,
 }: {
   position?: Vec3;
   onSelect?: () => void;
+  isDark?: boolean;
 }) {
-  const monTex0 = useMemo(() => getOpsCommandMonitorTexture(0), []);
-  const monTex1 = useMemo(() => getOpsCommandMonitorTexture(1), []);
-  const monTex2 = useMemo(() => getOpsCommandMonitorTexture(2), []);
-  const monTex3 = useMemo(() => getOpsCommandMonitorTexture(3), []);
+  const monTex0 = useMemo(() => getOpsCommandMonitorTexture(0, isDark), [isDark]);
+  const monTex1 = useMemo(() => getOpsCommandMonitorTexture(1, isDark), [isDark]);
+  const monTex2 = useMemo(() => getOpsCommandMonitorTexture(2, isDark), [isDark]);
+  const monTex3 = useMemo(() => getOpsCommandMonitorTexture(3, isDark), [isDark]);
   const monitorTextures = [monTex0, monTex1, monTex2, monTex3];
 
   const monitors: { pos: Vec3; rotY: number }[] = [
@@ -118,7 +120,7 @@ export const OperationsCommandDesk = memo(function OperationsCommandDesk({
       {/* CURVED SEGMENTED COMMAND DESK SURFACE (Center + Angled Left/Right Wings) */}
       {/* Center desktop */}
       <RoundedBox args={[1.9, 0.08, 0.88]} radius={0.025} smoothness={2} position={[0, 0.78, -0.22]} castShadow receiveShadow>
-        <meshStandardMaterial color="#334155" roughness={0.26} metalness={0.84} />
+        <meshStandardMaterial color={isDark ? '#334155' : '#DCE4EB'} roughness={0.26} metalness={isDark ? 0.84 : 0.62} />
       </RoundedBox>
       {/* Left angled wing */}
       <RoundedBox
@@ -130,7 +132,7 @@ export const OperationsCommandDesk = memo(function OperationsCommandDesk({
         castShadow
         receiveShadow
       >
-        <meshStandardMaterial color="#334155" roughness={0.26} metalness={0.84} />
+        <meshStandardMaterial color={isDark ? '#334155' : '#DCE4EB'} roughness={0.26} metalness={isDark ? 0.84 : 0.62} />
       </RoundedBox>
       {/* Right angled wing */}
       <RoundedBox
@@ -142,17 +144,17 @@ export const OperationsCommandDesk = memo(function OperationsCommandDesk({
         castShadow
         receiveShadow
       >
-        <meshStandardMaterial color="#334155" roughness={0.26} metalness={0.84} />
+        <meshStandardMaterial color={isDark ? '#334155' : '#DCE4EB'} roughness={0.26} metalness={isDark ? 0.84 : 0.62} />
       </RoundedBox>
 
-      {/* Dark recessed modesty shroud & left/right hardware cabinet pedestals */}
+      {/* Recessed modesty shroud & left/right hardware cabinet pedestals */}
       <RoundedBox args={[1.65, 0.72, 0.22]} radius={0.02} smoothness={2} position={[0, 0.37, -0.44]} castShadow receiveShadow>
-        <meshStandardMaterial color="#111827" roughness={0.38} metalness={0.82} />
+        <meshStandardMaterial color={isDark ? '#111827' : '#536B83'} roughness={0.38} metalness={isDark ? 0.82 : 0.64} />
       </RoundedBox>
       {[-1.55, 1.55].map((px, i) => (
         <group key={i} position={[px, 0.37, 0.18]} rotation={[0, i === 0 ? 0.48 : -0.48, 0]}>
           <RoundedBox args={[0.56, 0.74, 0.72]} radius={0.03} smoothness={2} castShadow receiveShadow>
-            <meshStandardMaterial color="#1E293B" roughness={0.32} metalness={0.84} />
+            <meshStandardMaterial color={isDark ? '#1E293B' : '#9EAFBF'} roughness={0.32} metalness={isDark ? 0.84 : 0.62} />
           </RoundedBox>
           {/* Glowing electric-blue under-desk vertical & lower edge strip */}
           <mesh position={[0, 0.32, 0.365]}>
@@ -184,15 +186,15 @@ export const OperationsCommandDesk = memo(function OperationsCommandDesk({
             {/* Brushed metal stand & base */}
             <mesh position={[0, -0.21, -0.04]}>
               <boxGeometry args={[0.048, 0.16, 0.04]} />
-              <meshStandardMaterial color="#64748B" metalness={0.88} roughness={0.22} />
+              <meshStandardMaterial color={isDark ? '#64748B' : '#9EAFBF'} metalness={isDark ? 0.88 : 0.68} roughness={0.22} />
             </mesh>
             <mesh position={[0, -0.275, -0.02]}>
               <boxGeometry args={[0.22, 0.018, 0.16]} />
-              <meshStandardMaterial color="#475569" metalness={0.86} roughness={0.26} />
+              <meshStandardMaterial color={isDark ? '#475569' : '#9EAFBF'} metalness={isDark ? 0.86 : 0.66} roughness={0.26} />
             </mesh>
-            {/* Slim dark monitor chassis */}
+            {/* Slim monitor chassis */}
             <RoundedBox args={[0.74, 0.42, 0.036]} radius={0.012} smoothness={2} castShadow>
-              <meshStandardMaterial color="#0F172A" roughness={0.28} metalness={0.84} />
+              <meshStandardMaterial color={isDark ? '#0F172A' : '#536B83'} roughness={0.28} metalness={isDark ? 0.84 : 0.68} />
             </RoundedBox>
             {/* Glowing screen facing operator (+Z) */}
             <mesh position={[0, 0, 0.02]}>
@@ -202,11 +204,11 @@ export const OperationsCommandDesk = memo(function OperationsCommandDesk({
                   map={tex}
                   emissive="#FFFFFF"
                   emissiveMap={tex}
-                  emissiveIntensity={0.95}
+                  emissiveIntensity={isDark ? 0.95 : 0.84}
                   roughness={0.18}
                 />
               ) : (
-                <meshStandardMaterial color="#041229" emissive="#00B8FF" emissiveIntensity={0.8} />
+                <meshStandardMaterial color={isDark ? '#041229' : '#263B52'} emissive="#00B8FF" emissiveIntensity={0.8} />
               )}
             </mesh>
           </group>
@@ -222,7 +224,7 @@ export const OperationsCommandDesk = memo(function OperationsCommandDesk({
         <group key={i} position={kb.pos} rotation={[0, kb.rotY, 0]}>
           <mesh>
             <boxGeometry args={[0.42, 0.018, 0.14]} />
-            <meshStandardMaterial color="#1E293B" roughness={0.35} metalness={0.65} />
+            <meshStandardMaterial color={isDark ? '#1E293B' : '#536B83'} roughness={0.35} metalness={0.65} />
           </mesh>
           <mesh position={[0, 0.01, 0]}>
             <boxGeometry args={[0.38, 0.004, 0.1]} />
@@ -230,7 +232,7 @@ export const OperationsCommandDesk = memo(function OperationsCommandDesk({
           </mesh>
           <mesh position={[0.28, 0.008, 0.01]}>
             <boxGeometry args={[0.055, 0.018, 0.088]} />
-            <meshStandardMaterial color="#0F172A" roughness={0.35} />
+            <meshStandardMaterial color={isDark ? '#0F172A' : '#536B83'} roughness={0.35} />
           </mesh>
         </group>
       ))}
@@ -240,7 +242,7 @@ export const OperationsCommandDesk = memo(function OperationsCommandDesk({
       <DeskMiniPlant position={[1.68, 0.82, 0.28]} />
 
       {/* Ergonomic Swivel Command Chair */}
-      <CommandSwivelChair position={[0, 0, 0.72]} />
+      <CommandSwivelChair position={[0, 0, 0.72]} isDark={isDark} />
     </group>
   );
 });

@@ -214,11 +214,13 @@ const SafetyWarningBeacon = memo(function SafetyWarningBeacon({
 export const OperationsEquipmentBays = memo(function OperationsEquipmentBays({
   alertLevelRef,
   onSelectGuardrails,
+  isDark = true,
 }: {
   alertLevelRef: React.RefObject<'ok' | 'warn' | 'alert'>;
   onSelectGuardrails?: () => void;
+  isDark?: boolean;
 }) {
-  const serverFaceTex = useMemo(() => getOpsServerFaceTexture(), []);
+  const serverFaceTex = useMemo(() => getOpsServerFaceTexture(isDark), [isDark]);
   const safetyGlassTex = useMemo(() => getSafetyFirstGlassTexture(), []);
   const fireSignTex = useMemo(() => getFireSignTexture(), []);
 
@@ -256,7 +258,7 @@ export const OperationsEquipmentBays = memo(function OperationsEquipmentBays({
       {/* Tall Primary Left Server Rack */}
       <group position={[-4.25, 0, -1.85]} rotation={[0, 0.14, 0]}>
         <RoundedBox args={[1.18, 2.75, 1.12]} radius={0.05} smoothness={2} position={[0, 1.375, 0]} castShadow receiveShadow>
-          <meshStandardMaterial color="#334155" roughness={0.28} metalness={0.86} />
+          <meshStandardMaterial color={isDark ? '#334155' : '#DCE4EB'} roughness={isDark ? 0.28 : 0.25} metalness={isDark ? 0.86 : 0.64} />
         </RoundedBox>
         <mesh position={[0, 1.38, 0.568]}>
           <planeGeometry args={[0.96, 2.48]} />
@@ -265,9 +267,9 @@ export const OperationsEquipmentBays = memo(function OperationsEquipmentBays({
               map={serverFaceTex}
               emissive="#FFFFFF"
               emissiveMap={serverFaceTex}
-              emissiveIntensity={0.85}
+              emissiveIntensity={isDark ? 0.85 : 0.48}
               roughness={0.24}
-              metalness={0.62}
+              metalness={isDark ? 0.62 : 0.4}
             />
           ) : (
             <meshStandardMaterial color="#0A1224" emissive="#00B8FF" emissiveIntensity={0.6} />
@@ -282,14 +284,14 @@ export const OperationsEquipmentBays = memo(function OperationsEquipmentBays({
         ))}
         {/* Top chrome cooling manifold */}
         <RoundedBox args={[1.06, 0.14, 0.96]} radius={0.03} smoothness={2} position={[0, 2.82, 0]} castShadow>
-          <meshStandardMaterial color="#1E293B" roughness={0.34} metalness={0.84} />
+          <meshStandardMaterial color={isDark ? '#1E293B' : '#F5F7FA'} roughness={isDark ? 0.34 : 0.2} metalness={isDark ? 0.84 : 0.56} />
         </RoundedBox>
       </group>
 
       {/* Mid-Height Front-Left Server Cabinet + Mounted Red Fire-Flame Sign + 3D Emergency Fire Extinguisher */}
       <group position={[-4.92, 0, -0.58]} rotation={[0, 0.22, 0]}>
         <RoundedBox args={[1.02, 2.1, 1.0]} radius={0.05} smoothness={2} position={[0, 1.05, 0]} castShadow receiveShadow>
-          <meshStandardMaterial color="#1E293B" roughness={0.32} metalness={0.86} />
+          <meshStandardMaterial color={isDark ? '#1E293B' : '#DCE4EB'} roughness={isDark ? 0.32 : 0.25} metalness={isDark ? 0.86 : 0.64} />
         </RoundedBox>
         <mesh position={[0, 1.08, 0.506]}>
           <planeGeometry args={[0.82, 1.84]} />
@@ -298,9 +300,9 @@ export const OperationsEquipmentBays = memo(function OperationsEquipmentBays({
               map={serverFaceTex}
               emissive="#FFFFFF"
               emissiveMap={serverFaceTex}
-              emissiveIntensity={0.78}
+              emissiveIntensity={isDark ? 0.78 : 0.48}
               roughness={0.26}
-              metalness={0.58}
+              metalness={isDark ? 0.58 : 0.4}
             />
           ) : (
             <meshStandardMaterial color="#0A1224" />
@@ -336,7 +338,7 @@ export const OperationsEquipmentBays = memo(function OperationsEquipmentBays({
       {/* Low Auxiliary Telemetry Power Unit with glowing amber strip (front-left of desk, matching reference) */}
       <group position={[-3.38, 0, -0.78]}>
         <RoundedBox args={[0.68, 0.72, 0.62]} radius={0.03} smoothness={2} position={[0, 0.36, 0]} castShadow receiveShadow>
-          <meshStandardMaterial color="#273449" roughness={0.32} metalness={0.84} />
+          <meshStandardMaterial color={isDark ? '#273449' : '#9EAFBF'} roughness={0.32} metalness={isDark ? 0.84 : 0.64} />
         </RoundedBox>
         <mesh position={[0, 0.56, 0.315]}>
           <boxGeometry args={[0.52, 0.055, 0.018]} />
@@ -344,7 +346,7 @@ export const OperationsEquipmentBays = memo(function OperationsEquipmentBays({
         </mesh>
         <mesh position={[0, 0.26, 0.315]}>
           <boxGeometry args={[0.52, 0.24, 0.015]} />
-          <meshStandardMaterial color="#0A101D" roughness={0.7} />
+          <meshStandardMaterial color={isDark ? '#0A101D' : '#121B28'} roughness={0.7} />
         </mesh>
       </group>
 
@@ -384,9 +386,9 @@ export const OperationsEquipmentBays = memo(function OperationsEquipmentBays({
           onSelectGuardrails();
         }}
       >
-        {/* Main Dark-Titanium Safety Monitoring Cabinet Body */}
+        {/* Main Safety Monitoring Cabinet Body */}
         <RoundedBox args={[1.48, 2.52, 1.18]} radius={0.05} smoothness={2} position={[0, 1.26, 0]} castShadow receiveShadow>
-          <meshStandardMaterial color="#1E293B" roughness={0.28} metalness={0.86} />
+          <meshStandardMaterial color={isDark ? '#1E293B' : '#DCE4EB'} roughness={isDark ? 0.28 : 0.25} metalness={isDark ? 0.86 : 0.64} />
         </RoundedBox>
 
         {/* Illuminated Blue-Lit Internal Monitoring Rack visible behind Glass Door */}
@@ -397,11 +399,11 @@ export const OperationsEquipmentBays = memo(function OperationsEquipmentBays({
               map={serverFaceTex}
               emissive="#38E8FF"
               emissiveMap={serverFaceTex}
-              emissiveIntensity={0.65}
+              emissiveIntensity={isDark ? 0.65 : 0.45}
               roughness={0.25}
             />
           ) : (
-            <meshStandardMaterial color="#082F49" emissive="#00B8FF" emissiveIntensity={0.8} />
+            <meshStandardMaterial color={isDark ? '#082F49' : '#263B52'} emissive="#00B8FF" emissiveIntensity={0.8} />
           )}
         </mesh>
 
@@ -458,7 +460,7 @@ export const OperationsEquipmentBays = memo(function OperationsEquipmentBays({
       {/* Deck-mounted brass floor pipe flange collars & manifold plate */}
       <group position={[5.38, 0, -1.85]}>
         <RoundedBox args={[0.72, 0.12, 0.72]} radius={0.02} smoothness={2} position={[0, 0.06, 0]} castShadow receiveShadow>
-          <meshStandardMaterial color="#1E293B" metalness={0.86} roughness={0.3} />
+          <meshStandardMaterial color={isDark ? '#1E293B' : '#9EAFBF'} metalness={isDark ? 0.86 : 0.64} roughness={0.3} />
         </RoundedBox>
         {[
           [-0.1, 0.13, 0.13, 0.18],
@@ -475,7 +477,7 @@ export const OperationsEquipmentBays = memo(function OperationsEquipmentBays({
       {/* Low metallic safety-gear staging pedestal positioned cleanly in front of the Safety Bay */}
       <group position={[4.55, 0, 0.42]} rotation={[0, -0.22, 0]}>
         <RoundedBox args={[0.82, 0.44, 0.64]} radius={0.03} smoothness={2} position={[0, 0.22, 0]} castShadow receiveShadow>
-          <meshStandardMaterial color="#1E293B" roughness={0.32} metalness={0.85} />
+          <meshStandardMaterial color={isDark ? '#1E293B' : '#DCE4EB'} roughness={isDark ? 0.32 : 0.26} metalness={isDark ? 0.85 : 0.64} />
         </RoundedBox>
         <mesh position={[0, 0.4, 0.324]}>
           <boxGeometry args={[0.68, 0.028, 0.018]} />

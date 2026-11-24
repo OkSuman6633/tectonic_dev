@@ -15,20 +15,22 @@ export const ProcessWorkstation = memo(function ProcessWorkstation({
   position = [-2.55, 0, 0.35],
   rotation = [0, 0.12, 0],
   activityRef,
+  isDark = true,
 }: {
   position?: Vec3;
   rotation?: [number, number, number];
   activityRef: React.RefObject<number>;
+  isDark?: boolean;
 }) {
-  const texL = useMemo(() => getProcessMonitorTexture('metrics'), []);
-  const texC = useMemo(() => getProcessMonitorTexture('radar'), []);
-  const texR = useMemo(() => getProcessMonitorTexture('graph'), []);
+  const texL = useMemo(() => getProcessMonitorTexture('metrics', isDark), [isDark]);
+  const texC = useMemo(() => getProcessMonitorTexture('radar', isDark), [isDark]);
+  const texR = useMemo(() => getProcessMonitorTexture('graph', isDark), [isDark]);
   const screenMatRef = useRef<MeshStandardMaterial>(null);
 
   useFrame(({ clock }) => {
     const energy = activityRef.current ?? 0;
     if (screenMatRef.current) {
-      screenMatRef.current.emissiveIntensity = 1.0 + energy * (0.45 + 0.2 * Math.sin(clock.elapsedTime * 5.5));
+      screenMatRef.current.emissiveIntensity = (isDark ? 1.0 : 0.84) + energy * (0.45 + 0.2 * Math.sin(clock.elapsedTime * 5.5));
     }
   });
 
@@ -37,13 +39,13 @@ export const ProcessWorkstation = memo(function ProcessWorkstation({
       {/* Desk Frame Legs & Brushed-Silver Panel End-Supports */}
       {[-0.98, 0.98].map((lx, i) => (
         <RoundedBox key={i} args={[0.08, 0.74, 0.78]} radius={0.02} position={[lx, 0.37, 0]} castShadow receiveShadow>
-          <meshStandardMaterial color="#CBD5E1" roughness={0.28} metalness={0.78} />
+          <meshStandardMaterial color={isDark ? '#CBD5E1' : '#9EAFBF'} roughness={0.28} metalness={isDark ? 0.78 : 0.64} />
         </RoundedBox>
       ))}
       {/* Under-Desk Workstation Tower PC on Left Side */}
       <group position={[-0.78, 0.28, 0.04]}>
         <RoundedBox args={[0.24, 0.52, 0.56]} radius={0.02} castShadow receiveShadow>
-          <meshStandardMaterial color="#94A3B8" roughness={0.26} metalness={0.82} />
+          <meshStandardMaterial color={isDark ? '#94A3B8' : '#DCE4EB'} roughness={0.26} metalness={isDark ? 0.82 : 0.64} />
         </RoundedBox>
         <mesh position={[0, 0.14, 0.284]}>
           <boxGeometry args={[0.14, 0.025, 0.01]} />
@@ -53,17 +55,17 @@ export const ProcessWorkstation = memo(function ProcessWorkstation({
 
       {/* Clean Matte-Silver Enterprise Desktop Surface */}
       <RoundedBox args={[2.16, 0.07, 0.88]} radius={0.025} smoothness={2} position={[0, 0.76, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color="#E2E8F0" roughness={0.24} metalness={0.62} />
+        <meshStandardMaterial color={isDark ? '#E2E8F0' : '#F5F7FA'} roughness={0.24} metalness={isDark ? 0.62 : 0.52} />
       </RoundedBox>
 
-      {/* Dark Slim Wireless Keyboard & Mouse */}
+      {/* Slim Wireless Keyboard & Mouse */}
       <mesh position={[0.02, 0.805, 0.22]} castShadow>
         <boxGeometry args={[0.72, 0.018, 0.2]} />
-        <meshStandardMaterial color="#1E293B" roughness={0.4} metalness={0.5} />
+        <meshStandardMaterial color={isDark ? '#1E293B' : '#536B83'} roughness={0.4} metalness={0.5} />
       </mesh>
       <mesh position={[0.52, 0.805, 0.23]} castShadow>
         <boxGeometry args={[0.08, 0.02, 0.12]} />
-        <meshStandardMaterial color="#1E293B" roughness={0.35} metalness={0.5} />
+        <meshStandardMaterial color={isDark ? '#1E293B' : '#536B83'} roughness={0.35} metalness={0.5} />
       </mesh>
 
       {/* 3 Curved Cyan Workflow Monitoring Displays on Brushed-Steel Stands */}
@@ -76,15 +78,15 @@ export const ProcessWorkstation = memo(function ProcessWorkstation({
           {/* Monitor Stand Stem & Base */}
           <mesh position={[0, 0.8, 0]}>
             <boxGeometry args={[0.18, 0.02, 0.14]} />
-            <meshStandardMaterial color="#64748B" metalness={0.86} roughness={0.24} />
+            <meshStandardMaterial color={isDark ? '#64748B' : '#9EAFBF'} metalness={isDark ? 0.86 : 0.66} roughness={0.24} />
           </mesh>
           <mesh position={[0, 0.96, -0.02]}>
             <cylinderGeometry args={[0.02, 0.022, 0.34, 8]} />
-            <meshStandardMaterial color="#64748B" metalness={0.86} roughness={0.24} />
+            <meshStandardMaterial color={isDark ? '#64748B' : '#9EAFBF'} metalness={isDark ? 0.86 : 0.66} roughness={0.24} />
           </mesh>
           {/* Thin Bezel Display Chassis */}
           <RoundedBox args={[0.66, 0.44, 0.032]} radius={0.016} position={[0, 1.18, 0]} castShadow>
-            <meshStandardMaterial color="#0F172A" roughness={0.28} metalness={0.82} />
+            <meshStandardMaterial color={isDark ? '#0F172A' : '#536B83'} roughness={0.28} metalness={isDark ? 0.82 : 0.68} />
           </RoundedBox>
           <mesh position={[0, 1.18, 0.019]}>
             <planeGeometry args={[0.61, 0.39]} />
@@ -94,7 +96,7 @@ export const ProcessWorkstation = memo(function ProcessWorkstation({
                 map={m.tex}
                 emissive="#FFFFFF"
                 emissiveMap={m.tex}
-                emissiveIntensity={1.06}
+                emissiveIntensity={isDark ? 1.06 : 0.84}
                 roughness={0.18}
               />
             ) : (
@@ -104,30 +106,30 @@ export const ProcessWorkstation = memo(function ProcessWorkstation({
         </group>
       ))}
 
-      {/* Sleek Black Ergonomic Swivel Office Chair positioned in front of Desk */}
+      {/* Sleek Ergonomic Swivel Office Chair positioned in front of Desk */}
       <group position={[0.1, 0, 0.68]} rotation={[0, Math.PI + 0.18, 0]}>
         {/* 5-star chrome base & pneumatic column */}
         <mesh position={[0, 0.04, 0]}>
           <cylinderGeometry args={[0.26, 0.28, 0.04, 5]} />
-          <meshStandardMaterial color="#475569" metalness={0.88} roughness={0.24} />
+          <meshStandardMaterial color={isDark ? '#475569' : '#9EAFBF'} metalness={isDark ? 0.88 : 0.68} roughness={0.24} />
         </mesh>
         <mesh position={[0, 0.24, 0]}>
           <cylinderGeometry args={[0.032, 0.035, 0.38, 10]} />
-          <meshStandardMaterial color="#64748B" metalness={0.9} roughness={0.2} />
+          <meshStandardMaterial color={isDark ? '#64748B' : '#9EAFBF'} metalness={isDark ? 0.9 : 0.68} roughness={0.2} />
         </mesh>
-        {/* Contoured matte-black seat cushion */}
+        {/* Contoured seat cushion */}
         <RoundedBox args={[0.48, 0.07, 0.46]} radius={0.03} position={[0, 0.45, 0]} castShadow>
-          <meshStandardMaterial color="#111827" roughness={0.55} metalness={0.22} />
+          <meshStandardMaterial color={isDark ? '#111827' : '#3B5066'} roughness={0.55} metalness={0.22} />
         </RoundedBox>
         {/* Ergonomic backrest */}
         <RoundedBox args={[0.44, 0.5, 0.06]} radius={0.03} position={[0, 0.74, -0.22]} rotation={[-0.12, 0, 0]} castShadow>
-          <meshStandardMaterial color="#111827" roughness={0.55} metalness={0.22} />
+          <meshStandardMaterial color={isDark ? '#111827' : '#3B5066'} roughness={0.55} metalness={0.22} />
         </RoundedBox>
         {/* Armrests */}
         {[-0.25, 0.25].map((ax, i) => (
           <mesh key={i} position={[ax, 0.6, -0.02]}>
             <boxGeometry args={[0.04, 0.035, 0.28]} />
-            <meshStandardMaterial color="#334155" roughness={0.4} metalness={0.6} />
+            <meshStandardMaterial color={isDark ? '#334155' : '#536B83'} roughness={0.4} metalness={0.6} />
           </mesh>
         ))}
       </group>

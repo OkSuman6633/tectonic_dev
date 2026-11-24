@@ -19,17 +19,19 @@ import { getDeckPlateTexture, getSignPlaqueTexture } from './textures';
 export const PlatformChassisBase = memo(function PlatformChassisBase({
   zone,
   activeRef,
+  isDark = true,
 }: {
   zone: CampusZone;
   activeRef: React.RefObject<boolean>;
+  isDark?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
   const outerAmberRef = useRef<MeshStandardMaterial>(null);
   const innerAmberRef = useRef<MeshStandardMaterial>(null);
   const cyanVentRef = useRef<MeshStandardMaterial>(null);
 
-  const deckTex = useMemo(() => getDeckPlateTexture(), []);
-  const signTex = useMemo(() => getSignPlaqueTexture(zone.label), [zone.label]);
+  const deckTex = useMemo(() => getDeckPlateTexture(isDark), [isDark]);
+  const signTex = useMemo(() => getSignPlaqueTexture(zone.label, isDark), [zone.label, isDark]);
 
   const w = zone.width; // 10.4
   const d = zone.depth; // 8.8
@@ -105,26 +107,26 @@ export const PlatformChassisBase = memo(function PlatformChassisBase({
         receiveShadow
         castShadow
       >
-        <meshStandardMaterial color="#0D131F" roughness={0.38} metalness={0.82} />
+        <meshStandardMaterial color={isDark ? '#0D131F' : '#8A98A8'} roughness={isDark ? 0.38 : 0.34} metalness={isDark ? 0.82 : 0.68} />
       </RoundedBox>
 
       {/* Recessed Horizontal Shadow Reveal Groove between Tier 1 & Tier 2 */}
       <mesh position={[0, -0.25, 0]}>
         <boxGeometry args={[baseW - 0.12, 0.04, baseD - 0.12]} />
-        <meshStandardMaterial color="#05080F" roughness={0.7} metalness={0.5} />
+        <meshStandardMaterial color={isDark ? '#05080F' : '#263B52'} roughness={0.7} metalness={0.5} />
       </mesh>
 
       {/* Segmented Armor Panel Vertical Seam Ribs along Front-Left (+Z) & Front-Right (+X) */}
       {[-3.4, -1.6, 1.6, 3.4].map((sx, idx) => (
         <mesh key={`seam-z-${idx}`} position={[sx, -h + 0.19, baseD / 2 + 0.008]}>
           <boxGeometry args={[0.055, h - 0.28, 0.025]} />
-          <meshStandardMaterial color="#1E293B" metalness={0.85} roughness={0.28} />
+          <meshStandardMaterial color={isDark ? '#1E293B' : '#536B83'} metalness={isDark ? 0.85 : 0.72} roughness={0.28} />
         </mesh>
       ))}
       {[-2.6, 0.0, 2.6].map((sz, idx) => (
         <mesh key={`seam-x-${idx}`} position={[baseW / 2 + 0.008, -h + 0.19, sz]}>
           <boxGeometry args={[0.025, h - 0.28, 0.055]} />
-          <meshStandardMaterial color="#1E293B" metalness={0.85} roughness={0.28} />
+          <meshStandardMaterial color={isDark ? '#1E293B' : '#536B83'} metalness={isDark ? 0.85 : 0.72} roughness={0.28} />
         </mesh>
       ))}
 
@@ -192,7 +194,7 @@ export const PlatformChassisBase = memo(function PlatformChassisBase({
         receiveShadow
         castShadow
       >
-        <meshStandardMaterial color="#182234" roughness={0.32} metalness={0.82} />
+        <meshStandardMaterial color={isDark ? '#182234' : '#B7C4D1'} roughness={isDark ? 0.32 : 0.28} metalness={isDark ? 0.82 : 0.68} />
       </RoundedBox>
 
       {/* Outer Glowing Molten-Amber Perimeter Light Track (Lower of the Dual Amber Edges) */}
@@ -220,16 +222,16 @@ export const PlatformChassisBase = memo(function PlatformChassisBase({
       {/* TIER 3: UPPER WALKABLE METALLIC DECK + INNER CONTINUOUS AMBER NEON RIM */}
       {/* ================================================================================= */}
       <RoundedBox args={[w, 0.12, d]} radius={0.04} smoothness={2} position={[0, -0.06, 0]} receiveShadow castShadow>
-        <meshStandardMaterial color="#131B29" roughness={0.34} metalness={0.78} />
+        <meshStandardMaterial color={isDark ? '#131B29' : '#C8D3DE'} roughness={isDark ? 0.34 : 0.3} metalness={isDark ? 0.78 : 0.62} />
       </RoundedBox>
 
       {/* Reflective Brushed Metallic Deck Plate Top Surface (local y = 0.002) */}
       <mesh position={[0, 0.002, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[w - 0.24, d - 0.24]} />
         {deckTex ? (
-          <meshStandardMaterial map={deckTex} roughness={0.32} metalness={0.72} />
+          <meshStandardMaterial map={deckTex} roughness={isDark ? 0.32 : 0.34} metalness={isDark ? 0.72 : 0.56} />
         ) : (
-          <meshStandardMaterial color="#162032" roughness={0.35} metalness={0.7} />
+          <meshStandardMaterial color={isDark ? '#162032' : '#C8D3DE'} roughness={0.35} metalness={isDark ? 0.7 : 0.55} />
         )}
       </mesh>
 
@@ -258,7 +260,7 @@ export const PlatformChassisBase = memo(function PlatformChassisBase({
       <group position={[-w / 2 + 0.18, 0.006, 0]}>
         <mesh receiveShadow>
           <boxGeometry args={[0.56, 0.018, 2.34]} />
-          <meshStandardMaterial color="#1E293B" roughness={0.42} metalness={0.75} />
+          <meshStandardMaterial color={isDark ? '#1E293B' : '#9EAFBF'} roughness={0.42} metalness={isDark ? 0.75 : 0.62} />
         </mesh>
         {/* Flanking cyan-amber entry guide strips */}
         {[-1.08, 1.08].map((gz, i) => (
@@ -280,9 +282,9 @@ export const PlatformChassisBase = memo(function PlatformChassisBase({
       {/* INTEGRATED BEVELED "TOOL ORCHESTRATION" ARCHITECTURAL SIGNBOARD (+Z Front-Left Rim) */}
       {/* ================================================================================= */}
       <group position={[-0.42, 0.34, d / 2 + 0.09]} rotation={[-0.08, 0, 0]}>
-        {/* Sculpted Extruded Chamfered Dark Titanium Plaque Body */}
+        {/* Sculpted Extruded Chamfered Titanium Plaque Body */}
         <mesh geometry={signGeometry} castShadow receiveShadow>
-          <meshStandardMaterial color="#101826" roughness={0.28} metalness={0.86} />
+          <meshStandardMaterial color={isDark ? '#101826' : '#DCE4EB'} roughness={0.28} metalness={isDark ? 0.86 : 0.72} />
         </mesh>
 
         {/* Crisp Illuminated Typography Faceplate */}
@@ -291,7 +293,7 @@ export const PlatformChassisBase = memo(function PlatformChassisBase({
           {signTex ? (
             <meshBasicMaterial map={signTex} />
           ) : (
-            <meshBasicMaterial color="#0A0F1D" />
+            <meshBasicMaterial color={isDark ? '#0A0F1D' : '#263B52'} />
           )}
         </mesh>
 
@@ -326,7 +328,7 @@ export const PlatformChassisBase = memo(function PlatformChassisBase({
         {[-1.7, 0, 1.7].map((mx, i) => (
           <mesh key={i} position={[mx, -0.42, -0.14]} castShadow>
             <boxGeometry args={[0.24, 0.36, 0.22]} />
-            <meshStandardMaterial color="#1E293B" metalness={0.85} roughness={0.3} />
+            <meshStandardMaterial color={isDark ? '#1E293B' : '#536B83'} metalness={isDark ? 0.85 : 0.72} roughness={0.3} />
           </mesh>
         ))}
       </group>

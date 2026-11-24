@@ -89,13 +89,15 @@ export const WorkflowCoreDisplay = memo(function WorkflowCoreDisplay({
   position = [0, 0, -0.75],
   platformActiveRef,
   activityRef,
+  isDark = true,
 }: {
   position?: Vec3;
   platformActiveRef: React.RefObject<boolean>;
   activityRef: React.MutableRefObject<number>;
+  isDark?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
-  const displayTex = useMemo(() => getWorkflowDisplayTexture(), []);
+  const displayTex = useMemo(() => getWorkflowDisplayTexture(isDark), [isDark]);
 
   const borderMatRef = useRef<MeshStandardMaterial>(null);
   const baseGlowRef = useRef<MeshStandardMaterial>(null);
@@ -220,24 +222,24 @@ export const WorkflowCoreDisplay = memo(function WorkflowCoreDisplay({
         <meshBasicMaterial color="#00B8FF" transparent opacity={0.2} blending={AdditiveBlending} depthWrite={false} />
       </mesh>
 
-      {/* Main Dark Gunmetal Recessed Center Trough */}
+      {/* Main Recessed Center Trough */}
       <RoundedBox args={[3.45, 0.42, 0.82]} radius={0.05} smoothness={2} position={[0, 0.23, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color="#111827" roughness={0.32} metalness={0.86} />
+        <meshStandardMaterial color={isDark ? '#111827' : '#9EAFBF'} roughness={0.32} metalness={isDark ? 0.86 : 0.62} />
       </RoundedBox>
       {/* Brushed-steel front fascia accent bar */}
       <mesh position={[0, 0.34, 0.415]}>
         <boxGeometry args={[2.9, 0.06, 0.024]} />
-        <meshStandardMaterial color="#64748B" roughness={0.24} metalness={0.92} />
+        <meshStandardMaterial color={isDark ? '#64748B' : '#F5F7FA'} roughness={0.24} metalness={isDark ? 0.92 : 0.56} />
       </mesh>
 
       {/* Left & Right Heavy Brushed-Titanium End-Cap Pods (exact reference silhouette) */}
       {[-1.88, 1.88].map((px, i) => (
         <group key={i} position={[px, 0, 0]}>
           <RoundedBox args={[0.92, 0.52, 0.96]} radius={0.08} smoothness={2} position={[0, 0.28, 0]} castShadow receiveShadow>
-            <meshStandardMaterial color="#334155" roughness={0.26} metalness={0.9} />
+            <meshStandardMaterial color={isDark ? '#334155' : '#DCE4EB'} roughness={0.26} metalness={isDark ? 0.9 : 0.64} />
           </RoundedBox>
           <RoundedBox args={[0.76, 0.08, 0.82]} radius={0.03} position={[0, 0.55, 0]}>
-            <meshStandardMaterial color="#64748B" roughness={0.22} metalness={0.92} />
+            <meshStandardMaterial color={isDark ? '#64748B' : '#F5F7FA'} roughness={0.22} metalness={isDark ? 0.92 : 0.56} />
           </RoundedBox>
         </group>
       ))}

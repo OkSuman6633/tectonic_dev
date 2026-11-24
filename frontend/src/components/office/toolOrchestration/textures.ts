@@ -20,10 +20,10 @@ function getCached(key: string, build: () => HTMLCanvasElement | null, repeat?: 
   return tex;
 }
 
-/** Dark satin brushed metallic deck tile texture with panel seams, fasteners, and micro-grid. */
-export function getDeckPlateTexture(): CanvasTexture | null {
+/** Satin brushed metallic deck tile texture with panel seams, fasteners, and micro-grid. */
+export function getDeckPlateTexture(isDark = true): CanvasTexture | null {
   return getCached(
-    'to:deck-plate',
+    `to:deck-plate:${isDark ? 'dark' : 'light'}`,
     () => {
       const c = document.createElement('canvas');
       c.width = 512;
@@ -32,20 +32,26 @@ export function getDeckPlateTexture(): CanvasTexture | null {
       if (!ctx) return null;
 
       const bg = ctx.createLinearGradient(0, 0, 512, 512);
-      bg.addColorStop(0, '#141C2B');
-      bg.addColorStop(0.5, '#1B2538');
-      bg.addColorStop(1, '#121927');
+      if (isDark) {
+        bg.addColorStop(0, '#141C2B');
+        bg.addColorStop(0.5, '#1B2538');
+        bg.addColorStop(1, '#121927');
+      } else {
+        bg.addColorStop(0, '#C4CFD9');
+        bg.addColorStop(0.5, '#D5DFE8');
+        bg.addColorStop(1, '#B8C4D0');
+      }
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, 512, 512);
 
       // Subtle brushed metallic horizontal grain
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.018)';
+      ctx.fillStyle = isDark ? 'rgba(255, 255, 255, 0.018)' : 'rgba(245, 247, 250, 0.22)';
       for (let y = 0; y < 512; y += 3) {
         ctx.fillRect(0, y, 512, 1);
       }
 
       // Panel tile seams (2x2 tiles per repeat)
-      ctx.strokeStyle = 'rgba(4, 8, 16, 0.85)';
+      ctx.strokeStyle = isDark ? 'rgba(4, 8, 16, 0.85)' : 'rgba(51, 65, 85, 0.45)';
       ctx.lineWidth = 4;
       ctx.strokeRect(2, 2, 252, 252);
       ctx.strokeRect(258, 2, 252, 252);
@@ -53,7 +59,7 @@ export function getDeckPlateTexture(): CanvasTexture | null {
       ctx.strokeRect(258, 258, 252, 252);
 
       // Subtle specular bevel inner highlights
-      ctx.strokeStyle = 'rgba(148, 163, 184, 0.14)';
+      ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.14)' : 'rgba(245, 247, 250, 0.72)';
       ctx.lineWidth = 1.5;
       ctx.strokeRect(6, 6, 244, 244);
       ctx.strokeRect(262, 6, 244, 244);
@@ -67,7 +73,7 @@ export function getDeckPlateTexture(): CanvasTexture | null {
         [0, 256],
         [256, 256],
       ];
-      ctx.fillStyle = 'rgba(203, 213, 225, 0.25)';
+      ctx.fillStyle = isDark ? 'rgba(203, 213, 225, 0.25)' : 'rgba(83, 107, 131, 0.52)';
       for (const [ox, oy] of tileOrigins) {
         for (const [bx, by] of [
           [18, 18],
@@ -87,9 +93,9 @@ export function getDeckPlateTexture(): CanvasTexture | null {
   );
 }
 
-/** Crisp obsidian nameplate texture for the beveled "TOOL ORCHESTRATION" front rim sign. */
-export function getSignPlaqueTexture(label = 'TOOL ORCHESTRATION'): CanvasTexture | null {
-  return getCached(`to:sign:${label}`, () => {
+/** Crisp nameplate texture for the beveled "TOOL ORCHESTRATION" front rim sign. */
+export function getSignPlaqueTexture(label = 'TOOL ORCHESTRATION', isDark = true): CanvasTexture | null {
+  return getCached(`to:sign:${label}:${isDark ? 'dark' : 'light'}`, () => {
     const c = document.createElement('canvas');
     c.width = 1024;
     c.height = 256;
@@ -97,13 +103,19 @@ export function getSignPlaqueTexture(label = 'TOOL ORCHESTRATION'): CanvasTextur
     if (!ctx) return null;
 
     const grad = ctx.createLinearGradient(0, 0, 0, 256);
-    grad.addColorStop(0, '#0C111C');
-    grad.addColorStop(0.5, '#070B13');
-    grad.addColorStop(1, '#121826');
+    if (isDark) {
+      grad.addColorStop(0, '#0C111C');
+      grad.addColorStop(0.5, '#070B13');
+      grad.addColorStop(1, '#121826');
+    } else {
+      grad.addColorStop(0, '#263B52');
+      grad.addColorStop(0.5, '#1D3044');
+      grad.addColorStop(1, '#2B425B');
+    }
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, 1024, 256);
 
-    // Subtle warm amber bottom light bounce across the dark metallic panel
+    // Subtle warm amber bottom light bounce across the metallic panel
     const glow = ctx.createLinearGradient(0, 185, 0, 256);
     glow.addColorStop(0, 'rgba(245, 158, 11, 0)');
     glow.addColorStop(1, 'rgba(245, 158, 11, 0.22)');
@@ -113,7 +125,7 @@ export function getSignPlaqueTexture(label = 'TOOL ORCHESTRATION'): CanvasTextur
     // Crisp uppercase illuminated enterprise typography
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#FFFFFF';
+    ctx.fillStyle = isDark ? '#FFFFFF' : '#F5F7FA';
     ctx.font = '800 66px Inter, "Segoe UI", system-ui, sans-serif';
     ctx.shadowColor = 'rgba(255, 215, 130, 0.55)';
     ctx.shadowBlur = 14;
@@ -337,19 +349,25 @@ function drawCrispGear(
 }
 
 /** Giant rear holographic monitoring display wall texture matching the reference's crisp cyan gear HUD. */
-export function getHoloWallTexture(): CanvasTexture | null {
-  return getCached('to:holo-wall-v2', () => {
+export function getHoloWallTexture(isDark = true): CanvasTexture | null {
+  return getCached(`to:holo-wall-v2:${isDark ? 'dark' : 'light'}`, () => {
     const c = document.createElement('canvas');
     c.width = 1024;
     c.height = 512;
     const ctx = c.getContext('2d');
     if (!ctx) return null;
 
-    // Deep luminous sapphire-cyan glass gradient
+    // Deep luminous sapphire-cyan glass gradient (Deep Navy #263B52 base in light mode)
     const bg = ctx.createRadialGradient(512, 256, 40, 512, 256, 560);
-    bg.addColorStop(0, '#0D438A');
-    bg.addColorStop(0.55, '#07295E');
-    bg.addColorStop(1, '#04183D');
+    if (isDark) {
+      bg.addColorStop(0, '#0D438A');
+      bg.addColorStop(0.55, '#07295E');
+      bg.addColorStop(1, '#04183D');
+    } else {
+      bg.addColorStop(0, '#2E4966');
+      bg.addColorStop(0.55, '#263B52');
+      bg.addColorStop(1, '#1B2D40');
+    }
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, 1024, 512);
 
@@ -461,15 +479,16 @@ export function getEnterpriseRackFaceTexture(
   primaryLed = '#00E5FF',
   secondaryLed = '#7DD3FC',
   accentStyle: 'cyan' | 'amber-vertical' = 'cyan',
+  isDark = true,
 ): CanvasTexture | null {
-  return getCached(`to:rack-face:${primaryLed}:${secondaryLed}:${accentStyle}`, () => {
+  return getCached(`to:rack-face:${primaryLed}:${secondaryLed}:${accentStyle}:${isDark ? 'dark' : 'light'}`, () => {
     const c = document.createElement('canvas');
     c.width = 256;
     c.height = 512;
     const ctx = c.getContext('2d');
     if (!ctx) return null;
 
-    ctx.fillStyle = '#070D19';
+    ctx.fillStyle = isDark ? '#070D19' : '#3C5065';
     ctx.fillRect(0, 0, 256, 512);
 
     if (accentStyle === 'amber-vertical') {
@@ -479,11 +498,11 @@ export function getEnterpriseRackFaceTexture(
       const step = (512 - pad * 2) / count;
       for (let i = 0; i < count; i++) {
         const y = pad + i * step;
-        ctx.fillStyle = '#111827';
+        ctx.fillStyle = isDark ? '#111827' : '#536B83';
         ctx.fillRect(16, y + 4, 224, step - 10);
 
-        // Glowing amber vent window on right column + dark louvers on left
-        ctx.fillStyle = '#1E293B';
+        // Glowing amber vent window on right column + dark ventilation openings on left
+        ctx.fillStyle = isDark ? '#1E293B' : '#162130';
         ctx.fillRect(28, y + 12, 116, step - 26);
 
         ctx.fillStyle = i % 3 === 0 ? '#FFE082' : '#FFB020';
@@ -497,22 +516,22 @@ export function getEnterpriseRackFaceTexture(
     const uH = (512 - padY * 2) / units;
     for (let u = 0; u < units; u++) {
       const y = padY + u * uH;
-      // Dark brushed server blade faceplate
-      ctx.fillStyle = '#141D2E';
+      // Brushed server blade faceplate (Slate Blue #536B83 in light mode)
+      ctx.fillStyle = isDark ? '#141D2E' : '#536B83';
       ctx.fillRect(8, y + 3, 240, uH - 6);
 
-      // Left & right machined silver rack ears
-      ctx.fillStyle = '#94A3B8';
+      // Left & right machined rack ears (Arctic White #F5F7FA in light mode)
+      ctx.fillStyle = isDark ? '#94A3B8' : '#F5F7FA';
       ctx.fillRect(10, y + 7, 6, uH - 14);
       ctx.fillRect(240, y + 7, 6, uH - 14);
 
-      // Perforated dark cooling honeycomb / horizontal vent slots
-      ctx.fillStyle = '#060A13';
+      // Perforated dark cooling honeycomb / horizontal vent openings (preserved dark in both modes)
+      ctx.fillStyle = isDark ? '#060A13' : '#121C2A';
       ctx.fillRect(26, y + 8, 92, uH - 16);
       ctx.fillRect(136, y + 8, 92, uH - 16);
 
       // Crisp horizontal blade trim highlight
-      ctx.fillStyle = 'rgba(148, 163, 184, 0.2)';
+      ctx.fillStyle = isDark ? 'rgba(148, 163, 184, 0.2)' : 'rgba(245, 247, 250, 0.45)';
       ctx.fillRect(26, y + 6, 202, 2);
 
       // Left column bright cyan/white status LED bars
@@ -537,15 +556,15 @@ export function getEnterpriseRackFaceTexture(
 }
 
 /** 3-screen stacked cyan diagnostic panel for the front-right silver hazard cabinet. */
-export function getDiagStackTexture(): CanvasTexture | null {
-  return getCached('to:diag-stack', () => {
+export function getDiagStackTexture(isDark = true): CanvasTexture | null {
+  return getCached(`to:diag-stack:${isDark ? 'dark' : 'light'}`, () => {
     const c = document.createElement('canvas');
     c.width = 256;
     c.height = 512;
     const ctx = c.getContext('2d');
     if (!ctx) return null;
 
-    ctx.fillStyle = '#0A1220';
+    ctx.fillStyle = isDark ? '#0A1220' : '#536B83';
     ctx.fillRect(0, 0, 256, 512);
 
     const screenRects = [
@@ -555,7 +574,7 @@ export function getDiagStackTexture(): CanvasTexture | null {
     ];
 
     screenRects.forEach((r, idx) => {
-      ctx.fillStyle = '#04274A';
+      ctx.fillStyle = isDark ? '#04274A' : '#263B52';
       ctx.fillRect(20, r.y, 216, r.h);
       ctx.strokeStyle = '#38E8FF';
       ctx.lineWidth = 3;
@@ -573,7 +592,7 @@ export function getDiagStackTexture(): CanvasTexture | null {
         }
       } else if (idx === 1) {
         for (let row = 0; row < 4; row++) {
-          ctx.fillStyle = '#144B7A';
+          ctx.fillStyle = isDark ? '#144B7A' : '#1B2D40';
           ctx.fillRect(32, r.y + 38 + row * 18, 192, 10);
           ctx.fillStyle = '#00E5FF';
           ctx.fillRect(32, r.y + 38 + row * 18, 86 + ((row * 37) % 98), 10);
@@ -591,8 +610,8 @@ export function getDiagStackTexture(): CanvasTexture | null {
       }
     });
 
-    // Bottom metallic ventilation grille
-    ctx.fillStyle = '#1E293B';
+    // Bottom dark ventilation openings (preserved dark in both modes)
+    ctx.fillStyle = isDark ? '#1E293B' : '#15202E';
     for (let y = 446; y < 492; y += 10) {
       ctx.fillRect(28, y, 200, 5);
     }
@@ -601,24 +620,24 @@ export function getDiagStackTexture(): CanvasTexture | null {
   });
 }
 
-/** Crisp industrial dark door panel with embossed yellow warning triangle (⚠). */
-export function getHazardDoorTexture(): CanvasTexture | null {
-  return getCached('to:hazard-door', () => {
+/** Crisp industrial door panel with embossed yellow warning triangle (⚠). */
+export function getHazardDoorTexture(isDark = true): CanvasTexture | null {
+  return getCached(`to:hazard-door:${isDark ? 'dark' : 'light'}`, () => {
     const c = document.createElement('canvas');
     c.width = 256;
     c.height = 512;
     const ctx = c.getContext('2d');
     if (!ctx) return null;
 
-    ctx.fillStyle = '#1D2534';
+    ctx.fillStyle = isDark ? '#1D2534' : '#9EAFBF';
     ctx.fillRect(0, 0, 256, 512);
 
-    ctx.strokeStyle = '#0D1320';
+    ctx.strokeStyle = isDark ? '#0D1320' : '#536B83';
     ctx.lineWidth = 10;
     ctx.strokeRect(14, 14, 228, 484);
 
     // Subtle panel seam line
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.25)';
+    ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.25)' : 'rgba(245, 247, 250, 0.75)';
     ctx.lineWidth = 2;
     ctx.strokeRect(24, 24, 208, 464);
 
@@ -644,8 +663,8 @@ export function getHazardDoorTexture(): CanvasTexture | null {
     ctx.arc(cx, cy + 16, 5, 0, Math.PI * 2);
     ctx.fill();
 
-    // Lower cooling louver slits
-    ctx.fillStyle = '#0B101A';
+    // Lower cooling louver slits (preserved dark ventilation openings)
+    ctx.fillStyle = isDark ? '#0B101A' : '#141E2B';
     for (let y = 340; y < 448; y += 16) {
       ctx.fillRect(42, y, 172, 8);
     }
@@ -655,8 +674,11 @@ export function getHazardDoorTexture(): CanvasTexture | null {
 }
 
 /** Workstation operator terminal screens (radar dial, panoramic map/graphs, or console telemetry). */
-export function getWorkstationScreenTexture(mode: 'upper-pano' | 'console-left' | 'console-right'): CanvasTexture | null {
-  return getCached(`to:ws:${mode}`, () => {
+export function getWorkstationScreenTexture(
+  mode: 'upper-pano' | 'console-left' | 'console-right',
+  isDark = true,
+): CanvasTexture | null {
+  return getCached(`to:ws:${mode}:${isDark ? 'dark' : 'light'}`, () => {
     const c = document.createElement('canvas');
     c.width = mode === 'upper-pano' ? 512 : 256;
     c.height = 160;
@@ -665,7 +687,7 @@ export function getWorkstationScreenTexture(mode: 'upper-pano' | 'console-left' 
 
     const w = c.width;
     const h = c.height;
-    ctx.fillStyle = '#051A3B';
+    ctx.fillStyle = isDark ? '#051A3B' : '#263B52';
     ctx.fillRect(0, 0, w, h);
 
     ctx.strokeStyle = '#38E8FF';

@@ -56,6 +56,7 @@ const FALLBACK_MEMORY_ZONE: CampusZone = {
 export const MemoryInfrastructureHardware = memo(function MemoryInfrastructureHardware({
   zone = FALLBACK_MEMORY_ZONE,
   activeRef,
+  isDark = true,
 }: {
   zone?: CampusZone;
   activeRef: React.RefObject<boolean>;
@@ -106,7 +107,7 @@ export const MemoryInfrastructureHardware = memo(function MemoryInfrastructureHa
       />
 
       {/* Multi-Tier Industrial Foundation Plinth, Cyan->Purple Rim, Beveled Front Sign & Brass Rails */}
-      <MemoryPlatformChassis zone={zone} stmActiveRef={stmActiveRef} ltmActiveRef={ltmActiveRef} />
+      <MemoryPlatformChassis zone={zone} stmActiveRef={stmActiveRef} ltmActiveRef={ltmActiveRef} isDark={isDark} />
 
       {/* Central Transparent Neural-Processing Chamber, Sculpted 3D Holographic Brain & Brass Conduits */}
       <CentralMemoryCore
@@ -114,13 +115,14 @@ export const MemoryInfrastructureHardware = memo(function MemoryInfrastructureHa
         stmActiveRef={stmActiveRef}
         ltmActiveRef={ltmActiveRef}
         syncActiveRef={syncActiveRef}
+        isDark={isDark}
       />
 
       {/* Section 1: Short-Term Memory (STM — Left / -X Half, Cyan/Blue) */}
-      <ShortTermMemorySection stmActiveRef={stmActiveRef} onSelectStm={handleSelectStm} />
+      <ShortTermMemorySection stmActiveRef={stmActiveRef} onSelectStm={handleSelectStm} isDark={isDark} />
 
       {/* Section 2: Long-Term Memory (LTM — Right / +X Half, Blue/Purple) */}
-      <LongTermMemorySection ltmActiveRef={ltmActiveRef} onSelectLtm={handleSelectLtm} />
+      <LongTermMemorySection ltmActiveRef={ltmActiveRef} onSelectLtm={handleSelectLtm} isDark={isDark} />
     </group>
   );
 });

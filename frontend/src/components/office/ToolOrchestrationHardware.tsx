@@ -75,6 +75,7 @@ const FALLBACK_ZONE: CampusZone = {
 export const ToolOrchestrationHardware = memo(function ToolOrchestrationHardware({
   zone = FALLBACK_ZONE,
   activeRef,
+  isDark = true,
 }: {
   zone?: CampusZone;
   activeRef: React.RefObject<boolean>;
@@ -126,71 +127,71 @@ export const ToolOrchestrationHardware = memo(function ToolOrchestrationHardware
       {/* ================================================================================= */}
       {/* 1. MULTI-TIERED FOUNDATION PLINTH, CYAN VENTS, DUAL AMBER EDGES & BEVELED SIGN */}
       {/* ================================================================================= */}
-      <PlatformChassisBase zone={zone} activeRef={activeRef} />
+      <PlatformChassisBase zone={zone} activeRef={activeRef} isDark={isDark} />
 
       {/* ================================================================================= */}
       {/* 2. CENTRAL MONUMENTAL HOLOGRAPHIC PROCESSING CORE */}
       {/* ================================================================================= */}
-      <CentralHolographicCore position={[-0.15, 0, -0.35]} activeRef={activeRef} />
+      <CentralHolographicCore position={[-0.15, 0, -0.35]} activeRef={activeRef} isDark={isDark} />
 
       {/* ================================================================================= */}
       {/* 3. FOREGROUND ROW: 4 ENTERPRISE SERVER RACKS + FRONT-RIGHT HAZARD CABINET */}
       {/* ================================================================================= */}
-      <EnterpriseBladeRack position={[-2.05, 0, 2.28]} size={[0.78, 1.56, 0.8]} primaryLed="#00E5FF" secondaryLed="#93C5FD" />
-      <EnterpriseBladeRack position={[-1.05, 0, 2.28]} size={[0.78, 1.56, 0.8]} primaryLed="#00E5FF" secondaryLed="#7DD3FC" />
-      <EnterpriseBladeRack position={[-0.05, 0, 2.28]} size={[0.78, 1.56, 0.8]} primaryLed="#38BDF8" secondaryLed="#00E5FF" />
-      <EnterpriseBladeRack position={[0.95, 0, 2.28]} size={[0.78, 1.56, 0.8]} primaryLed="#00E5FF" secondaryLed="#BAE6FD" />
+      <EnterpriseBladeRack position={[-2.05, 0, 2.28]} size={[0.78, 1.56, 0.8]} primaryLed="#00E5FF" secondaryLed="#93C5FD" isDark={isDark} />
+      <EnterpriseBladeRack position={[-1.05, 0, 2.28]} size={[0.78, 1.56, 0.8]} primaryLed="#00E5FF" secondaryLed="#7DD3FC" isDark={isDark} />
+      <EnterpriseBladeRack position={[-0.05, 0, 2.28]} size={[0.78, 1.56, 0.8]} primaryLed="#38BDF8" secondaryLed="#00E5FF" isDark={isDark} />
+      <EnterpriseBladeRack position={[0.95, 0, 2.28]} size={[0.78, 1.56, 0.8]} primaryLed="#00E5FF" secondaryLed="#BAE6FD" isDark={isDark} />
 
-      <HazardDiagnosticCabinet position={[2.05, 0, 2.55]} size={[0.66, 1.74, 0.72]} />
+      <HazardDiagnosticCabinet position={[2.05, 0, 2.55]} size={[0.66, 1.74, 0.72]} isDark={isDark} />
 
       {/* ================================================================================= */}
       {/* 4. RIGHT INDUSTRIAL COOLING BAY, HEAT EXCHANGER, POWER CABINET & BEACON MAINFRAME */}
       {/* ================================================================================= */}
-      <IndustrialHeatExchangerBay position={[2.08, 0, 0.48]} />
-      <TallPowerServerCabinet position={[2.48, 0, -1.45]} />
-      <CornerBeaconMainframe position={[3.58, 0, -2.95]} activeRef={activeRef} />
+      <IndustrialHeatExchangerBay position={[2.08, 0, 0.48]} isDark={isDark} />
+      <TallPowerServerCabinet position={[2.48, 0, -1.45]} isDark={isDark} />
+      <CornerBeaconMainframe position={[3.58, 0, -2.95]} activeRef={activeRef} isDark={isDark} />
 
       {/* Sunken Reflective Metallic Maintenance Bay under the Cryogenic Coolant Tanks */}
       <group position={[3.68, 0.004, 0.55]}>
         {/* Outer beveled metallic catch-basin border */}
         <mesh receiveShadow>
           <boxGeometry args={[2.18, 0.018, 5.15]} />
-          <meshStandardMaterial color="#0A101B" roughness={0.22} metalness={0.86} />
+          <meshStandardMaterial color={isDark ? '#0A101B' : '#9EAFBF'} roughness={0.22} metalness={isDark ? 0.86 : 0.72} />
         </mesh>
-        {/* Inner dark mirror-sheen floor plate */}
+        {/* Inner mirror-sheen floor plate */}
         <mesh position={[0, 0.011, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
           <planeGeometry args={[1.98, 4.92]} />
-          <meshStandardMaterial color="#070C16" roughness={0.14} metalness={0.92} />
+          <meshStandardMaterial color={isDark ? '#070C16' : '#6A7E92'} roughness={0.16} metalness={isDark ? 0.92 : 0.76} />
         </mesh>
         {/* Subtle metallic maintenance grate strip */}
         <mesh position={[-0.78, 0.013, 0.2]}>
           <boxGeometry args={[0.26, 0.008, 3.8]} />
-          <meshStandardMaterial color="#273449" roughness={0.45} metalness={0.82} />
+          <meshStandardMaterial color={isDark ? '#273449' : '#536B83'} roughness={0.45} metalness={0.82} />
         </mesh>
       </group>
 
       {/* Dual Glowing Electric-Blue Cryogenic Liquid Coolant Tanks */}
-      <CryogenicCoolantTank position={[3.25, 0, 1.95]} activeRef={activeRef} phaseOffset={0} />
-      <CryogenicCoolantTank position={[3.95, 0, -0.85]} activeRef={activeRef} phaseOffset={1.9} />
+      <CryogenicCoolantTank position={[3.25, 0, 1.95]} activeRef={activeRef} phaseOffset={0} isDark={isDark} />
+      <CryogenicCoolantTank position={[3.95, 0, -0.85]} activeRef={activeRef} phaseOffset={1.9} isDark={isDark} />
 
       {/* Twin Secondary Brushed-Stainless Pressure Filter Vessels & Interconnect Piping */}
       <group position={[4.24, 0, -1.78]}>
         <mesh position={[0, 0.56, 0]} castShadow>
           <cylinderGeometry args={[0.17, 0.17, 1.12, 16]} />
-          <meshStandardMaterial color="#94A3B8" metalness={0.92} roughness={0.18} />
+          <meshStandardMaterial color={isDark ? '#94A3B8' : '#DCE4EB'} metalness={0.9} roughness={0.18} />
         </mesh>
         <mesh position={[0, 1.14, 0]}>
           <cylinderGeometry args={[0.19, 0.19, 0.06, 16]} />
-          <meshStandardMaterial color="#CBD5E1" metalness={0.94} roughness={0.14} />
+          <meshStandardMaterial color={isDark ? '#CBD5E1' : '#F5F7FA'} metalness={0.92} roughness={0.14} />
         </mesh>
       </group>
       <group position={[4.52, 0, -1.62]}>
         <mesh position={[0, 0.42, 0]} castShadow>
           <cylinderGeometry args={[0.13, 0.13, 0.84, 14]} />
-          <meshStandardMaterial color="#7C8BA1" metalness={0.9} roughness={0.22} />
+          <meshStandardMaterial color={isDark ? '#7C8BA1' : '#9EAFBF'} metalness={0.88} roughness={0.22} />
         </mesh>
         <RoundedBox args={[0.32, 0.34, 0.28]} radius={0.03} smoothness={1} position={[0, 0.17, 0.14]}>
-          <meshStandardMaterial color="#1E293B" metalness={0.82} roughness={0.34} />
+          <meshStandardMaterial color={isDark ? '#1E293B' : '#536B83'} metalness={0.8} roughness={0.34} />
         </RoundedBox>
       </group>
 
@@ -200,30 +201,30 @@ export const ToolOrchestrationHardware = memo(function ToolOrchestrationHardware
 
       {/* Industrial Safety-Yellow Handrails Framing the Cryogenic Bay & Catwalk Edges */}
       {/* Front-bottom corner barrier protecting the hazard cabinet & front cryo tank */}
-      <IndustrialSafetyRail start={[1.75, 0, 3.88]} length={1.65} />
-      <IndustrialSafetyRail start={[3.4, 0, 3.88]} length={0.95} rotation={[0, Math.PI / 2, 0]} />
+      <IndustrialSafetyRail start={[1.75, 0, 3.88]} length={1.65} isDark={isDark} />
+      <IndustrialSafetyRail start={[3.4, 0, 3.88]} length={0.95} rotation={[0, Math.PI / 2, 0]} isDark={isDark} />
       {/* Inner divider railing between the cryogenic bay and tall power cabinet */}
-      <IndustrialSafetyRail start={[3.18, 0, 0.35]} length={1.15} rotation={[0, Math.PI / 2, 0]} />
+      <IndustrialSafetyRail start={[3.18, 0, 0.35]} length={1.15} rotation={[0, Math.PI / 2, 0]} isDark={isDark} />
       {/* Far-right corner railing protecting secondary stainless pressure vessels */}
-      <IndustrialSafetyRail start={[4.76, 0, -1.25]} length={1.45} rotation={[0, Math.PI / 2, 0]} />
+      <IndustrialSafetyRail start={[4.76, 0, -1.25]} length={1.45} rotation={[0, Math.PI / 2, 0]} isDark={isDark} />
 
       {/* ================================================================================= */}
       {/* 5. GIANT REAR CYAN HOLOGRAPHIC MONITORING WALL + REAR PIPE MANIFOLD */}
       {/* ================================================================================= */}
-      <HolographicMonitoringWall position={[0.82, 2.6, -3.72]} activeRef={activeRef} />
+      <HolographicMonitoringWall position={[0.82, 2.6, -3.72]} activeRef={activeRef} isDark={isDark} />
 
       {/* ================================================================================= */}
       {/* 6. BACK-LEFT OPERATOR WORKSTATION, BATTERY PACKS & COMPUTE TOWERS */}
       {/* ================================================================================= */}
-      <OperatorControlWorkstation position={[-4.02, 0, 2.02]} rotation={[0, Math.PI / 2, 0]} />
-      <BatteryPackModules position={[-3.98, 0, 3.68]} />
-      <BackLeftComputeCluster />
+      <OperatorControlWorkstation position={[-4.02, 0, 2.02]} rotation={[0, Math.PI / 2, 0]} isDark={isDark} />
+      <BatteryPackModules position={[-3.98, 0, 3.68]} isDark={isDark} />
+      <BackLeftComputeCluster isDark={isDark} />
 
       {/* ================================================================================= */}
       {/* 7. ORGANIC SCULPTED CYBER PLANTS (Left & Right Corner Accents) */}
       {/* ================================================================================= */}
-      <SculptedCyberPlant position={[-4.6, 0, 3.08]} scale={1.05} />
-      <SculptedCyberPlant position={[4.12, 0, -2.28]} scale={1.0} />
+      <SculptedCyberPlant position={[-4.6, 0, 3.08]} scale={1.05} isDark={isDark} />
+      <SculptedCyberPlant position={[4.12, 0, -2.28]} scale={1.0} isDark={isDark} />
     </group>
   );
 });

@@ -14,11 +14,13 @@ const StudioGlassRailing = memo(function StudioGlassRailing({
   length,
   rotation = [0, 0, 0],
   height = 0.68,
+  isDark = true,
 }: {
   start: Vec3;
   length: number;
   rotation?: [number, number, number];
   height?: number;
+  isDark?: boolean;
 }) {
   const posts = useMemo(() => {
     const count = Math.max(2, Math.round(length / 1.0) + 1);
@@ -60,7 +62,7 @@ const StudioGlassRailing = memo(function StudioGlassRailing({
           </mesh>
           <mesh position={[0, 0.022, 0]}>
             <cylinderGeometry args={[0.048, 0.056, 0.044, 10]} />
-            <meshStandardMaterial color="#334155" metalness={0.85} roughness={0.26} />
+            <meshStandardMaterial color={isDark ? '#334155' : '#536B83'} metalness={isDark ? 0.85 : 0.7} roughness={0.26} />
           </mesh>
           <mesh position={[0, height + 0.014, 0]}>
             <sphereGeometry args={[0.026, 8, 8]} />
@@ -74,26 +76,28 @@ const StudioGlassRailing = memo(function StudioGlassRailing({
 
 /**
  * Multi-Tier Metallic Studio Platform Chassis for Content Studio – RCP:
- * - Sculpted dark-gunmetal & brushed-titanium rounded plinth
+ * - Sculpted dark-gunmetal (or Light Graphite/Silver in light mode) & brushed-titanium rounded plinth
  * - Continuous glowing electric cyan-blue upper & lower perimeter contour bars
  * - Recessed glowing purple-violet lower corner accent strips & dark ventilation grilles
- * - Reflective mirror-sheen dark modular tiled floor deck
+ * - Reflective mirror-sheen modular tiled floor deck
  * - Extruded chamfered "Content Studio – RCP" front signboard with glowing purple play icon
  * - Tempered-glass & brushed-chrome perimeter railings with unobstructed east (+X) bridge dock for `bridge-content`
  */
 export const ContentPlatformChassis = memo(function ContentPlatformChassis({
   zone,
   activeRef,
+  isDark = true,
 }: {
   zone: CampusZone;
   activeRef: React.RefObject<boolean>;
+  isDark?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
   const cyanBarRef = useRef<MeshStandardMaterial>(null);
   const purpleBarRef = useRef<MeshStandardMaterial>(null);
 
-  const deckTex = useMemo(() => getContentDeckTexture(), []);
-  const signTex = useMemo(() => getContentFrontSignTexture(), []);
+  const deckTex = useMemo(() => getContentDeckTexture(isDark), [isDark]);
+  const signTex = useMemo(() => getContentFrontSignTexture(isDark), [isDark]);
 
   const w = zone.width; // 12.6
   const d = zone.depth; // 8.8
@@ -147,7 +151,7 @@ export const ContentPlatformChassis = memo(function ContentPlatformChassis({
 
   return (
     <group>
-      {/* TIER 1: HEAVY DARK GUNMETAL SUB-CHASSIS ARMOR SKIRT */}
+      {/* TIER 1: HEAVY SUB-CHASSIS ARMOR SKIRT */}
       <RoundedBox
         args={[baseW, h - 0.2, baseD]}
         radius={0.18}
@@ -156,16 +160,16 @@ export const ContentPlatformChassis = memo(function ContentPlatformChassis({
         receiveShadow
         castShadow
       >
-        <meshStandardMaterial color="#0E1526" roughness={0.32} metalness={0.86} />
+        <meshStandardMaterial color={isDark ? '#0E1526' : '#8A98A8'} roughness={isDark ? 0.32 : 0.34} metalness={isDark ? 0.86 : 0.56} />
       </RoundedBox>
 
       {/* Recessed Shadow Reveal Groove */}
       <mesh position={[0, -0.2, 0]}>
         <boxGeometry args={[baseW - 0.14, 0.04, baseD - 0.14]} />
-        <meshStandardMaterial color="#04070F" roughness={0.75} metalness={0.5} />
+        <meshStandardMaterial color={isDark ? '#04070F' : '#263B52'} roughness={isDark ? 0.75 : 0.55} metalness={0.5} />
       </mesh>
 
-      {/* TIER 2: BRUSHED-TITANIUM STEPPED UPPER COLLAR */}
+      {/* TIER 2: STEPPED UPPER COLLAR */}
       <RoundedBox
         args={[midW, 0.16, midD]}
         radius={0.15}
@@ -174,7 +178,7 @@ export const ContentPlatformChassis = memo(function ContentPlatformChassis({
         receiveShadow
         castShadow
       >
-        <meshStandardMaterial color="#334155" roughness={0.26} metalness={0.9} />
+        <meshStandardMaterial color={isDark ? '#334155' : '#B7C4D1'} roughness={isDark ? 0.26 : 0.28} metalness={isDark ? 0.9 : 0.62} />
       </RoundedBox>
 
       {/* CONTINUOUS ELECTRIC CYAN-BLUE ILLUMINATED PERIMETER CONTOUR BARS (exact reference signature) */}
@@ -212,7 +216,7 @@ export const ContentPlatformChassis = memo(function ContentPlatformChassis({
           <group key={`pv-${i}`} position={[vx, 0, baseD / 2 + 0.012]}>
             <mesh>
               <boxGeometry args={[1.65, 0.19, 0.025]} />
-              <meshStandardMaterial color="#050812" roughness={0.8} metalness={0.45} />
+              <meshStandardMaterial color={isDark ? '#050812' : '#121B28'} roughness={0.8} metalness={0.45} />
             </mesh>
             <mesh position={[0, 0, 0.015]}>
               <boxGeometry args={[1.38, 0.065, 0.016]} />
@@ -232,7 +236,7 @@ export const ContentPlatformChassis = memo(function ContentPlatformChassis({
           <group key={`rv-${i}`} position={[baseW / 2 + 0.012, 0, vz]}>
             <mesh>
               <boxGeometry args={[0.025, 0.19, 1.85]} />
-              <meshStandardMaterial color="#050812" roughness={0.8} metalness={0.45} />
+              <meshStandardMaterial color={isDark ? '#050812' : '#121B28'} roughness={0.8} metalness={0.45} />
             </mesh>
             <mesh position={[0.015, 0, 0]}>
               <boxGeometry args={[0.016, 0.062, 1.52]} />
@@ -248,16 +252,16 @@ export const ContentPlatformChassis = memo(function ContentPlatformChassis({
         </mesh>
       </group>
 
-      {/* TIER 3: REFLECTIVE DARK MIRROR-SHEEN TILED DECK (top at local y = 0) */}
+      {/* TIER 3: REFLECTIVE TILED DECK (top at local y = 0) */}
       <RoundedBox args={[w, 0.08, d]} radius={0.08} smoothness={2} position={[0, -0.04, 0]} receiveShadow>
-        <meshStandardMaterial color="#172033" roughness={0.22} metalness={0.86} />
+        <meshStandardMaterial color={isDark ? '#172033' : '#C8D3DE'} roughness={isDark ? 0.22 : 0.26} metalness={isDark ? 0.86 : 0.52} />
       </RoundedBox>
       <mesh position={[0, 0.002, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[w - 0.16, d - 0.16]} />
         {deckTex ? (
-          <meshStandardMaterial map={deckTex} roughness={0.15} metalness={0.88} />
+          <meshStandardMaterial map={deckTex} roughness={isDark ? 0.15 : 0.34} metalness={isDark ? 0.88 : 0.48} />
         ) : (
-          <meshStandardMaterial color="#101828" roughness={0.15} metalness={0.88} />
+          <meshStandardMaterial color={isDark ? '#101828' : '#C8D3DE'} roughness={isDark ? 0.15 : 0.34} metalness={isDark ? 0.88 : 0.48} />
         )}
       </mesh>
 
@@ -271,7 +275,7 @@ export const ContentPlatformChassis = memo(function ContentPlatformChassis({
       <group position={[w / 2 - 0.12, 0.006, 0]}>
         <mesh receiveShadow>
           <boxGeometry args={[0.52, 0.024, 2.25]} />
-          <meshStandardMaterial color="#1E293B" metalness={0.85} roughness={0.28} />
+          <meshStandardMaterial color={isDark ? '#1E293B' : '#9EAFBF'} metalness={isDark ? 0.85 : 0.62} roughness={0.28} />
         </mesh>
         {[-1.12, 1.12].map((gz, i) => (
           <mesh key={i} position={[0, 0.015, gz]}>
@@ -284,7 +288,7 @@ export const ContentPlatformChassis = memo(function ContentPlatformChassis({
       {/* INTEGRATED CHAMFERED "Content Studio – RCP" ARCHITECTURAL SIGNBOARD (+Z FRONT FASCIA) */}
       <group position={[-0.35, -0.06, baseD / 2 + 0.14]} rotation={[-0.06, 0, 0]}>
         <mesh geometry={signGeometry} castShadow receiveShadow>
-          <meshStandardMaterial color="#091122" roughness={0.26} metalness={0.88} />
+          <meshStandardMaterial color={isDark ? '#091122' : '#DCE4EB'} roughness={0.26} metalness={isDark ? 0.88 : 0.65} />
         </mesh>
         <mesh position={[0, 0.48, 0.06]}>
           <boxGeometry args={[4.6, 0.036, 0.06]} />
@@ -301,25 +305,25 @@ export const ContentPlatformChassis = memo(function ContentPlatformChassis({
               map={signTex}
               emissive="#FFFFFF"
               emissiveMap={signTex}
-              emissiveIntensity={0.95}
+              emissiveIntensity={isDark ? 0.95 : 0.82}
               roughness={0.18}
               metalness={0.24}
             />
           ) : (
-            <meshStandardMaterial color="#091122" emissive="#00B8FF" emissiveIntensity={0.8} />
+            <meshStandardMaterial color={isDark ? '#091122' : '#263B52'} emissive="#00B8FF" emissiveIntensity={0.8} />
           )}
         </mesh>
       </group>
 
       {/* TEMPERED-GLASS & BRUSHED-CHROME PERIMETER RAILINGS (Clear at East +X bridge-content dock z ∈ [-1.2, +1.2]) */}
       {/* Front-left (+Z) glass railing west of front signboard */}
-      <StudioGlassRailing start={[-w / 2 + 0.24, 0, d / 2 - 0.16]} length={3.05} />
+      <StudioGlassRailing start={[-w / 2 + 0.24, 0, d / 2 - 0.16]} length={3.05} isDark={isDark} />
       {/* Front-right (+Z) glass railing east of front signboard */}
-      <StudioGlassRailing start={[2.55, 0, d / 2 - 0.16]} length={3.45} />
+      <StudioGlassRailing start={[2.55, 0, d / 2 - 0.16]} length={3.45} isDark={isDark} />
       {/* Left (-X) glass railing */}
-      <StudioGlassRailing start={[-w / 2 + 0.16, 0, d / 2 - 0.24]} length={3.85} rotation={[0, Math.PI / 2, 0]} />
+      <StudioGlassRailing start={[-w / 2 + 0.16, 0, d / 2 - 0.24]} length={3.85} rotation={[0, Math.PI / 2, 0]} isDark={isDark} />
       {/* Front-Right (+X) glass railing south of bridge-content dock */}
-      <StudioGlassRailing start={[w / 2 - 0.16, 0, d / 2 - 0.24]} length={2.95} rotation={[0, Math.PI / 2, 0]} />
+      <StudioGlassRailing start={[w / 2 - 0.16, 0, d / 2 - 0.24]} length={2.95} rotation={[0, Math.PI / 2, 0]} isDark={isDark} />
     </group>
   );
 });

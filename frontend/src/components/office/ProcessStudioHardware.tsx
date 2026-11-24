@@ -45,6 +45,7 @@ const FALLBACK_PROCESS_ZONE: CampusZone = {
 export const ProcessStudioHardware = memo(function ProcessStudioHardware({
   zone = FALLBACK_PROCESS_ZONE,
   activeRef,
+  isDark = true,
 }: {
   zone?: CampusZone;
   activeRef: React.RefObject<boolean>;
@@ -65,25 +66,26 @@ export const ProcessStudioHardware = memo(function ProcessStudioHardware({
   return (
     <group onClick={handleSelectProcess}>
       {/* 1. Multi-Tier Sculpted Metallic Platform, Cyan/Purple Lighting, Front Sign & Glass Balustrades */}
-      <ProcessPlatformChassis zone={zone} activityRef={workflowActivityRef} />
+      <ProcessPlatformChassis zone={zone} activityRef={workflowActivityRef} isDark={isDark} />
 
       {/* 2. Central Holographic Workflow Core & Live Build / Test / Deploy / Monitor Display */}
       <WorkflowCoreDisplay
         position={[0.05, 0, -0.75]}
         platformActiveRef={activeRef}
         activityRef={workflowActivityRef}
+        isDark={isDark}
       />
 
       {/* 3. Realistic Enterprise Server Racks (Left Pair & Right Pair) + Purple Workflow Monolith */}
-      <ProcessServerRack position={[-4.25, 0, -1.78]} size={[1.05, 2.48, 0.96]} activityRef={workflowActivityRef} phase={0.0} />
-      <ProcessServerRack position={[-2.95, 0, -2.35]} size={[1.08, 2.66, 0.98]} activityRef={workflowActivityRef} phase={1.2} />
+      <ProcessServerRack position={[-4.25, 0, -1.78]} size={[1.05, 2.48, 0.96]} activityRef={workflowActivityRef} phase={0.0} isDark={isDark} />
+      <ProcessServerRack position={[-2.95, 0, -2.35]} size={[1.08, 2.66, 0.98]} activityRef={workflowActivityRef} phase={1.2} isDark={isDark} />
 
-      <ProcessServerRack position={[2.82, 0, -1.88]} size={[1.02, 2.48, 0.96]} activityRef={workflowActivityRef} phase={2.1} />
-      <ProcessServerRack position={[3.92, 0, -1.68]} size={[0.96, 2.18, 0.92]} activityRef={workflowActivityRef} phase={3.3} />
-      <ProcessWorkflowMonolith position={[5.05, 0, -1.35]} activityRef={workflowActivityRef} />
+      <ProcessServerRack position={[2.82, 0, -1.88]} size={[1.02, 2.48, 0.96]} activityRef={workflowActivityRef} phase={2.1} isDark={isDark} />
+      <ProcessServerRack position={[3.92, 0, -1.68]} size={[0.96, 2.18, 0.92]} activityRef={workflowActivityRef} phase={3.3} isDark={isDark} />
+      <ProcessWorkflowMonolith position={[5.05, 0, -1.35]} activityRef={workflowActivityRef} isDark={isDark} />
 
       {/* 4. Clean 3-Monitor Operator Workstation & Minimalist White Corner Planters */}
-      <ProcessWorkstation position={[-2.58, 0, 0.42]} rotation={[0, 0.1, 0]} activityRef={workflowActivityRef} />
+      <ProcessWorkstation position={[-2.58, 0, 0.42]} rotation={[0, 0.1, 0]} activityRef={workflowActivityRef} isDark={isDark} />
       <ArchitecturalPlanter position={[-5.35, 0, 0.48]} potHeight={0.86} potWidth={0.56} />
       <ArchitecturalPlanter position={[5.35, 0, 1.38]} potHeight={0.56} potWidth={0.54} />
     </group>

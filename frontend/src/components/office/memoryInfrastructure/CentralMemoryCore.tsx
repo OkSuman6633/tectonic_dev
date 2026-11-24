@@ -80,11 +80,13 @@ export const CentralMemoryCore = memo(function CentralMemoryCore({
   stmActiveRef,
   ltmActiveRef,
   syncActiveRef,
+  isDark = true,
 }: {
   position?: Vec3;
   stmActiveRef: React.RefObject<number>;
   ltmActiveRef: React.RefObject<number>;
   syncActiveRef: React.RefObject<number>;
+  isDark?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
   const brainGroupRef = useRef<Group>(null);
@@ -227,10 +229,10 @@ export const CentralMemoryCore = memo(function CentralMemoryCore({
         <meshBasicMaterial color="#00E5FF" transparent opacity={0.22} blending={AdditiveBlending} depthWrite={false} />
       </mesh>
 
-      {/* Tier 1: Heavy Dark Titanium Circular Base Drum */}
+      {/* Tier 1: Heavy Titanium Circular Base Drum */}
       <mesh position={[0, 0.19, 0]} castShadow receiveShadow>
         <cylinderGeometry args={[1.92, 2.12, 0.38, 36]} />
-        <meshStandardMaterial color="#182235" roughness={0.32} metalness={0.86} />
+        <meshStandardMaterial color={isDark ? '#182235' : '#DCE4EB'} roughness={isDark ? 0.32 : 0.26} metalness={isDark ? 0.86 : 0.62} />
       </mesh>
 
       {/* Machined Radial Turbine Ribs & Recessed Vent Slots around Tier 1 */}
@@ -238,7 +240,7 @@ export const CentralMemoryCore = memo(function CentralMemoryCore({
         <group key={i} rotation={[0, angle, 0]}>
           <mesh position={[0, 0.21, 1.98]} castShadow>
             <boxGeometry args={[0.12, 0.32, 0.16]} />
-            <meshStandardMaterial color="#334155" roughness={0.28} metalness={0.88} />
+            <meshStandardMaterial color={isDark ? '#334155' : '#536B83'} roughness={0.28} metalness={isDark ? 0.88 : 0.68} />
           </mesh>
           {/* Warm brushed-brass micro bracket accent every 4th rib */}
           {i % 2 === 0 && (
@@ -259,7 +261,7 @@ export const CentralMemoryCore = memo(function CentralMemoryCore({
       {/* Tier 2: Stepped Brushed-Steel Upper Ring */}
       <mesh position={[0, 0.54, 0]} castShadow receiveShadow>
         <cylinderGeometry args={[1.64, 1.78, 0.28, 36]} />
-        <meshStandardMaterial color="#243147" roughness={0.28} metalness={0.88} />
+        <meshStandardMaterial color={isDark ? '#243147' : '#9EAFBF'} roughness={isDark ? 0.28 : 0.25} metalness={isDark ? 0.88 : 0.64} />
       </mesh>
 
       {/* Secondary Bright Cyan Halo Ring on Tier 2 Rim */}
@@ -271,7 +273,7 @@ export const CentralMemoryCore = memo(function CentralMemoryCore({
       {/* Tier 3: Precision Glass Containment Base Collar */}
       <mesh position={[0, 0.77, 0]} castShadow>
         <cylinderGeometry args={[1.42, 1.5, 0.16, 36]} />
-        <meshStandardMaterial color="#0F172A" roughness={0.3} metalness={0.88} />
+        <meshStandardMaterial color={isDark ? '#0F172A' : '#536B83'} roughness={0.3} metalness={isDark ? 0.88 : 0.68} />
       </mesh>
 
       {/* Glowing Rotating Concentric Holographic Emitter Disc */}

@@ -24,13 +24,19 @@ function cached(
   return tex;
 }
 
-/** Reflective dark modular brushed-steel deck plate matching the reference's mirror floor. */
-export function getOpsDeckTexture(): CanvasTexture | null {
-  const tex = cached('ops-deck-v1', 512, 512, (ctx, w, h) => {
+/** Reflective modular brushed-steel deck plate (dark & light mode). */
+export function getOpsDeckTexture(isDark = true): CanvasTexture | null {
+  const tex = cached(`ops-deck-v1:${isDark ? 'dark' : 'light'}`, 512, 512, (ctx, w, h) => {
     const grad = ctx.createLinearGradient(0, 0, w, h);
-    grad.addColorStop(0, '#0C1322');
-    grad.addColorStop(0.5, '#152034');
-    grad.addColorStop(1, '#0B111E');
+    if (isDark) {
+      grad.addColorStop(0, '#0C1322');
+      grad.addColorStop(0.5, '#152034');
+      grad.addColorStop(1, '#0B111E');
+    } else {
+      grad.addColorStop(0, '#CDD6E0');
+      grad.addColorStop(0.5, '#D9E1EA');
+      grad.addColorStop(1, '#C3CDD8');
+    }
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
 
@@ -40,15 +46,17 @@ export function getOpsDeckTexture(): CanvasTexture | null {
       for (let c = 0; c < cells; c++) {
         const x = c * step;
         const y = r * step;
-        ctx.fillStyle = (r + c) % 2 === 0 ? 'rgba(30,41,59,0.22)' : 'rgba(15,23,42,0.3)';
+        ctx.fillStyle = isDark
+          ? (r + c) % 2 === 0 ? 'rgba(30,41,59,0.22)' : 'rgba(15,23,42,0.3)'
+          : (r + c) % 2 === 0 ? 'rgba(245,247,250,0.44)' : 'rgba(158,175,191,0.28)';
         ctx.fillRect(x + 3, y + 3, step - 6, step - 6);
-        ctx.strokeStyle = 'rgba(148,163,184,0.16)';
+        ctx.strokeStyle = isDark ? 'rgba(148,163,184,0.16)' : 'rgba(83,107,131,0.28)';
         ctx.lineWidth = 1.2;
         ctx.strokeRect(x + 2.5, y + 2.5, step - 5, step - 5);
       }
     }
 
-    ctx.strokeStyle = '#04070F';
+    ctx.strokeStyle = isDark ? '#04070F' : '#7C8EA0';
     ctx.lineWidth = 2.5;
     for (let i = 0; i <= cells; i++) {
       const p = i * step;
@@ -71,12 +79,18 @@ export function getOpsDeckTexture(): CanvasTexture | null {
 }
 
 /** Chamfered front "OPERATIONS & SAFETY" architectural signboard with glowing cyan shield-check emblem. */
-export function getOpsFrontSignTexture(): CanvasTexture | null {
-  return cached('ops-front-sign-v1', 1024, 240, (ctx, w, h) => {
+export function getOpsFrontSignTexture(isDark = true): CanvasTexture | null {
+  return cached(`ops-front-sign-v1:${isDark ? 'dark' : 'light'}`, 1024, 240, (ctx, w, h) => {
     const bg = ctx.createLinearGradient(0, 0, w, h);
-    bg.addColorStop(0, '#071021');
-    bg.addColorStop(0.5, '#0D1C36');
-    bg.addColorStop(1, '#060D1B');
+    if (isDark) {
+      bg.addColorStop(0, '#071021');
+      bg.addColorStop(0.5, '#0D1C36');
+      bg.addColorStop(1, '#060D1B');
+    } else {
+      bg.addColorStop(0, '#1E3147');
+      bg.addColorStop(0.5, '#263B52');
+      bg.addColorStop(1, '#1B2D41');
+    }
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, w, h);
 
@@ -155,12 +169,18 @@ export interface OpsDashboardSnapshot {
 }
 
 /** Draws the live Operations & Safety rear wall dashboard directly onto a 2D canvas. */
-export function drawOpsDashboard(ctx: CanvasRenderingContext2D, w: number, h: number, snap: OpsDashboardSnapshot) {
+export function drawOpsDashboard(ctx: CanvasRenderingContext2D, w: number, h: number, snap: OpsDashboardSnapshot, isDark = true) {
   // Deep enterprise navy-blue HUD backdrop
   const bg = ctx.createLinearGradient(0, 0, w, h);
-  bg.addColorStop(0, '#061530');
-  bg.addColorStop(0.5, '#09224B');
-  bg.addColorStop(1, '#05132B');
+  if (isDark) {
+    bg.addColorStop(0, '#061530');
+    bg.addColorStop(0.5, '#09224B');
+    bg.addColorStop(1, '#05132B');
+  } else {
+    bg.addColorStop(0, '#1E3147');
+    bg.addColorStop(0.5, '#263B52');
+    bg.addColorStop(1, '#1B2D41');
+  }
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, w, h);
 
@@ -456,9 +476,9 @@ export function getFireSignTexture(): CanvasTexture | null {
 }
 
 /** Operator 4-monitor cyan command console screens. */
-export function getOpsCommandMonitorTexture(idx: number): CanvasTexture | null {
-  return cached(`ops-cmd-mon-${idx}-v1`, 384, 256, (ctx, w, h) => {
-    ctx.fillStyle = '#041229';
+export function getOpsCommandMonitorTexture(idx: number, isDark = true): CanvasTexture | null {
+  return cached(`ops-cmd-mon-${idx}-v1:${isDark ? 'dark' : 'light'}`, 384, 256, (ctx, w, h) => {
+    ctx.fillStyle = isDark ? '#041229' : '#263B52';
     ctx.fillRect(0, 0, w, h);
     ctx.strokeStyle = '#38E8FF';
     ctx.lineWidth = 3.5;
@@ -495,19 +515,26 @@ export function getOpsCommandMonitorTexture(idx: number): CanvasTexture | null {
 }
 
 /** High-density blue-lit enterprise server rack blade faceplate for left operations servers. */
-export function getOpsServerFaceTexture(): CanvasTexture | null {
-  return cached('ops-server-face-v1', 256, 512, (ctx, w, h) => {
-    ctx.fillStyle = '#050A15';
+export function getOpsServerFaceTexture(isDark = true): CanvasTexture | null {
+  return cached(`ops-server-face-v1:${isDark ? 'dark' : 'light'}`, 256, 512, (ctx, w, h) => {
+    ctx.fillStyle = isDark ? '#050A15' : '#3F556B';
     ctx.fillRect(0, 0, w, h);
 
     const rows = 14;
     const rowH = (h - 20) / rows;
     for (let i = 0; i < rows; i++) {
       const y = 10 + i * rowH;
-      ctx.fillStyle = i % 2 === 0 ? '#0F182A' : '#0A1120';
+      ctx.fillStyle = isDark
+        ? i % 2 === 0 ? '#0F182A' : '#0A1120'
+        : i % 2 === 0 ? '#536B83' : '#496077';
       ctx.fillRect(12, y + 2, w - 24, rowH - 5);
+      if (!isDark) {
+        ctx.strokeStyle = '#7B93AB';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(12, y + 2, w - 24, rowH - 5);
+      }
 
-      ctx.fillStyle = '#03060E';
+      ctx.fillStyle = isDark ? '#03060E' : '#121B28';
       for (let sx = 20; sx < w - 88; sx += 12) {
         ctx.fillRect(sx, y + 7, 7, rowH - 15);
       }

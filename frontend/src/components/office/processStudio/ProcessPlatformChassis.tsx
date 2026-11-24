@@ -15,12 +15,14 @@ const GlassSafetyBalustrade = memo(function GlassSafetyBalustrade({
   rotation = [0, 0, 0],
   height = 0.64,
   baseStripColor = '#38E8FF',
+  isDark = true,
 }: {
   start: Vec3;
   length: number;
   rotation?: [number, number, number];
   height?: number;
   baseStripColor?: string;
+  isDark?: boolean;
 }) {
   const posts = useMemo(() => {
     const count = Math.max(2, Math.round(length / 1.15) + 1);
@@ -34,7 +36,7 @@ const GlassSafetyBalustrade = memo(function GlassSafetyBalustrade({
       {/* Sleek brushed-chrome top handrail bar */}
       <mesh position={[length / 2, height, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
         <cylinderGeometry args={[0.024, 0.024, length + 0.04, 12]} />
-        <meshStandardMaterial color="#CBD5E1" metalness={0.92} roughness={0.18} />
+        <meshStandardMaterial color={isDark ? '#CBD5E1' : '#F5F7FA'} metalness={isDark ? 0.92 : 0.7} roughness={0.18} />
       </mesh>
       {/* Translucent tempered glass balustrade panel */}
       <mesh position={[length / 2, height * 0.52, 0]}>
@@ -61,7 +63,7 @@ const GlassSafetyBalustrade = memo(function GlassSafetyBalustrade({
         <group key={i} position={[px, 0, 0]}>
           <mesh position={[0, height / 2, 0]} castShadow>
             <cylinderGeometry args={[0.022, 0.022, height, 10]} />
-            <meshStandardMaterial color="#94A3B8" metalness={0.9} roughness={0.2} />
+            <meshStandardMaterial color={isDark ? '#94A3B8' : '#9EAFBF'} metalness={isDark ? 0.9 : 0.68} roughness={0.2} />
           </mesh>
           <mesh position={[0, 0.02, 0]}>
             <cylinderGeometry args={[0.048, 0.056, 0.04, 10]} />
@@ -84,16 +86,18 @@ const GlassSafetyBalustrade = memo(function GlassSafetyBalustrade({
 export const ProcessPlatformChassis = memo(function ProcessPlatformChassis({
   zone,
   activityRef,
+  isDark = true,
 }: {
   zone: CampusZone;
   activityRef: React.RefObject<number>;
+  isDark?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
   const cyanEdgeRef = useRef<MeshStandardMaterial>(null);
   const purpleEdgeRef = useRef<MeshStandardMaterial>(null);
 
-  const deckTex = useMemo(() => getProcessDeckTexture(), []);
-  const signTex = useMemo(() => getProcessFrontSignTexture(), []);
+  const deckTex = useMemo(() => getProcessDeckTexture(isDark), [isDark]);
+  const signTex = useMemo(() => getProcessFrontSignTexture(isDark), [isDark]);
 
   const w = zone.width; // 12.2
   const d = zone.depth; // 8.4
@@ -150,7 +154,7 @@ export const ProcessPlatformChassis = memo(function ProcessPlatformChassis({
 
   return (
     <group>
-      {/* TIER 1: LOWER DARK GUNMETAL ARMOR SKIRT */}
+      {/* TIER 1: LOWER ARMOR SKIRT */}
       <RoundedBox
         args={[baseW, h - 0.2, baseD]}
         radius={0.18}
@@ -159,13 +163,13 @@ export const ProcessPlatformChassis = memo(function ProcessPlatformChassis({
         receiveShadow
         castShadow
       >
-        <meshStandardMaterial color="#111827" roughness={0.34} metalness={0.86} />
+        <meshStandardMaterial color={isDark ? '#111827' : '#8A98A8'} roughness={0.34} metalness={isDark ? 0.86 : 0.56} />
       </RoundedBox>
 
       {/* Recessed Shadow Reveal Groove */}
       <mesh position={[0, -0.2, 0]}>
         <boxGeometry args={[baseW - 0.12, 0.04, baseD - 0.12]} />
-        <meshStandardMaterial color="#050812" roughness={0.75} metalness={0.5} />
+        <meshStandardMaterial color={isDark ? '#050812' : '#263B52'} roughness={isDark ? 0.75 : 0.55} metalness={0.5} />
       </mesh>
 
       {/* TIER 2: BRUSHED-TITANIUM STEPPED UPPER COLLAR */}
@@ -177,7 +181,7 @@ export const ProcessPlatformChassis = memo(function ProcessPlatformChassis({
         receiveShadow
         castShadow
       >
-        <meshStandardMaterial color="#334155" roughness={0.26} metalness={0.9} />
+        <meshStandardMaterial color={isDark ? '#334155' : '#B7C4D1'} roughness={isDark ? 0.26 : 0.28} metalness={isDark ? 0.9 : 0.62} />
       </RoundedBox>
 
       {/* ILLUMINATED CYAN-BLUE CORNER BARS & PURPLE SIDE VENT ACCENT STRIPS */}
@@ -205,7 +209,7 @@ export const ProcessPlatformChassis = memo(function ProcessPlatformChassis({
         {/* Central +X recessed industrial vent grille + glowing purple overhead trim */}
         <mesh position={[baseW / 2 + 0.008, -0.02, 0]}>
           <boxGeometry args={[0.022, 0.24, 3.2]} />
-          <meshStandardMaterial color="#050812" roughness={0.78} metalness={0.5} />
+          <meshStandardMaterial color={isDark ? '#050812' : '#121B28'} roughness={0.78} metalness={0.5} />
         </mesh>
         <mesh position={[baseW / 2 + 0.016, 0.14, 0]}>
           <boxGeometry args={[0.028, 0.055, 3.35]} />
@@ -223,16 +227,16 @@ export const ProcessPlatformChassis = memo(function ProcessPlatformChassis({
         </mesh>
       </group>
 
-      {/* TIER 3: REFLECTIVE DARK MIRROR-SHEEN TILED DECK (top at local y = 0) */}
+      {/* TIER 3: REFLECTIVE TILED DECK (top at local y = 0) */}
       <RoundedBox args={[w, 0.08, d]} radius={0.08} smoothness={2} position={[0, -0.04, 0]} receiveShadow>
-        <meshStandardMaterial color="#182235" roughness={0.22} metalness={0.86} />
+        <meshStandardMaterial color={isDark ? '#182235' : '#C8D3DE'} roughness={isDark ? 0.22 : 0.26} metalness={isDark ? 0.86 : 0.52} />
       </RoundedBox>
       <mesh position={[0, 0.002, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[w - 0.16, d - 0.16]} />
         {deckTex ? (
-          <meshStandardMaterial map={deckTex} roughness={0.16} metalness={0.86} />
+          <meshStandardMaterial map={deckTex} roughness={isDark ? 0.16 : 0.34} metalness={isDark ? 0.86 : 0.48} />
         ) : (
-          <meshStandardMaterial color="#111A2C" roughness={0.16} metalness={0.86} />
+          <meshStandardMaterial color={isDark ? '#111A2C' : '#C8D3DE'} roughness={isDark ? 0.16 : 0.34} metalness={isDark ? 0.86 : 0.48} />
         )}
       </mesh>
 
@@ -250,7 +254,7 @@ export const ProcessPlatformChassis = memo(function ProcessPlatformChassis({
       <group position={[dockCenterX, 0.006, d / 2 - 0.12]}>
         <mesh receiveShadow>
           <boxGeometry args={[2.25, 0.024, 0.52]} />
-          <meshStandardMaterial color="#1E293B" metalness={0.85} roughness={0.28} />
+          <meshStandardMaterial color={isDark ? '#1E293B' : '#9EAFBF'} metalness={isDark ? 0.85 : 0.62} roughness={0.28} />
         </mesh>
         {[-1.12, 1.12].map((gx, i) => (
           <mesh key={i} position={[gx, 0.015, 0]}>
@@ -263,7 +267,7 @@ export const ProcessPlatformChassis = memo(function ProcessPlatformChassis({
       {/* INTEGRATED BEVELED "PROCESS STUDIO" FRONT ARCHITECTURAL SIGNBOARD (+Z FASCIA) */}
       <group position={[0.45, -0.06, baseD / 2 + 0.13]} rotation={[-0.06, 0, 0]}>
         <mesh geometry={signGeometry} castShadow receiveShadow>
-          <meshStandardMaterial color="#0A1020" roughness={0.26} metalness={0.88} />
+          <meshStandardMaterial color={isDark ? '#0A1020' : '#DCE4EB'} roughness={0.26} metalness={isDark ? 0.88 : 0.65} />
         </mesh>
         <mesh position={[0, 0.48, 0.06]}>
           <boxGeometry args={[4.45, 0.036, 0.06]} />
@@ -280,23 +284,23 @@ export const ProcessPlatformChassis = memo(function ProcessPlatformChassis({
               map={signTex}
               emissive="#FFFFFF"
               emissiveMap={signTex}
-              emissiveIntensity={0.94}
+              emissiveIntensity={isDark ? 0.94 : 0.82}
               roughness={0.2}
               metalness={0.28}
             />
           ) : (
-            <meshStandardMaterial color="#0A1020" emissive="#A855F7" emissiveIntensity={0.8} />
+            <meshStandardMaterial color={isDark ? '#0A1020' : '#263B52'} emissive="#A855F7" emissiveIntensity={0.8} />
           )}
         </mesh>
       </group>
 
       {/* SLEEK GLASS & BRUSHED-STEEL PERIMETER BALUSTRADES (Open at bridge dock x ∈ [-5.85, -3.55]) */}
       {/* Left side (-X) glass railing */}
-      <GlassSafetyBalustrade start={[-w / 2 + 0.16, 0, d / 2 - 0.25]} length={3.6} rotation={[0, Math.PI / 2, 0]} baseStripColor="#38E8FF" />
+      <GlassSafetyBalustrade start={[-w / 2 + 0.16, 0, d / 2 - 0.25]} length={3.6} rotation={[0, Math.PI / 2, 0]} baseStripColor="#38E8FF" isDark={isDark} />
       {/* Front-right (+Z, right of signboard) glass railing with warm-gold subtle edge */}
-      <GlassSafetyBalustrade start={[3.25, 0, d / 2 - 0.16]} length={2.65} baseStripColor="#FBBF24" />
+      <GlassSafetyBalustrade start={[3.25, 0, d / 2 - 0.16]} length={2.65} baseStripColor="#FBBF24" isDark={isDark} />
       {/* Right side (+X) glass railing */}
-      <GlassSafetyBalustrade start={[w / 2 - 0.16, 0, d / 2 - 0.25]} length={5.1} rotation={[0, Math.PI / 2, 0]} baseStripColor="#38E8FF" />
+      <GlassSafetyBalustrade start={[w / 2 - 0.16, 0, d / 2 - 0.25]} length={5.1} rotation={[0, Math.PI / 2, 0]} baseStripColor="#38E8FF" isDark={isDark} />
     </group>
   );
 });

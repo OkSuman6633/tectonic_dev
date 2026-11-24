@@ -983,7 +983,7 @@ const ExternalPlatform = memo(function ExternalPlatform({
     const selectModule = useTelemetryStore.getState().selectModule;
     return (
       <group position={[zone.center[0], py, zone.center[2]]}>
-        <OperationsSafetyHardware zone={zone} onSelectModule={(id) => selectModule(id, 'office')} />
+        <OperationsSafetyHardware zone={zone} onSelectModule={(id) => selectModule(id, 'office')} isDark={isDark} />
       </group>
     );
   }
@@ -991,7 +991,7 @@ const ExternalPlatform = memo(function ExternalPlatform({
     const selectModule = useTelemetryStore.getState().selectModule;
     return (
       <group position={[zone.center[0], py, zone.center[2]]}>
-        <ContentStudioHardware zone={zone} onSelectModule={(id) => selectModule(id, 'office')} />
+        <ContentStudioHardware zone={zone} onSelectModule={(id) => selectModule(id, 'office')} isDark={isDark} />
       </group>
     );
   }

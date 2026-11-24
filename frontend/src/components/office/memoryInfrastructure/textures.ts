@@ -19,17 +19,23 @@ function cached(key: string, width: number, height: number, draw: (ctx: CanvasRe
   return tex;
 }
 
-/** Reflective dark brushed-steel modular deck plate with subtle tech tile seams. */
-export function getMemoryDeckTexture(): CanvasTexture | null {
-  const tex = cached('mem-deck-v1', 512, 512, (ctx, w, h) => {
+/** Reflective brushed-steel modular deck plate with subtle tech tile seams (dark & light mode). */
+export function getMemoryDeckTexture(isDark = true): CanvasTexture | null {
+  const tex = cached(`mem-deck-v1:${isDark ? 'dark' : 'light'}`, 512, 512, (ctx, w, h) => {
     const grad = ctx.createLinearGradient(0, 0, w, h);
-    grad.addColorStop(0, '#101828');
-    grad.addColorStop(0.5, '#172136');
-    grad.addColorStop(1, '#0F172A');
+    if (isDark) {
+      grad.addColorStop(0, '#101828');
+      grad.addColorStop(0.5, '#172136');
+      grad.addColorStop(1, '#0F172A');
+    } else {
+      grad.addColorStop(0, '#CDD6E0');
+      grad.addColorStop(0.5, '#D9E1EA');
+      grad.addColorStop(1, '#C3CDD8');
+    }
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
 
-    ctx.fillStyle = 'rgba(255,255,255,0.018)';
+    ctx.fillStyle = isDark ? 'rgba(255,255,255,0.018)' : 'rgba(255,255,255,0.22)';
     for (let y = 0; y < h; y += 3) {
       ctx.fillRect(0, y, w, 1);
     }
@@ -40,13 +46,15 @@ export function getMemoryDeckTexture(): CanvasTexture | null {
       for (let c = 0; c < cells; c++) {
         const x = c * step;
         const y = r * step;
-        ctx.fillStyle = (r + c) % 2 === 0 ? 'rgba(30,41,59,0.22)' : 'rgba(15,23,42,0.28)';
+        ctx.fillStyle = isDark
+          ? (r + c) % 2 === 0 ? 'rgba(30,41,59,0.22)' : 'rgba(15,23,42,0.28)'
+          : (r + c) % 2 === 0 ? 'rgba(245,247,250,0.42)' : 'rgba(158,175,191,0.28)';
         ctx.fillRect(x + 4, y + 4, step - 8, step - 8);
-        ctx.strokeStyle = 'rgba(148,163,184,0.12)';
+        ctx.strokeStyle = isDark ? 'rgba(148,163,184,0.12)' : 'rgba(83,107,131,0.26)';
         ctx.lineWidth = 1.5;
         ctx.strokeRect(x + 3.5, y + 3.5, step - 7, step - 7);
 
-        ctx.fillStyle = 'rgba(148,163,184,0.28)';
+        ctx.fillStyle = isDark ? 'rgba(148,163,184,0.28)' : 'rgba(83,107,131,0.48)';
         const inset = 10;
         for (const [dx, dy] of [[inset, inset], [step - inset, inset], [inset, step - inset], [step - inset, step - inset]]) {
           ctx.beginPath();
@@ -56,7 +64,7 @@ export function getMemoryDeckTexture(): CanvasTexture | null {
       }
     }
 
-    ctx.strokeStyle = '#050914';
+    ctx.strokeStyle = isDark ? '#050914' : '#7C8EA0';
     ctx.lineWidth = 3;
     for (let i = 0; i <= cells; i++) {
       const p = i * step;
@@ -79,12 +87,18 @@ export function getMemoryDeckTexture(): CanvasTexture | null {
 }
 
 /** Front chamfered "MEMORY INFRASTRUCTURE" architectural signboard texture. */
-export function getMemoryFrontSignTexture(label = 'MEMORY INFRASTRUCTURE'): CanvasTexture | null {
-  return cached(`mem-front-sign-${label}`, 1024, 224, (ctx, w, h) => {
+export function getMemoryFrontSignTexture(label = 'MEMORY INFRASTRUCTURE', isDark = true): CanvasTexture | null {
+  return cached(`mem-front-sign-${label}:${isDark ? 'dark' : 'light'}`, 1024, 224, (ctx, w, h) => {
     const bg = ctx.createLinearGradient(0, 0, w, h);
-    bg.addColorStop(0, '#071124');
-    bg.addColorStop(0.5, '#0D1C36');
-    bg.addColorStop(1, '#060E1F');
+    if (isDark) {
+      bg.addColorStop(0, '#071124');
+      bg.addColorStop(0.5, '#0D1C36');
+      bg.addColorStop(1, '#060E1F');
+    } else {
+      bg.addColorStop(0, '#1E3147');
+      bg.addColorStop(0.5, '#263B52');
+      bg.addColorStop(1, '#1B2D41');
+    }
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, w, h);
 
@@ -131,16 +145,22 @@ export function getMemoryFrontSignTexture(label = 'MEMORY INFRASTRUCTURE'): Canv
 }
 
 /** Elevated section signboard: "SHORT-TERM MEMORY" (cyan + lightning icon) or "LONG-TERM MEMORY" (purple + DB cylinder icon). */
-export function getMemorySectionSignTexture(variant: 'stm' | 'ltm'): CanvasTexture | null {
-  return cached(`mem-section-sign-${variant}-v1`, 1024, 320, (ctx, w, h) => {
+export function getMemorySectionSignTexture(variant: 'stm' | 'ltm', isDark = true): CanvasTexture | null {
+  return cached(`mem-section-sign-${variant}-v1:${isDark ? 'dark' : 'light'}`, 1024, 320, (ctx, w, h) => {
     const isStm = variant === 'stm';
     const primary = isStm ? '#00E5FF' : '#A855F7';
     const secondary = '#38BDF8';
 
     const bg = ctx.createLinearGradient(0, 0, w, h);
-    bg.addColorStop(0, isStm ? '#06152E' : '#120C29');
-    bg.addColorStop(0.55, isStm ? '#0A1E40' : '#1C1240');
-    bg.addColorStop(1, isStm ? '#051024' : '#0E0B22');
+    if (isDark) {
+      bg.addColorStop(0, isStm ? '#06152E' : '#120C29');
+      bg.addColorStop(0.55, isStm ? '#0A1E40' : '#1C1240');
+      bg.addColorStop(1, isStm ? '#051024' : '#0E0B22');
+    } else {
+      bg.addColorStop(0, isStm ? '#1E3147' : '#262C4D');
+      bg.addColorStop(0.55, isStm ? '#263B52' : '#30345B');
+      bg.addColorStop(1, isStm ? '#1B2D41' : '#222745');
+    }
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, w, h);
 
@@ -233,9 +253,9 @@ export function getMemorySectionSignTexture(variant: 'stm' | 'ltm'): CanvasTextu
 }
 
 /** High-density STM (cyan/blue) or LTM (blue/purple) enterprise server rack faceplate. */
-export function getMemoryRackFaceTexture(variant: 'stm' | 'ltm' | 'ltm-front'): CanvasTexture | null {
-  return cached(`mem-rack-face-${variant}-v1`, 256, 512, (ctx, w, h) => {
-    ctx.fillStyle = '#060B16';
+export function getMemoryRackFaceTexture(variant: 'stm' | 'ltm' | 'ltm-front', isDark = true): CanvasTexture | null {
+  return cached(`mem-rack-face-${variant}-v1:${isDark ? 'dark' : 'light'}`, 256, 512, (ctx, w, h) => {
+    ctx.fillStyle = isDark ? '#060B16' : '#3F556B';
     ctx.fillRect(0, 0, w, h);
 
     const isStm = variant === 'stm';
@@ -245,13 +265,15 @@ export function getMemoryRackFaceTexture(variant: 'stm' | 'ltm' | 'ltm-front'): 
 
     for (let i = 0; i < rows; i++) {
       const y = 10 + i * rowH;
-      ctx.fillStyle = i % 2 === 0 ? '#111A2E' : '#0B1324';
+      ctx.fillStyle = isDark
+        ? i % 2 === 0 ? '#111A2E' : '#0B1324'
+        : i % 2 === 0 ? '#536B83' : '#496077';
       ctx.fillRect(10, y + 2, w - 20, rowH - 5);
-      ctx.strokeStyle = '#1E293B';
+      ctx.strokeStyle = isDark ? '#1E293B' : '#7B93AB';
       ctx.lineWidth = 1;
       ctx.strokeRect(10, y + 2, w - 20, rowH - 5);
 
-      ctx.fillStyle = '#040812';
+      ctx.fillStyle = isDark ? '#040812' : '#121B28';
       for (let sx = 22; sx < w - 94; sx += 11) {
         ctx.fillRect(sx, y + 7, 6, rowH - 15);
       }
@@ -285,10 +307,10 @@ export function getMemoryRackFaceTexture(variant: 'stm' | 'ltm' | 'ltm-front'): 
 }
 
 /** High-res holographic operator console monitor screens for STM & LTM. */
-export function getMemoryMonitorTexture(mode: 'stm-left' | 'stm-center' | 'stm-right' | 'ltm-terminal'): CanvasTexture | null {
-  return cached(`mem-monitor-${mode}-v1`, 384, 256, (ctx, w, h) => {
+export function getMemoryMonitorTexture(mode: 'stm-left' | 'stm-center' | 'stm-right' | 'ltm-terminal', isDark = true): CanvasTexture | null {
+  return cached(`mem-monitor-${mode}-v1:${isDark ? 'dark' : 'light'}`, 384, 256, (ctx, w, h) => {
     const isLtm = mode === 'ltm-terminal';
-    ctx.fillStyle = isLtm ? '#090D24' : '#041226';
+    ctx.fillStyle = isDark ? (isLtm ? '#090D24' : '#041226') : '#263B52';
     ctx.fillRect(0, 0, w, h);
 
     const g = ctx.createRadialGradient(w / 2, h / 2, 16, w / 2, h / 2, w * 0.65);

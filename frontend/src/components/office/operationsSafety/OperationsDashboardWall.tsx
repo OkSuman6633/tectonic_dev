@@ -82,9 +82,11 @@ function sampleOperationsSnapshot(): OpsDashboardSnapshot {
 export const OperationsDashboardWall = memo(function OperationsDashboardWall({
   position = [0.05, 0, -2.75],
   alertLevelRef,
+  isDark = true,
 }: {
   position?: Vec3;
   alertLevelRef: React.MutableRefObject<'ok' | 'warn' | 'alert'>;
+  isDark?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
   const amberTrimRef = useRef<MeshStandardMaterial>(null);
@@ -98,15 +100,16 @@ export const OperationsDashboardWall = memo(function OperationsDashboardWall({
     c.height = 512;
     const ctx = c.getContext('2d');
     if (ctx) {
-      drawOpsDashboard(ctx, c.width, c.height, sampleOperationsSnapshot());
+      drawOpsDashboard(ctx, c.width, c.height, sampleOperationsSnapshot(), isDark);
     }
     const t = new CanvasTexture(c);
     t.colorSpace = SRGBColorSpace;
     t.needsUpdate = true;
     return { canvas: c, texture: t };
-  }, []);
+  }, [isDark]);
 
   useEffect(() => {
+    lastDrawKeyRef.current = '';
     return () => {
       texture?.dispose();
     };
@@ -120,12 +123,12 @@ export const OperationsDashboardWall = memo(function OperationsDashboardWall({
       lastSampleTimeRef.current = clock.elapsedTime;
       const snap = sampleOperationsSnapshot();
       alertLevelRef.current = snap.safetyLevel;
-      const key = `${snap.statusLabel}|${snap.performancePct}|${snap.activeAgents}|${snap.safetyLevel}|${snap.safetyLabel}|${snap.bars.join(',')}`;
+      const key = `${isDark}|${snap.statusLabel}|${snap.performancePct}|${snap.activeAgents}|${snap.safetyLevel}|${snap.safetyLabel}|${snap.bars.join(',')}`;
       if (key !== lastDrawKeyRef.current) {
         lastDrawKeyRef.current = key;
         const ctx = canvas.getContext('2d');
         if (ctx) {
-          drawOpsDashboard(ctx, canvas.width, canvas.height, snap);
+          drawOpsDashboard(ctx, canvas.width, canvas.height, snap, isDark);
           texture.needsUpdate = true;
         }
       }
@@ -148,24 +151,24 @@ export const OperationsDashboardWall = memo(function OperationsDashboardWall({
     <group position={position}>
       {/* Grounded Industrial Base Console Wall Plinth */}
       <RoundedBox args={[frameW - 0.15, baseH, 0.78]} radius={0.04} smoothness={2} position={[0, baseH / 2, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color="#182235" roughness={0.34} metalness={0.86} />
+        <meshStandardMaterial color={isDark ? '#182235' : '#9EAFBF'} roughness={0.34} metalness={isDark ? 0.86 : 0.62} />
       </RoundedBox>
       {/* Segmented Base Front Grille Ribs */}
       {[-2.4, -1.2, 0, 1.2, 2.4].map((gx, i) => (
         <mesh key={i} position={[gx, baseH / 2, 0.4]}>
           <boxGeometry args={[0.92, 0.42, 0.025]} />
-          <meshStandardMaterial color="#0A101E" roughness={0.65} metalness={0.7} />
+          <meshStandardMaterial color={isDark ? '#0A101E' : '#121B28'} roughness={0.65} metalness={0.7} />
         </mesh>
       ))}
 
       {/* Monumental Chamfered Brushed-Titanium Display Frame Backing */}
       <RoundedBox args={[frameW, frameH, 0.52]} radius={0.14} smoothness={2} position={[0, centerY, -0.06]} castShadow receiveShadow>
-        <meshStandardMaterial color="#2D3A4F" roughness={0.28} metalness={0.88} />
+        <meshStandardMaterial color={isDark ? '#2D3A4F' : '#DCE4EB'} roughness={isDark ? 0.28 : 0.25} metalness={isDark ? 0.88 : 0.64} />
       </RoundedBox>
 
-      {/* Recessed Dark Obsidian Inner Bezel Surround */}
+      {/* Recessed Inner Bezel Surround */}
       <RoundedBox args={[frameW - 0.34, frameH - 0.32, 0.14]} radius={0.09} smoothness={2} position={[0, centerY, 0.17]}>
-        <meshStandardMaterial color="#091224" roughness={0.32} metalness={0.82} />
+        <meshStandardMaterial color={isDark ? '#091224' : '#536B83'} roughness={0.32} metalness={isDark ? 0.82 : 0.68} />
       </RoundedBox>
 
       {/* Glowing Electric-Cyan Inner Screen Rim */}

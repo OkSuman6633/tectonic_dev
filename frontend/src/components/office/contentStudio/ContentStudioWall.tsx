@@ -63,9 +63,11 @@ function sampleContentSnapshot(playhead: number): ContentStudioSnapshot {
 export const ContentStudioWall = memo(function ContentStudioWall({
   position = [-0.25, 0, -2.75],
   onSelectImageGen,
+  isDark = true,
 }: {
   position?: Vec3;
   onSelectImageGen?: () => void;
+  isDark?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
   const crownAmberRef = useRef<MeshStandardMaterial>(null);
@@ -73,7 +75,7 @@ export const ContentStudioWall = memo(function ContentStudioWall({
   const lastDrawRef = useRef(0);
   const playheadRef = useRef(0.38);
 
-  const featureTex = useMemo(() => getContentFeatureWallTexture(), []);
+  const featureTex = useMemo(() => getContentFeatureWallTexture(isDark), [isDark]);
 
   const { canvas, texture } = useMemo(() => {
     if (typeof document === 'undefined') return { canvas: null, texture: null };
@@ -82,13 +84,13 @@ export const ContentStudioWall = memo(function ContentStudioWall({
     c.height = 512;
     const ctx = c.getContext('2d');
     if (ctx) {
-      drawContentStudioMainWall(ctx, c.width, c.height, sampleContentSnapshot(0.38));
+      drawContentStudioMainWall(ctx, c.width, c.height, sampleContentSnapshot(0.38), isDark);
     }
     const t = new CanvasTexture(c);
     t.colorSpace = SRGBColorSpace;
     t.needsUpdate = true;
     return { canvas: c, texture: t };
-  }, []);
+  }, [isDark]);
 
   useEffect(() => {
     return () => {
@@ -110,7 +112,7 @@ export const ContentStudioWall = memo(function ContentStudioWall({
       lastDrawRef.current = clock.elapsedTime;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        drawContentStudioMainWall(ctx, canvas.width, canvas.height, { ...snap, playhead: playheadRef.current });
+        drawContentStudioMainWall(ctx, canvas.width, canvas.height, { ...snap, playhead: playheadRef.current }, isDark);
         texture.needsUpdate = true;
       }
     }
@@ -141,19 +143,19 @@ export const ContentStudioWall = memo(function ContentStudioWall({
           onSelectImageGen();
         }}
       >
-        {/* Heavy dark industrial base pedestal */}
+        {/* Heavy industrial base pedestal */}
         <RoundedBox args={[frameW - 0.18, baseH, 0.76]} radius={0.04} smoothness={2} position={[0, baseH / 2, 0]} castShadow receiveShadow>
-          <meshStandardMaterial color="#151E30" roughness={0.34} metalness={0.86} />
+          <meshStandardMaterial color={isDark ? '#151E30' : '#9EAFBF'} roughness={0.34} metalness={isDark ? 0.86 : 0.62} />
         </RoundedBox>
 
         {/* Monumental Brushed-Titanium Outer Architectural Wall Housing */}
         <RoundedBox args={[frameW, frameH, 0.54]} radius={0.16} smoothness={2} position={[0, centerY, -0.06]} castShadow receiveShadow>
-          <meshStandardMaterial color="#27344A" roughness={0.28} metalness={0.88} />
+          <meshStandardMaterial color={isDark ? '#27344A' : '#DCE4EB'} roughness={isDark ? 0.28 : 0.25} metalness={isDark ? 0.88 : 0.64} />
         </RoundedBox>
 
-        {/* Recessed Dark Obsidian Inner Screen Surround */}
+        {/* Recessed Inner Screen Surround */}
         <RoundedBox args={[frameW - 0.36, frameH - 0.34, 0.14]} radius={0.1} smoothness={2} position={[0, centerY, 0.18]}>
-          <meshStandardMaterial color="#081020" roughness={0.3} metalness={0.82} />
+          <meshStandardMaterial color={isDark ? '#081020' : '#536B83'} roughness={0.3} metalness={isDark ? 0.82 : 0.68} />
         </RoundedBox>
 
         {/* Continuous Electric Cyan-Blue Inner Neon Screen Contour */}
@@ -213,7 +215,7 @@ export const ContentStudioWall = memo(function ContentStudioWall({
       <group position={[frameW / 2 + 1.15, 0, 0.16]} rotation={[0, -0.08, 0]}>
         {/* Low Illuminated Base Plinth */}
         <RoundedBox args={[1.95, 0.32, 0.64]} radius={0.03} smoothness={2} position={[0, 0.16, 0]} castShadow receiveShadow>
-          <meshStandardMaterial color="#151E30" roughness={0.34} metalness={0.86} />
+          <meshStandardMaterial color={isDark ? '#151E30' : '#9EAFBF'} roughness={0.34} metalness={isDark ? 0.86 : 0.62} />
         </RoundedBox>
         <mesh position={[0, 0.33, 0.31]}>
           <boxGeometry args={[1.62, 0.042, 0.04]} />
@@ -222,7 +224,7 @@ export const ContentStudioWall = memo(function ContentStudioWall({
 
         {/* Tall Vertical Brushed-Titanium Frame */}
         <RoundedBox args={[2.08, 3.15, 0.44]} radius={0.12} smoothness={2} position={[0, 0.32 + 1.575, -0.04]} castShadow receiveShadow>
-          <meshStandardMaterial color="#27344A" roughness={0.28} metalness={0.88} />
+          <meshStandardMaterial color={isDark ? '#27344A' : '#DCE4EB'} roughness={isDark ? 0.28 : 0.25} metalness={isDark ? 0.88 : 0.64} />
         </RoundedBox>
 
         {/* Continuous Electric-Blue Outer Glow Strip wrapping Top & Right Edge */}

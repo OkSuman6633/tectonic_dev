@@ -116,9 +116,11 @@ const AmberPedestalRing = memo(function AmberPedestalRing({
 export const CentralHolographicCore = memo(function CentralHolographicCore({
   position = [-0.15, 0, -0.35] as Vec3,
   activeRef,
+  isDark = true,
 }: {
   position?: Vec3;
   activeRef: React.RefObject<boolean>;
+  isDark?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
   const holoCubeGroupRef = useRef<Group>(null);
@@ -171,7 +173,7 @@ export const CentralHolographicCore = memo(function CentralHolographicCore({
       {/* TIER 1: HEAVY CHAMFERED TITANIUM BASE PLINTH */}
       {/* ================================================================================= */}
       <RoundedBox args={[3.04, 0.36, 3.04]} radius={0.08} smoothness={2} position={[0, 0.18, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color="#182233" roughness={0.34} metalness={0.82} />
+        <meshStandardMaterial color={isDark ? '#182233' : '#DCE4EB'} roughness={isDark ? 0.34 : 0.28} metalness={isDark ? 0.82 : 0.68} />
       </RoundedBox>
 
       {/* Recessed Industrial Cooling Grilles on all 4 vertical faces of Tier 1 */}
@@ -184,7 +186,7 @@ export const CentralHolographicCore = memo(function CentralHolographicCore({
         <group key={`t1-vent-${idx}`} position={f.pos} rotation={f.rot}>
           <mesh>
             <boxGeometry args={[2.25, 0.22, 0.02]} />
-            <meshStandardMaterial color="#0A0F1A" roughness={0.6} metalness={0.6} />
+            <meshStandardMaterial color={isDark ? '#0A0F1A' : '#141E2B'} roughness={0.6} metalness={0.6} />
           </mesh>
           {/* Subtle warm internal radiator glow behind grille bars */}
           <mesh position={[0, 0, 0.008]}>
@@ -198,7 +200,7 @@ export const CentralHolographicCore = memo(function CentralHolographicCore({
       {/* TIER 2: STEPPED BRUSHED TITANIUM PEDESTAL + LOWER GOLDEN LIGHT LOOP */}
       {/* ================================================================================= */}
       <RoundedBox args={[2.52, 0.24, 2.52]} radius={0.08} smoothness={2} position={[0, 0.48, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color="#212E42" roughness={0.28} metalness={0.84} />
+        <meshStandardMaterial color={isDark ? '#212E42' : '#9EAFBF'} roughness={isDark ? 0.28 : 0.28} metalness={isDark ? 0.84 : 0.7} />
       </RoundedBox>
       <AmberPedestalRing y={0.585} width={2.52} depth={2.52} thickness={0.055} matRef={tier2RingMatRef} />
 
@@ -206,7 +208,7 @@ export const CentralHolographicCore = memo(function CentralHolographicCore({
       {/* TIER 3: UPPER CORE EMITTER DECK + UPPER GOLDEN LIGHT LOOP */}
       {/* ================================================================================= */}
       <RoundedBox args={[2.02, 0.18, 2.02]} radius={0.07} smoothness={2} position={[0, 0.7, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color="#1A2436" roughness={0.28} metalness={0.86} />
+        <meshStandardMaterial color={isDark ? '#1A2436' : '#536B83'} roughness={isDark ? 0.28 : 0.3} metalness={isDark ? 0.86 : 0.74} />
       </RoundedBox>
       <AmberPedestalRing y={0.78} width={2.02} depth={2.02} thickness={0.052} matRef={tier3RingMatRef} />
 

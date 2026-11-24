@@ -23,9 +23,11 @@ import { OperationsEquipmentBays } from './operationsSafety/OperationsEquipmentB
 export const OperationsSafetyHardware = memo(function OperationsSafetyHardware({
   zone,
   onSelectModule,
+  isDark = true,
 }: {
   zone: CampusZone;
   onSelectModule?: (moduleId: string) => void;
+  isDark?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
   const alertLevelRef = useRef<'ok' | 'warn' | 'alert'>('ok');
@@ -78,21 +80,23 @@ export const OperationsSafetyHardware = memo(function OperationsSafetyHardware({
   return (
     <group>
       {/* 1. Multi-Tier Industrial Metallic Platform, Signboard & Glass/Brass Railings */}
-      <OperationsPlatformChassis zone={zone} alertLevelRef={alertLevelRef} activeRef={activeRef} />
+      <OperationsPlatformChassis zone={zone} alertLevelRef={alertLevelRef} activeRef={activeRef} isDark={isDark} />
 
       {/* 2. Large Rear Operations & Safety Live Dashboard Display Wall */}
-      <OperationsDashboardWall position={[0.05, 0, -2.75]} alertLevelRef={alertLevelRef} />
+      <OperationsDashboardWall position={[0.05, 0, -2.75]} alertLevelRef={alertLevelRef} isDark={isDark} />
 
       {/* 3. Central Curved 4-Monitor Command Workstation (bound to intent_detection) */}
       <OperationsCommandDesk
         position={[-0.15, 0, 0.45]}
         onSelect={onSelectModule ? () => onSelectModule('intent_detection') : undefined}
+        isDark={isDark}
       />
 
       {/* 4 & 5. Left Enterprise Servers + Fire Extinguisher & Right Safety Bay + Beacon + Pipework + First-Aid + Helmet */}
       <OperationsEquipmentBays
         alertLevelRef={alertLevelRef}
         onSelectGuardrails={onSelectModule ? () => onSelectModule('guardrails') : undefined}
+        isDark={isDark}
       />
 
       {/* Flush Floor Telemetry Conduit Lines linking Safety Cabinet, Command Desk & Operations Wall */}

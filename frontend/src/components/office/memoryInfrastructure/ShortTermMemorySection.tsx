@@ -19,17 +19,19 @@ const StmContextRack = memo(function StmContextRack({
   size = [1.32, 2.08, 1.05],
   stmActiveRef,
   phase = 0,
+  isDark = true,
 }: {
   position: Vec3;
   rotation?: [number, number, number];
   size?: Vec3;
   stmActiveRef: React.RefObject<number>;
   phase?: number;
+  isDark?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
   const fanRef = useRef<Group>(null);
   const stripMatRef = useRef<MeshStandardMaterial>(null);
-  const faceTex = useMemo(() => getMemoryRackFaceTexture('stm'), []);
+  const faceTex = useMemo(() => getMemoryRackFaceTexture('stm', isDark), [isDark]);
   const [w, h, d] = size;
 
   useFrame(({ clock }, rawDelta) => {
@@ -49,25 +51,25 @@ const StmContextRack = memo(function StmContextRack({
       {/* Heavy recessed plinth */}
       <mesh position={[0, 0.05, 0]} castShadow receiveShadow>
         <boxGeometry args={[w + 0.06, 0.1, d + 0.06]} />
-        <meshStandardMaterial color="#0A101D" roughness={0.45} metalness={0.84} />
+        <meshStandardMaterial color={isDark ? '#0A101D' : '#536B83'} roughness={isDark ? 0.45 : 0.36} metalness={isDark ? 0.84 : 0.65} />
       </mesh>
 
-      {/* Main Brushed-Titanium & Dark Steel Cabinet Body */}
+      {/* Main Brushed-Titanium Cabinet Body */}
       <RoundedBox args={[w, h - 0.1, d]} radius={0.04} smoothness={2} position={[0, 0.1 + (h - 0.1) / 2, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color="#253349" roughness={0.3} metalness={0.84} />
+        <meshStandardMaterial color={isDark ? '#253349' : '#DCE4EB'} roughness={isDark ? 0.3 : 0.25} metalness={isDark ? 0.84 : 0.64} />
       </RoundedBox>
 
-      {/* Recessed Dark Front Equipment Bay */}
+      {/* Recessed Front Equipment Bay */}
       <mesh position={[0, 0.12 + (h - 0.24) / 2, d / 2 - 0.006]}>
         <boxGeometry args={[w - 0.18, h - 0.28, 0.03]} />
-        <meshStandardMaterial color="#070D19" roughness={0.42} metalness={0.68} />
+        <meshStandardMaterial color={isDark ? '#070D19' : '#536B83'} roughness={isDark ? 0.42 : 0.36} metalness={isDark ? 0.68 : 0.56} />
       </mesh>
 
       {/* High-Res Active Session Blade Faceplate */}
       <mesh position={[0, 0.12 + (h - 0.24) / 2, d / 2 + 0.012]}>
         <planeGeometry args={[w - 0.24, h - 0.34]} />
         {faceTex ? (
-          <meshStandardMaterial map={faceTex} emissive="#FFFFFF" emissiveMap={faceTex} emissiveIntensity={1.1} roughness={0.28} metalness={0.3} />
+          <meshStandardMaterial map={faceTex} emissive="#FFFFFF" emissiveMap={faceTex} emissiveIntensity={isDark ? 1.1 : 0.52} roughness={0.28} metalness={0.3} />
         ) : (
           <meshStandardMaterial color="#0EA5E9" emissive="#00E5FF" emissiveIntensity={1.0} />
         )}
@@ -87,32 +89,32 @@ const StmContextRack = memo(function StmContextRack({
         </mesh>
       ))}
 
-      {/* Side Vent Louver Trim */}
+      {/* Side Frosted Steel Blue Trim Panels */}
       {[-w / 2 - 0.008, w / 2 + 0.008].map((sx, i) => (
         <mesh key={i} position={[sx, h * 0.52, 0]}>
           <boxGeometry args={[0.018, h * 0.62, d * 0.68]} />
-          <meshStandardMaterial color="#111A2B" roughness={0.55} metalness={0.78} />
+          <meshStandardMaterial color={isDark ? '#111A2B' : '#9EAFBF'} roughness={isDark ? 0.55 : 0.32} metalness={isDark ? 0.78 : 0.6} />
         </mesh>
       ))}
 
-      {/* Overhanging Brushed-Silver Top Hood + Recessed Spinning Circular Exhaust Fan */}
+      {/* Overhanging Arctic-White / Silver Top Hood + Recessed Spinning Circular Exhaust Fan */}
       <RoundedBox args={[w + 0.06, 0.12, d + 0.06]} radius={0.03} smoothness={2} position={[0, h + 0.02, 0]} castShadow>
-        <meshStandardMaterial color="#475569" roughness={0.26} metalness={0.88} />
+        <meshStandardMaterial color={isDark ? '#475569' : '#F5F7FA'} roughness={isDark ? 0.26 : 0.2} metalness={isDark ? 0.88 : 0.55} />
       </RoundedBox>
       <group position={[0, h + 0.085, 0]}>
         <mesh>
           <cylinderGeometry args={[0.36, 0.38, 0.04, 24]} />
-          <meshStandardMaterial color="#090F1C" roughness={0.5} metalness={0.8} />
+          <meshStandardMaterial color={isDark ? '#090F1C' : '#141E2B'} roughness={0.5} metalness={0.8} />
         </mesh>
         <mesh position={[0, 0.022, 0]} rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[0.35, 0.024, 8, 24]} />
-          <meshStandardMaterial color="#64748B" roughness={0.25} metalness={0.9} />
+          <meshStandardMaterial color={isDark ? '#64748B' : '#9EAFBF'} roughness={0.25} metalness={isDark ? 0.9 : 0.68} />
         </mesh>
         <group ref={fanRef} position={[0, 0.016, 0]}>
           {[0, Math.PI / 2, Math.PI / 4, -Math.PI / 4].map((ang, i) => (
             <mesh key={i} rotation={[0, ang, 0]}>
               <boxGeometry args={[0.6, 0.012, 0.065]} />
-              <meshStandardMaterial color="#334155" roughness={0.35} metalness={0.85} />
+              <meshStandardMaterial color={isDark ? '#334155' : '#536B83'} roughness={0.35} metalness={isDark ? 0.85 : 0.68} />
             </mesh>
           ))}
           <mesh>
@@ -136,6 +138,7 @@ export const MemoryCryoCylinder = memo(function MemoryCryoCylinder({
   radius = 0.48,
   activeRef,
   phase = 0,
+  isDark = true,
 }: {
   position: Vec3;
   color?: string;
@@ -144,6 +147,7 @@ export const MemoryCryoCylinder = memo(function MemoryCryoCylinder({
   radius?: number;
   activeRef: React.RefObject<number>;
   phase?: number;
+  isDark?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
   const ringRef = useRef<Mesh>(null);
@@ -166,7 +170,7 @@ export const MemoryCryoCylinder = memo(function MemoryCryoCylinder({
       {/* Heavy Machined Base Flange */}
       <mesh position={[0, 0.11, 0]} castShadow receiveShadow>
         <cylinderGeometry args={[radius * 1.14, radius * 1.2, 0.22, 24]} />
-        <meshStandardMaterial color="#1E293B" metalness={0.88} roughness={0.28} />
+        <meshStandardMaterial color={isDark ? '#1E293B' : '#9EAFBF'} metalness={isDark ? 0.88 : 0.65} roughness={0.28} />
       </mesh>
       <mesh position={[0, 0.23, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[radius * 1.04, 0.025, 8, 28]} />
@@ -210,18 +214,18 @@ export const MemoryCryoCylinder = memo(function MemoryCryoCylinder({
       {[0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2].map((ang, i) => (
         <mesh key={i} position={[Math.cos(ang) * (radius * 1.06), height / 2 + 0.06, Math.sin(ang) * (radius * 1.06)]}>
           <cylinderGeometry args={[0.024, 0.024, height - 0.22, 8]} />
-          <meshStandardMaterial color="#94A3B8" metalness={0.92} roughness={0.18} />
+          <meshStandardMaterial color={isDark ? '#94A3B8' : '#C8D3DE'} metalness={isDark ? 0.92 : 0.72} roughness={0.18} />
         </mesh>
       ))}
 
-      {/* Machined Titanium Top Dome Cap & Brass Fitting */}
+      {/* Machined Titanium Top Dome Cap & Crown Fitting */}
       <mesh position={[0, height - 0.06, 0]} castShadow>
         <cylinderGeometry args={[radius * 1.12, radius * 1.16, 0.16, 24]} />
-        <meshStandardMaterial color="#334155" metalness={0.88} roughness={0.26} />
+        <meshStandardMaterial color={isDark ? '#334155' : '#DCE4EB'} metalness={isDark ? 0.88 : 0.64} roughness={0.26} />
       </mesh>
       <mesh position={[0, height + 0.06, 0]}>
         <cylinderGeometry args={[radius * 0.52, radius * 0.72, 0.1, 20]} />
-        <meshStandardMaterial color="#CBD5E1" metalness={0.92} roughness={0.16} />
+        <meshStandardMaterial color={isDark ? '#CBD5E1' : '#F5F7FA'} metalness={isDark ? 0.92 : 0.6} roughness={0.16} />
       </mesh>
     </group>
   );
@@ -234,14 +238,16 @@ const StmOperatorConsole = memo(function StmOperatorConsole({
   position,
   rotation = [0, Math.PI / 2, 0],
   stmActiveRef,
+  isDark = true,
 }: {
   position: Vec3;
   rotation?: [number, number, number];
   stmActiveRef: React.RefObject<number>;
+  isDark?: boolean;
 }) {
-  const screenL = useMemo(() => getMemoryMonitorTexture('stm-left'), []);
-  const screenC = useMemo(() => getMemoryMonitorTexture('stm-center'), []);
-  const screenR = useMemo(() => getMemoryMonitorTexture('stm-right'), []);
+  const screenL = useMemo(() => getMemoryMonitorTexture('stm-left', isDark), [isDark]);
+  const screenC = useMemo(() => getMemoryMonitorTexture('stm-center', isDark), [isDark]);
+  const screenR = useMemo(() => getMemoryMonitorTexture('stm-right', isDark), [isDark]);
   const underLightRef = useRef<MeshStandardMaterial>(null);
 
   useFrame(({ clock }) => {
@@ -256,13 +262,13 @@ const StmOperatorConsole = memo(function StmOperatorConsole({
       {/* Dual Steel Console Pedestal Legs */}
       {[-0.86, 0.86].map((lx, i) => (
         <RoundedBox key={i} args={[0.28, 0.78, 0.72]} radius={0.03} position={[lx, 0.39, 0]} castShadow receiveShadow>
-          <meshStandardMaterial color="#1E293B" roughness={0.34} metalness={0.84} />
+          <meshStandardMaterial color={isDark ? '#1E293B' : '#9EAFBF'} roughness={0.34} metalness={isDark ? 0.84 : 0.62} />
         </RoundedBox>
       ))}
       {/* Recessed Central Knee Panel with Glowing Cyan Under-Desk Accent Strip */}
       <mesh position={[0, 0.46, -0.22]}>
         <boxGeometry args={[1.48, 0.64, 0.14]} />
-        <meshStandardMaterial color="#0F172A" roughness={0.4} metalness={0.8} />
+        <meshStandardMaterial color={isDark ? '#0F172A' : '#536B83'} roughness={0.4} metalness={isDark ? 0.8 : 0.64} />
       </mesh>
       <mesh position={[0, 0.72, 0.18]}>
         <boxGeometry args={[1.42, 0.045, 0.06]} />
@@ -271,13 +277,13 @@ const StmOperatorConsole = memo(function StmOperatorConsole({
 
       {/* Brushed-Steel Console Desktop Slab */}
       <RoundedBox args={[2.12, 0.1, 0.88]} radius={0.03} smoothness={2} position={[0, 0.82, 0.04]} castShadow receiveShadow>
-        <meshStandardMaterial color="#475569" roughness={0.28} metalness={0.86} />
+        <meshStandardMaterial color={isDark ? '#475569' : '#DCE4EB'} roughness={0.28} metalness={isDark ? 0.86 : 0.6} />
       </RoundedBox>
 
       {/* Backlit Cyan Keyboard & Tactile Control Pad */}
       <mesh position={[0, 0.88, 0.24]} rotation={[0.08, 0, 0]}>
         <boxGeometry args={[0.92, 0.03, 0.26]} />
-        <meshStandardMaterial color="#0F172A" roughness={0.35} metalness={0.7} />
+        <meshStandardMaterial color={isDark ? '#0F172A' : '#536B83'} roughness={0.35} metalness={0.7} />
       </mesh>
       <mesh position={[0, 0.898, 0.24]} rotation={[-Math.PI / 2 + 0.08, 0, 0]}>
         <planeGeometry args={[0.84, 0.2]} />
@@ -287,12 +293,12 @@ const StmOperatorConsole = memo(function StmOperatorConsole({
       {/* Small Angled Lower-Center Diagnostic Display */}
       <group position={[0, 1.03, -0.02]} rotation={[-0.32, 0, 0]}>
         <RoundedBox args={[0.56, 0.3, 0.03]} radius={0.015}>
-          <meshStandardMaterial color="#0F172A" roughness={0.3} metalness={0.84} />
+          <meshStandardMaterial color={isDark ? '#0F172A' : '#536B83'} roughness={0.3} metalness={isDark ? 0.84 : 0.68} />
         </RoundedBox>
         <mesh position={[0, 0, 0.018]}>
           <planeGeometry args={[0.5, 0.24]} />
           {screenC ? (
-            <meshStandardMaterial map={screenC} emissive="#FFFFFF" emissiveMap={screenC} emissiveIntensity={0.95} />
+            <meshStandardMaterial map={screenC} emissive="#FFFFFF" emissiveMap={screenC} emissiveIntensity={isDark ? 0.95 : 0.82} />
           ) : (
             <meshStandardMaterial color="#00E5FF" emissive="#00E5FF" emissiveIntensity={0.9} />
           )}
@@ -303,7 +309,7 @@ const StmOperatorConsole = memo(function StmOperatorConsole({
       {[-0.68, 0, 0.68].map((ax, i) => (
         <mesh key={i} position={[ax, 1.18, -0.22]} castShadow>
           <cylinderGeometry args={[0.03, 0.035, 0.68, 10]} />
-          <meshStandardMaterial color="#334155" metalness={0.88} roughness={0.25} />
+          <meshStandardMaterial color={isDark ? '#334155' : '#9EAFBF'} metalness={isDark ? 0.88 : 0.68} roughness={0.25} />
         </mesh>
       ))}
 
@@ -315,12 +321,12 @@ const StmOperatorConsole = memo(function StmOperatorConsole({
       ].map((m, i) => (
         <group key={i} position={m.pos} rotation={[-0.08, m.rotY, 0]}>
           <RoundedBox args={[0.72, 0.56, 0.04]} radius={0.02} castShadow>
-            <meshStandardMaterial color="#0F172A" roughness={0.3} metalness={0.86} />
+            <meshStandardMaterial color={isDark ? '#0F172A' : '#536B83'} roughness={0.3} metalness={isDark ? 0.86 : 0.68} />
           </RoundedBox>
           <mesh position={[0, 0, 0.023]}>
             <planeGeometry args={[0.66, 0.5]} />
             {m.tex ? (
-              <meshStandardMaterial map={m.tex} emissive="#FFFFFF" emissiveMap={m.tex} emissiveIntensity={1.08} roughness={0.18} />
+              <meshStandardMaterial map={m.tex} emissive="#FFFFFF" emissiveMap={m.tex} emissiveIntensity={isDark ? 1.08 : 0.86} roughness={0.18} />
             ) : (
               <meshStandardMaterial color="#00E5FF" emissive="#00E5FF" emissiveIntensity={1.0} />
             )}
@@ -341,11 +347,13 @@ const StmOperatorConsole = memo(function StmOperatorConsole({
 export const ShortTermMemorySection = memo(function ShortTermMemorySection({
   stmActiveRef,
   onSelectStm,
+  isDark = true,
 }: {
   stmActiveRef: React.RefObject<number>;
   onSelectStm?: (e: ThreeEvent<MouseEvent>) => void;
+  isDark?: boolean;
 }) {
-  const signTex = useMemo(() => getMemorySectionSignTexture('stm'), []);
+  const signTex = useMemo(() => getMemorySectionSignTexture('stm', isDark), [isDark]);
   const signFrameMatRef = useRef<MeshStandardMaterial>(null);
 
   // Parallel curved brushed-brass cooling pipes from rear STM manifold arching over into the far-left cryo tank
@@ -403,12 +411,12 @@ export const ShortTermMemorySection = memo(function ShortTermMemorySection({
         {[-1.55, 1.55].map((sx, i) => (
           <mesh key={i} position={[sx, -1.12, -0.08]} castShadow>
             <boxGeometry args={[0.14, 1.35, 0.14]} />
-            <meshStandardMaterial color="#1E293B" metalness={0.86} roughness={0.3} />
+            <meshStandardMaterial color={isDark ? '#1E293B' : '#536B83'} metalness={isDark ? 0.86 : 0.68} roughness={0.3} />
           </mesh>
         ))}
-        {/* Dark Beveled Sign Housing */}
+        {/* Beveled Sign Housing */}
         <RoundedBox args={[4.45, 1.38, 0.16]} radius={0.08} smoothness={2} castShadow>
-          <meshStandardMaterial color="#071226" roughness={0.28} metalness={0.86} />
+          <meshStandardMaterial color={isDark ? '#071226' : '#DCE4EB'} roughness={0.28} metalness={isDark ? 0.86 : 0.64} />
         </RoundedBox>
         {/* Glowing Cyan Top & Bottom Frame Bars */}
         {[-0.69, 0.69].map((by, i) => (
@@ -430,12 +438,12 @@ export const ShortTermMemorySection = memo(function ShortTermMemorySection({
               map={signTex}
               emissive="#FFFFFF"
               emissiveMap={signTex}
-              emissiveIntensity={0.95}
+              emissiveIntensity={isDark ? 0.95 : 0.82}
               roughness={0.22}
               side={DoubleSide}
             />
           ) : (
-            <meshStandardMaterial color="#071226" emissive="#00E5FF" emissiveIntensity={0.85} />
+            <meshStandardMaterial color={isDark ? '#071226' : '#263B52'} emissive="#00E5FF" emissiveIntensity={0.85} />
           )}
         </mesh>
       </group>
@@ -443,17 +451,17 @@ export const ShortTermMemorySection = memo(function ShortTermMemorySection({
       {/* ================================================================================= */}
       {/* 2. 3 LARGE CONTEXT-PROCESSING SERVER RACKS (Along -X Facing +X) */}
       {/* ================================================================================= */}
-      <StmContextRack position={[-4.55, 0, 0.72]} size={[1.38, 2.02, 1.15]} stmActiveRef={stmActiveRef} phase={0} />
-      <StmContextRack position={[-4.55, 0, -0.88]} size={[1.38, 2.16, 1.15]} stmActiveRef={stmActiveRef} phase={1.4} />
-      <StmContextRack position={[-4.55, 0, -2.48]} size={[1.38, 2.24, 1.15]} stmActiveRef={stmActiveRef} phase={2.8} />
+      <StmContextRack position={[-4.55, 0, 0.72]} size={[1.38, 2.02, 1.15]} stmActiveRef={stmActiveRef} phase={0} isDark={isDark} />
+      <StmContextRack position={[-4.55, 0, -0.88]} size={[1.38, 2.16, 1.15]} stmActiveRef={stmActiveRef} phase={1.4} isDark={isDark} />
+      <StmContextRack position={[-4.55, 0, -2.48]} size={[1.38, 2.24, 1.15]} stmActiveRef={stmActiveRef} phase={2.8} isDark={isDark} />
 
       {/* Back-Left Tall Session Buffer Tower behind the 3rd Rack */}
-      <StmContextRack position={[-3.25, 0, -3.72]} rotation={[0, 0, 0]} size={[1.32, 2.32, 1.05]} stmActiveRef={stmActiveRef} phase={3.8} />
+      <StmContextRack position={[-3.25, 0, -3.72]} rotation={[0, 0, 0]} size={[1.32, 2.32, 1.05]} stmActiveRef={stmActiveRef} phase={3.8} isDark={isDark} />
 
       {/* Rear STM Elevated Manifold Cabinet & Exhaust Unit */}
       <group position={[-5.95, 0, -0.85]}>
         <RoundedBox args={[0.85, 2.38, 4.95]} radius={0.05} smoothness={2} position={[0, 1.19, 0]} castShadow receiveShadow>
-          <meshStandardMaterial color="#182336" roughness={0.34} metalness={0.84} />
+          <meshStandardMaterial color={isDark ? '#182336' : '#DCE4EB'} roughness={isDark ? 0.34 : 0.26} metalness={isDark ? 0.84 : 0.62} />
         </RoundedBox>
         {/* Glowing cyan horizontal manifold status line */}
         <mesh position={[0.44, 1.95, 0]}>
@@ -462,7 +470,7 @@ export const ShortTermMemorySection = memo(function ShortTermMemorySection({
         </mesh>
         {/* Upper condenser module box */}
         <RoundedBox args={[0.92, 0.56, 1.35]} radius={0.04} position={[0.15, 2.66, -1.75]} castShadow>
-          <meshStandardMaterial color="#334155" roughness={0.3} metalness={0.86} />
+          <meshStandardMaterial color={isDark ? '#334155' : '#F5F7FA'} roughness={isDark ? 0.3 : 0.22} metalness={isDark ? 0.86 : 0.56} />
         </RoundedBox>
       </group>
 
@@ -477,6 +485,7 @@ export const ShortTermMemorySection = memo(function ShortTermMemorySection({
         radius={0.5}
         activeRef={stmActiveRef}
         phase={0.2}
+        isDark={isDark}
       />
 
       <CurvedChromePipe points={stmPipeA} radius={0.062} flangeIndices={[0, 1, 3]} color="#D9B36C" />
@@ -487,7 +496,7 @@ export const ShortTermMemorySection = memo(function ShortTermMemorySection({
       {/* ================================================================================= */}
       {/* 4. 3-MONITOR STM OPERATOR CONTROL WORKSTATION (Facing +X into Central Plaza) */}
       {/* ================================================================================= */}
-      <StmOperatorConsole position={[-2.95, 0, 1.55]} rotation={[0, Math.PI * 0.42, 0]} stmActiveRef={stmActiveRef} />
+      <StmOperatorConsole position={[-2.95, 0, 1.55]} rotation={[0, Math.PI * 0.42, 0]} stmActiveRef={stmActiveRef} isDark={isDark} />
 
       {/* ================================================================================= */}
       {/* 5. FOREGROUND AUXILIARY CACHE CABINET & JUNCTION CUBE (Front-Left Corner) */}
@@ -495,11 +504,11 @@ export const ShortTermMemorySection = memo(function ShortTermMemorySection({
       {/* Brushed-Silver Vertical Auxiliary Cache Unit */}
       <group position={[-5.18, 0, 3.85]}>
         <RoundedBox args={[0.76, 1.18, 0.72]} radius={0.04} smoothness={2} position={[0, 0.59, 0]} castShadow receiveShadow>
-          <meshStandardMaterial color="#94A3B8" roughness={0.24} metalness={0.86} />
+          <meshStandardMaterial color={isDark ? '#94A3B8' : '#DCE4EB'} roughness={0.24} metalness={isDark ? 0.86 : 0.64} />
         </RoundedBox>
         <mesh position={[0, 0.59, 0.368]}>
           <boxGeometry args={[0.58, 0.96, 0.02]} />
-          <meshStandardMaterial color="#475569" roughness={0.35} metalness={0.82} />
+          <meshStandardMaterial color={isDark ? '#475569' : '#9EAFBF'} roughness={0.35} metalness={isDark ? 0.82 : 0.62} />
         </mesh>
         <mesh position={[0.22, 0.96, 0.382]}>
           <boxGeometry args={[0.12, 0.04, 0.015]} />
@@ -510,11 +519,11 @@ export const ShortTermMemorySection = memo(function ShortTermMemorySection({
       {/* Compact Illuminated Session-Cache Junction Cube */}
       <group position={[-4.02, 0, 3.82]}>
         <RoundedBox args={[0.84, 0.84, 0.84]} radius={0.04} smoothness={2} position={[0, 0.42, 0]} castShadow receiveShadow>
-          <meshStandardMaterial color="#273449" roughness={0.32} metalness={0.84} />
+          <meshStandardMaterial color={isDark ? '#273449' : '#9EAFBF'} roughness={0.32} metalness={isDark ? 0.84 : 0.64} />
         </RoundedBox>
         <mesh position={[0, 0.42, 0.428]}>
           <planeGeometry args={[0.64, 0.64]} />
-          <meshStandardMaterial color="#0A1930" emissive="#0EA5E9" emissiveIntensity={0.85} roughness={0.2} />
+          <meshStandardMaterial color={isDark ? '#0A1930' : '#263B52'} emissive="#0EA5E9" emissiveIntensity={0.85} roughness={0.2} />
         </mesh>
         {[-0.18, 0, 0.18].map((dy, i) => (
           <mesh key={i} position={[0, 0.42 + dy, 0.434]}>

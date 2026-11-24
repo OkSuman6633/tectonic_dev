@@ -128,13 +128,19 @@ function drawSunsetSkylinePreview(ctx: CanvasRenderingContext2D, x: number, y: n
   ctx.restore();
 }
 
-/** Reflective dark modular brushed-steel deck plate catching blue & purple specular studio reflections. */
-export function getContentDeckTexture(): CanvasTexture | null {
-  const tex = cached('content-deck-v1', 512, 512, (ctx, w, h) => {
+/** Reflective modular brushed-steel deck plate (dark & light mode). */
+export function getContentDeckTexture(isDark = true): CanvasTexture | null {
+  const tex = cached(`content-deck-v1:${isDark ? 'dark' : 'light'}`, 512, 512, (ctx, w, h) => {
     const grad = ctx.createLinearGradient(0, 0, w, h);
-    grad.addColorStop(0, '#0B1222');
-    grad.addColorStop(0.5, '#151E34');
-    grad.addColorStop(1, '#0C1220');
+    if (isDark) {
+      grad.addColorStop(0, '#0B1222');
+      grad.addColorStop(0.5, '#151E34');
+      grad.addColorStop(1, '#0C1220');
+    } else {
+      grad.addColorStop(0, '#CDD6E0');
+      grad.addColorStop(0.5, '#D9E1EA');
+      grad.addColorStop(1, '#C3CDD8');
+    }
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
 
@@ -144,15 +150,17 @@ export function getContentDeckTexture(): CanvasTexture | null {
       for (let c = 0; c < cells; c++) {
         const x = c * step;
         const y = r * step;
-        ctx.fillStyle = (r + c) % 2 === 0 ? 'rgba(30, 41, 59, 0.24)' : 'rgba(15, 23, 42, 0.32)';
+        ctx.fillStyle = isDark
+          ? (r + c) % 2 === 0 ? 'rgba(30, 41, 59, 0.24)' : 'rgba(15, 23, 42, 0.32)'
+          : (r + c) % 2 === 0 ? 'rgba(245, 247, 250, 0.44)' : 'rgba(158, 175, 191, 0.28)';
         ctx.fillRect(x + 3, y + 3, step - 6, step - 6);
-        ctx.strokeStyle = 'rgba(148, 163, 184, 0.17)';
+        ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.17)' : 'rgba(83, 107, 131, 0.28)';
         ctx.lineWidth = 1.2;
         ctx.strokeRect(x + 2.5, y + 2.5, step - 5, step - 5);
       }
     }
 
-    ctx.strokeStyle = '#040710';
+    ctx.strokeStyle = isDark ? '#040710' : '#7C8EA0';
     ctx.lineWidth = 2.5;
     for (let i = 0; i <= cells; i++) {
       const p = i * step;
@@ -175,12 +183,18 @@ export function getContentDeckTexture(): CanvasTexture | null {
 }
 
 /** Extruded chamfered front "Content Studio – RCP" signboard with glowing purple play icon & electric blue frame. */
-export function getContentFrontSignTexture(): CanvasTexture | null {
-  return cached('content-front-sign-v1', 1024, 240, (ctx, w, h) => {
+export function getContentFrontSignTexture(isDark = true): CanvasTexture | null {
+  return cached(`content-front-sign-v1:${isDark ? 'dark' : 'light'}`, 1024, 240, (ctx, w, h) => {
     const bg = ctx.createLinearGradient(0, 0, w, h);
-    bg.addColorStop(0, '#071124');
-    bg.addColorStop(0.5, '#0C1A35');
-    bg.addColorStop(1, '#060D1E');
+    if (isDark) {
+      bg.addColorStop(0, '#071124');
+      bg.addColorStop(0.5, '#0C1A35');
+      bg.addColorStop(1, '#060D1E');
+    } else {
+      bg.addColorStop(0, '#1E3147');
+      bg.addColorStop(0.5, '#263B52');
+      bg.addColorStop(1, '#1B2D41');
+    }
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, w, h);
 
@@ -236,12 +250,19 @@ export function drawContentStudioMainWall(
   w: number,
   h: number,
   snap: ContentStudioSnapshot,
+  isDark = true,
 ) {
   // Deep navy-slate enterprise media studio backdrop
   const bg = ctx.createLinearGradient(0, 0, w, h);
-  bg.addColorStop(0, '#07142C');
-  bg.addColorStop(0.5, '#0B1D3E');
-  bg.addColorStop(1, '#061126');
+  if (isDark) {
+    bg.addColorStop(0, '#07142C');
+    bg.addColorStop(0.5, '#0B1D3E');
+    bg.addColorStop(1, '#061126');
+  } else {
+    bg.addColorStop(0, '#1E3147');
+    bg.addColorStop(0.5, '#263B52');
+    bg.addColorStop(1, '#1B2D41');
+  }
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, w, h);
 
@@ -430,12 +451,18 @@ export function drawContentStudioMainWall(
 }
 
 /** Right Wing Vertical Feature Display Texture matching the reference's 4 RCP capability bullets. */
-export function getContentFeatureWallTexture(): CanvasTexture | null {
-  return cached('content-feature-wall-v1', 512, 768, (ctx, w, h) => {
+export function getContentFeatureWallTexture(isDark = true): CanvasTexture | null {
+  return cached(`content-feature-wall-v1:${isDark ? 'dark' : 'light'}`, 512, 768, (ctx, w, h) => {
     const bg = ctx.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, '#07142C');
-    bg.addColorStop(0.5, '#0A1E40');
-    bg.addColorStop(1, '#061024');
+    if (isDark) {
+      bg.addColorStop(0, '#07142C');
+      bg.addColorStop(0.5, '#0A1E40');
+      bg.addColorStop(1, '#061024');
+    } else {
+      bg.addColorStop(0, '#1E3147');
+      bg.addColorStop(0.5, '#263B52');
+      bg.addColorStop(1, '#1B2D41');
+    }
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, w, h);
 
@@ -501,9 +528,9 @@ export function getContentFeatureWallTexture(): CanvasTexture | null {
 }
 
 /** 3 Curved Editing Desk Monitor Textures (Left bins, Center Sunset NLE Preview + Timeline, Right Asset/Grade Inspector). */
-export function getContentMonitorTexture(slot: 'left' | 'center' | 'right'): CanvasTexture | null {
-  return cached(`content-mon-${slot}-v1`, 448, 256, (ctx, w, h) => {
-    ctx.fillStyle = '#061124';
+export function getContentMonitorTexture(slot: 'left' | 'center' | 'right', isDark = true): CanvasTexture | null {
+  return cached(`content-mon-${slot}-v1:${isDark ? 'dark' : 'light'}`, 448, 256, (ctx, w, h) => {
+    ctx.fillStyle = isDark ? '#061124' : '#263B52';
     ctx.fillRect(0, 0, w, h);
     ctx.strokeStyle = '#38E8FF';
     ctx.lineWidth = 3;
@@ -547,19 +574,26 @@ export function getContentMonitorTexture(slot: 'left' | 'center' | 'right'): Can
 }
 
 /** High-density blue-lit studio media storage / render server rack faceplate. */
-export function getContentServerRackTexture(): CanvasTexture | null {
-  return cached('content-server-rack-v1', 256, 512, (ctx, w, h) => {
-    ctx.fillStyle = '#050A15';
+export function getContentServerRackTexture(isDark = true): CanvasTexture | null {
+  return cached(`content-server-rack-v1:${isDark ? 'dark' : 'light'}`, 256, 512, (ctx, w, h) => {
+    ctx.fillStyle = isDark ? '#050A15' : '#3F556B';
     ctx.fillRect(0, 0, w, h);
 
     const rows = 15;
     const rowH = (h - 20) / rows;
     for (let i = 0; i < rows; i++) {
       const y = 10 + i * rowH;
-      ctx.fillStyle = i % 2 === 0 ? '#0F182A' : '#0A1120';
+      ctx.fillStyle = isDark
+        ? i % 2 === 0 ? '#0F182A' : '#0A1120'
+        : i % 2 === 0 ? '#536B83' : '#496077';
       ctx.fillRect(12, y + 2, w - 24, rowH - 5);
+      if (!isDark) {
+        ctx.strokeStyle = '#7B93AB';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(12, y + 2, w - 24, rowH - 5);
+      }
 
-      ctx.fillStyle = '#02050B';
+      ctx.fillStyle = isDark ? '#02050B' : '#121B28';
       for (let sx = 18; sx < w - 82; sx += 11) {
         ctx.fillRect(sx, y + 6, 7, rowH - 13);
       }

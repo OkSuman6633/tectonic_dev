@@ -23,9 +23,11 @@ import { ContentProductionRig } from './contentStudio/ContentProductionRig';
 export const ContentStudioHardware = memo(function ContentStudioHardware({
   zone,
   onSelectModule,
+  isDark = true,
 }: {
   zone: CampusZone;
   onSelectModule?: (moduleId: string) => void;
+  isDark?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
   const activeRef = useRef(false);
@@ -72,22 +74,24 @@ export const ContentStudioHardware = memo(function ContentStudioHardware({
   return (
     <group>
       {/* 1. Multi-Tier Metallic Studio Platform, Front Signboard & Glass/Chrome Railings */}
-      <ContentPlatformChassis zone={zone} activeRef={activeRef} />
+      <ContentPlatformChassis zone={zone} activeRef={activeRef} isDark={isDark} />
 
       {/* 2. Monumental Rear Main Editing Display Wall + Right Vertical Feature Monolith (bound to image_generation) */}
       <ContentStudioWall
         position={[-0.45, 0, -2.75]}
         onSelectImageGen={onSelectModule ? () => onSelectModule('image_generation') : undefined}
+        isDark={isDark}
       />
 
       {/* 3. Central Curved 3-Monitor Studio Editing Workstation (bound to promptops) */}
       <ContentEditingDesk
         position={[-0.2, 0, 0.45]}
         onSelect={onSelectModule ? () => onSelectModule('promptops') : undefined}
+        isDark={isDark}
       />
 
       {/* 4. Left Chroma-Key Production Set, Server Rack, Flight Cases, Foreground Pro DSLR & Planters */}
-      <ContentProductionRig />
+      <ContentProductionRig isDark={isDark} />
 
       {/* Flush Floor Telemetry Conduit Lines linking Server Rack, Editing Desk & Main Display Wall */}
       <group position={[0, 0.008, 0]}>

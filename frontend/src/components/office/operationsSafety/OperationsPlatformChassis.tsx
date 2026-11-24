@@ -14,11 +14,13 @@ const OpsGlassBrassRailing = memo(function OpsGlassBrassRailing({
   length,
   rotation = [0, 0, 0],
   height = 0.68,
+  isDark = true,
 }: {
   start: Vec3;
   length: number;
   rotation?: [number, number, number];
   height?: number;
+  isDark?: boolean;
 }) {
   const posts = useMemo(() => {
     const count = Math.max(2, Math.round(length / 1.05) + 1);
@@ -60,7 +62,7 @@ const OpsGlassBrassRailing = memo(function OpsGlassBrassRailing({
           </mesh>
           <mesh position={[0, 0.022, 0]}>
             <cylinderGeometry args={[0.048, 0.056, 0.044, 10]} />
-            <meshStandardMaterial color="#334155" metalness={0.85} roughness={0.28} />
+            <meshStandardMaterial color={isDark ? '#334155' : '#536B83'} metalness={isDark ? 0.85 : 0.7} roughness={0.28} />
           </mesh>
           <mesh position={[0, height + 0.014, 0]}>
             <sphereGeometry args={[0.028, 8, 8]} />
@@ -74,9 +76,9 @@ const OpsGlassBrassRailing = memo(function OpsGlassBrassRailing({
 
 /**
  * Multi-Tier Metallic Industrial Platform Chassis for Operations & Safety Center:
- * - Dark gunmetal armor skirt with recessed cyan-blue vent LEDs & continuous lower cyan corner bars
+ * - Dark gunmetal (or Light Graphite/Silver in light mode) armor skirt with recessed cyan-blue vent LEDs & continuous lower cyan corner bars
  * - Stepped brushed-titanium upper collar with continuous warm amber-gold illuminated perimeter rim
- * - Reflective mirror-sheen dark tiled metallic deck floor
+ * - Reflective mirror-sheen tiled metallic deck floor
  * - Integrated ExtrudeGeometry beveled "OPERATIONS & SAFETY" front signboard with glowing cyan shield icon
  * - Tempered-glass & brushed-brass perimeter railings with unobstructed front-right dock for `bridge-operations`
  */
@@ -84,17 +86,19 @@ export const OperationsPlatformChassis = memo(function OperationsPlatformChassis
   zone,
   alertLevelRef,
   activeRef,
+  isDark = true,
 }: {
   zone: CampusZone;
   alertLevelRef: React.RefObject<'ok' | 'warn' | 'alert'>;
   activeRef: React.RefObject<boolean>;
+  isDark?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
   const cyanRimRef = useRef<MeshStandardMaterial>(null);
   const amberRimRef = useRef<MeshStandardMaterial>(null);
 
-  const deckTex = useMemo(() => getOpsDeckTexture(), []);
-  const signTex = useMemo(() => getOpsFrontSignTexture(), []);
+  const deckTex = useMemo(() => getOpsDeckTexture(isDark), [isDark]);
+  const signTex = useMemo(() => getOpsFrontSignTexture(isDark), [isDark]);
 
   const w = zone.width; // 12.6
   const d = zone.depth; // 8.8
@@ -162,7 +166,7 @@ export const OperationsPlatformChassis = memo(function OperationsPlatformChassis
 
   return (
     <group>
-      {/* TIER 1: HEAVY DARK GUNMETAL SUB-CHASSIS ARMOR SKIRT */}
+      {/* TIER 1: HEAVY SUB-CHASSIS ARMOR SKIRT */}
       <RoundedBox
         args={[baseW, h - 0.2, baseD]}
         radius={0.18}
@@ -171,16 +175,16 @@ export const OperationsPlatformChassis = memo(function OperationsPlatformChassis
         receiveShadow
         castShadow
       >
-        <meshStandardMaterial color="#0E1525" roughness={0.34} metalness={0.86} />
+        <meshStandardMaterial color={isDark ? '#0E1525' : '#8A98A8'} roughness={0.34} metalness={isDark ? 0.86 : 0.56} />
       </RoundedBox>
 
       {/* Recessed Shadow Reveal Groove */}
       <mesh position={[0, -0.2, 0]}>
         <boxGeometry args={[baseW - 0.14, 0.04, baseD - 0.14]} />
-        <meshStandardMaterial color="#04070E" roughness={0.75} metalness={0.5} />
+        <meshStandardMaterial color={isDark ? '#04070E' : '#263B52'} roughness={isDark ? 0.75 : 0.55} metalness={0.5} />
       </mesh>
 
-      {/* TIER 2: BRUSHED-TITANIUM STEPPED UPPER COLLAR */}
+      {/* TIER 2: STEPPED UPPER COLLAR */}
       <RoundedBox
         args={[midW, 0.16, midD]}
         radius={0.15}
@@ -189,7 +193,7 @@ export const OperationsPlatformChassis = memo(function OperationsPlatformChassis
         receiveShadow
         castShadow
       >
-        <meshStandardMaterial color="#334155" roughness={0.26} metalness={0.9} />
+        <meshStandardMaterial color={isDark ? '#334155' : '#B7C4D1'} roughness={isDark ? 0.26 : 0.28} metalness={isDark ? 0.9 : 0.62} />
       </RoundedBox>
 
       {/* UPPER CONTINUOUS WARM AMBER-GOLD PERIMETER LIGHT STRIP (exact reference dual-tone rim) */}
@@ -233,7 +237,7 @@ export const OperationsPlatformChassis = memo(function OperationsPlatformChassis
           <group key={`vz-${i}`} position={[vx, -0.05, baseD / 2 + 0.008]}>
             <mesh>
               <boxGeometry args={[1.15, 0.18, 0.022]} />
-              <meshStandardMaterial color="#050812" roughness={0.8} metalness={0.4} />
+              <meshStandardMaterial color={isDark ? '#050812' : '#121B28'} roughness={0.8} metalness={0.4} />
             </mesh>
             {[-0.3, -0.1, 0.1, 0.3].map((dx, j) => (
               <mesh key={j} position={[dx, 0.0, 0.014]}>
@@ -256,7 +260,7 @@ export const OperationsPlatformChassis = memo(function OperationsPlatformChassis
         <group position={[baseW / 2 + 0.008, -0.04, 0]}>
           <mesh>
             <boxGeometry args={[0.022, 0.22, 2.8]} />
-            <meshStandardMaterial color="#050812" roughness={0.8} metalness={0.4} />
+            <meshStandardMaterial color={isDark ? '#050812' : '#121B28'} roughness={0.8} metalness={0.4} />
           </mesh>
           {[-0.7, -0.25, 0.25, 0.7].map((dz, j) => (
             <mesh key={j} position={[0.014, 0, dz]}>
@@ -273,16 +277,16 @@ export const OperationsPlatformChassis = memo(function OperationsPlatformChassis
         </mesh>
       </group>
 
-      {/* TIER 3: REFLECTIVE DARK MIRROR-SHEEN TILED DECK (top at local y = 0) */}
+      {/* TIER 3: REFLECTIVE TILED DECK (top at local y = 0) */}
       <RoundedBox args={[w, 0.08, d]} radius={0.08} smoothness={2} position={[0, -0.04, 0]} receiveShadow>
-        <meshStandardMaterial color="#172033" roughness={0.22} metalness={0.86} />
+        <meshStandardMaterial color={isDark ? '#172033' : '#C8D3DE'} roughness={isDark ? 0.22 : 0.26} metalness={isDark ? 0.86 : 0.52} />
       </RoundedBox>
       <mesh position={[0, 0.002, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[w - 0.16, d - 0.16]} />
         {deckTex ? (
-          <meshStandardMaterial map={deckTex} roughness={0.16} metalness={0.86} />
+          <meshStandardMaterial map={deckTex} roughness={isDark ? 0.16 : 0.34} metalness={isDark ? 0.86 : 0.48} />
         ) : (
-          <meshStandardMaterial color="#101828" roughness={0.16} metalness={0.86} />
+          <meshStandardMaterial color={isDark ? '#101828' : '#C8D3DE'} roughness={isDark ? 0.16 : 0.34} metalness={isDark ? 0.86 : 0.48} />
         )}
       </mesh>
 
@@ -296,7 +300,7 @@ export const OperationsPlatformChassis = memo(function OperationsPlatformChassis
       <group position={[dockCenterX, 0.006, d / 2 - 0.12]}>
         <mesh receiveShadow>
           <boxGeometry args={[2.25, 0.024, 0.52]} />
-          <meshStandardMaterial color="#1E293B" metalness={0.85} roughness={0.28} />
+          <meshStandardMaterial color={isDark ? '#1E293B' : '#9EAFBF'} metalness={isDark ? 0.85 : 0.62} roughness={0.28} />
         </mesh>
         {[-1.12, 1.12].map((gx, i) => (
           <mesh key={i} position={[gx, 0.015, 0]}>
@@ -309,7 +313,7 @@ export const OperationsPlatformChassis = memo(function OperationsPlatformChassis
       {/* INTEGRATED BEVELED "OPERATIONS & SAFETY" ARCHITECTURAL SIGNBOARD (+Z FRONT FASCIA) */}
       <group position={[-0.75, -0.06, baseD / 2 + 0.14]} rotation={[-0.06, 0, 0]}>
         <mesh geometry={signGeometry} castShadow receiveShadow>
-          <meshStandardMaterial color="#091122" roughness={0.26} metalness={0.88} />
+          <meshStandardMaterial color={isDark ? '#091122' : '#DCE4EB'} roughness={0.26} metalness={isDark ? 0.88 : 0.65} />
         </mesh>
         <mesh position={[0, 0.49, 0.06]}>
           <boxGeometry args={[4.65, 0.036, 0.06]} />
@@ -333,23 +337,23 @@ export const OperationsPlatformChassis = memo(function OperationsPlatformChassis
               map={signTex}
               emissive="#FFFFFF"
               emissiveMap={signTex}
-              emissiveIntensity={0.94}
+              emissiveIntensity={isDark ? 0.94 : 0.82}
               roughness={0.2}
               metalness={0.28}
             />
           ) : (
-            <meshStandardMaterial color="#091122" emissive="#00E5FF" emissiveIntensity={0.8} />
+            <meshStandardMaterial color={isDark ? '#091122' : '#263B52'} emissive="#00E5FF" emissiveIntensity={0.8} />
           )}
         </mesh>
       </group>
 
       {/* TEMPERED-GLASS & BRUSHED-BRASS PERIMETER RAILINGS (Clear at front-right bridge dock x ∈ [+3.75, +6.05]) */}
       {/* Front-left (+Z) glass railing west of signboard */}
-      <OpsGlassBrassRailing start={[-w / 2 + 0.25, 0, d / 2 - 0.16]} length={2.55} />
+      <OpsGlassBrassRailing start={[-w / 2 + 0.25, 0, d / 2 - 0.16]} length={2.55} isDark={isDark} />
       {/* Left (-X) glass railing */}
-      <OpsGlassBrassRailing start={[-w / 2 + 0.16, 0, d / 2 - 0.24]} length={3.65} rotation={[0, Math.PI / 2, 0]} />
+      <OpsGlassBrassRailing start={[-w / 2 + 0.16, 0, d / 2 - 0.24]} length={3.65} rotation={[0, Math.PI / 2, 0]} isDark={isDark} />
       {/* Right (+X) glass railing */}
-      <OpsGlassBrassRailing start={[w / 2 - 0.16, 0, d / 2 - 0.24]} length={5.2} rotation={[0, Math.PI / 2, 0]} />
+      <OpsGlassBrassRailing start={[w / 2 - 0.16, 0, d / 2 - 0.24]} length={5.2} rotation={[0, Math.PI / 2, 0]} isDark={isDark} />
     </group>
   );
 });
