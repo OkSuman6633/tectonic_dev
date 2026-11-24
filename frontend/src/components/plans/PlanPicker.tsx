@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Building2, Check, Crown, Loader2, Rocket, X, Zap } from 'lucide-react';
+import { AlertTriangle, Building2, Check, Crown, Loader2, Rocket, UserPlus, X, Zap } from 'lucide-react';
 import { choosePlan, fmtTokens, getPlans, type PlanSummary } from '../../services/plans';
+import { getUser, signOut } from '../../services/auth';
 import { ThemeToggle } from '../ThemeToggle';
 
 /**
- * The plan picker, used in two ways:
- *  * fullscreen right after sign-in (embedded=false) — the user must choose before the Studio loads;
+ * The plan picker, used in three ways:
+ *  * fullscreen right after sign-in (embedded=false);
+ *  * when a 7-day Starter plan expires (expired=true) to mandate selecting a plan;
  *  * inside the Studio as a "Change plan" modal (embedded=true).
- *
- * There is no payment yet: picking/switching is free and immediate.
  */
 
 const TIER_ICON: Record<string, React.ReactNode> = {
@@ -23,12 +23,16 @@ const FEATURE_CELL = (v: string | number | boolean) => (typeof v === 'boolean' ?
 export const PlanPicker: React.FC<{
   embedded?: boolean;
   current?: string | null;
+  expired?: boolean;
   onClose?: () => void;
   onSelected?: () => void;
-}> = ({ embedded = false, current, onClose, onSelected }) => {
+}> = ({ embedded = false, current, expired = false, onClose, onSelected }) => {
   const [plans, setPlans] = useState<PlanSummary[] | null>(null);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  const currentUser = getUser();
+  const hasAdmin = Boolean(currentUser?.username && currentUser.username.toLowerCase().includes('admin'));
 
   useEffect(() => {
     getPlans()
@@ -53,11 +57,21 @@ export const PlanPicker: React.FC<{
 
   const card = (p: PlanSummary) => {
     const chosen = p.id === chosenId;
+    const isAvailable = p.available !== false;
+    let buttonText = chosen ? 'Your plan' : p.id === 'enterprise' ? 'Contact us' : `Choose ${p.name}`;
+    if (!chosen && !isAvailable) {
+      buttonText = p.id === 'starter' ? 'Trial Expired' : 'Admin Required';
+    }
+
     return (
       <div
         key={p.id}
         className={`relative flex flex-col rounded-2xl border p-5 transition-colors ${
-          chosen ? 'border-sky-400/70 bg-sky-400/[0.07] ring-1 ring-sky-400/50' : 'border-white/10 bg-studio-card'
+          chosen
+            ? 'border-sky-400/70 bg-sky-400/[0.07] ring-1 ring-sky-400/50'
+            : !isAvailable
+            ? 'border-white/5 bg-studio-card/60 opacity-80'
+            : 'border-white/10 bg-studio-card'
         }`}
       >
         {chosen && (
@@ -92,17 +106,25 @@ export const PlanPicker: React.FC<{
 
         <button
           type="button"
-          disabled={chosen || busyId !== null}
+          disabled={chosen || busyId !== null || !isAvailable}
           onClick={() => select(p.id)}
+          title={!isAvailable ? (p.unavailable_reason || 'Not available') : undefined}
           className={`flex w-full items-center justify-center gap-2 rounded-xl py-2 text-sm font-semibold transition-colors disabled:opacity-60 ${
             chosen
               ? 'cursor-default bg-white/10 text-slate-300'
+              : !isAvailable
+              ? 'cursor-not-allowed bg-white/5 text-slate-400 border border-white/5'
               : 'bg-sky-400 text-[#05222E] hover:bg-sky-300'
           }`}
         >
           {busyId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          {chosen ? 'Your plan' : p.id === 'enterprise' ? 'Contact us' : `Choose ${p.name}`}
+          {buttonText}
         </button>
+        {!isAvailable && p.unavailable_reason && (
+          <p className="mt-2 text-center text-[10px] text-amber-300/80 leading-tight">
+            {p.unavailable_reason}
+          </p>
+        )}
       </div>
     );
   };
@@ -122,13 +144,16 @@ export const PlanPicker: React.FC<{
     <>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-slate-100">{embedded ? 'Change your plan' : 'Choose your plan'}</h2>
+          <h2 className="text-lg font-semibold text-slate-100">
+            {expired ? 'Renew or Upgrade Your Plan' : embedded ? 'Change your plan' : 'Choose your plan'}
+          </h2>
           <p className="mt-1 max-w-xl text-xs leading-relaxed text-slate-400">
-            Pick the plan that fits how you want to build. You can switch anytime — there is no charge yet, and
-            nothing you've built is lost when you change plans.
+            {expired
+              ? 'Your Starter trial period has concluded. Choose an upgraded plan below to resume agent creation, execution, and studio operations.'
+              : "Pick the plan that fits how you want to build. You can switch anytime — there is no charge yet, and nothing you've built is lost when you change plans."}
           </p>
         </div>
-        {embedded ? (
+        {embedded && !expired ? (
           <button onClick={onClose} className="rounded p-1 text-slate-400 hover:text-white" aria-label="Close">
             <X className="h-4 w-4" />
           </button>
@@ -136,6 +161,31 @@ export const PlanPicker: React.FC<{
           <ThemeToggle />
         )}
       </div>
+
+      {expired && (
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-amber-200 animate-in fade-in">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 font-semibold text-sm text-amber-300">
+              <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0" />
+              <span>7-Day Starter Trial Expired</span>
+            </div>
+            <button
+              type="button"
+              onClick={signOut}
+              className="flex items-center gap-1.5 rounded-lg border border-amber-400/40 bg-amber-400/20 px-3 py-1.5 text-xs font-semibold text-amber-100 hover:bg-amber-400/30 transition-colors"
+              title="Sign out and create another account for a fresh 7-day Starter plan"
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              <span>Create Another Account</span>
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-amber-200/90 leading-relaxed">
+            {hasAdmin
+              ? 'Your initial 7-day Starter plan has expired. As an admin account, you can select an upgraded plan below to continue building, or register another account for a fresh Starter plan.'
+              : 'Your initial 7-day Starter plan has expired. To create one more Starter plan, please register another account using the button above. Other plans are available for administrative accounts whose username contains "admin" (e.g., "data admin", "admin portal", "admin account").'}
+          </p>
+        </div>
+      )}
 
       {error && (
         <div role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">

@@ -79,6 +79,19 @@ def _server_key() -> bool:
     return bool(os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY"))
 
 
+# --- execution control: immediate stop of active agent runs --------------------------------------
+@router.post("/api/run/stop")
+@router.post("/run/abort")
+async def stop_run(body: dict = Body(default_factory=dict)):
+    """Immediately stop all in-flight execution flows (LLM calls, tool runs, sub-agents)."""
+    from .execution_manager import manager
+
+    session_id = body.get("sessionId") or body.get("session_id")
+    app_name = body.get("appName") or body.get("app_name") or "agent_builder"
+    count = await manager.abort_execution(session_id=session_id, app_name=app_name)
+    return {"status": "stopped", "cancelled": count}
+
+
 # --- accounts ------------------------------------------------------------------------------------
 @router.get("/auth/config")
 async def auth_config():
@@ -88,7 +101,11 @@ async def auth_config():
 @router.post("/auth/register")
 async def auth_register(body: dict = Body(...)):
     try:
-        user = auth.register(str(body.get("username", "")), str(body.get("password", "")))
+        user = auth.register(
+            str(body.get("username", "")),
+            str(body.get("password", "")),
+            email=body.get("email"),
+        )
     except auth.AuthError as exc:
         raise HTTPException(400, str(exc))
     return {"token": auth.issue_token(user), "user": user}
@@ -97,7 +114,8 @@ async def auth_register(body: dict = Body(...)):
 @router.post("/auth/login")
 async def auth_login(body: dict = Body(...)):
     try:
-        user = auth.login(str(body.get("username", "")), str(body.get("password", "")))
+        ident = str(body.get("username") or body.get("email") or body.get("identifier") or "")
+        user = auth.login(ident, str(body.get("password", "")))
     except auth.AuthError as exc:
         raise HTTPException(401, str(exc))
     return {"token": auth.issue_token(user), "user": user}
@@ -106,7 +124,13 @@ async def auth_login(body: dict = Body(...)):
 @router.get("/auth/me")
 async def auth_me():
     user = current_user_info()
-    return {"user": user, "plan_id": entitlements.get_plan_id(current_user())}
+    plan_id = entitlements.get_plan_id(current_user())
+    sub = None
+    if current_user():
+        from .db import SubscriptionRepository
+
+        sub = SubscriptionRepository.get_by_user_id(current_user())
+    return {"user": user, "plan_id": plan_id, "subscription": sub}
 
 
 # --- subscription plans (no payment yet: choosing/switching is free) -----------------------------
@@ -124,13 +148,18 @@ async def current_plan():
 
 @router.put("/api/plan")
 async def choose_plan(body: dict = Body(...)):
-    """Choose or switch plan: {plan_id}. Free and immediate while there is no billing."""
+    """Choose or switch plan: {plan_id}."""
+    uid = current_user()
+    if not uid:
+        raise HTTPException(401, "Signed-in user context required")
     plan_id = str(body.get("plan_id", "")).strip()
     try:
-        entitlements.set_plan_id(current_user(), plan_id)
+        entitlements.set_plan_id(uid, plan_id)
     except ValueError as exc:
-        raise HTTPException(400, str(exc)) from exc
-    return entitlements.plan_status(current_user())
+        msg = str(exc)
+        status_code = 403 if "admin" in msg.lower() else 400
+        raise HTTPException(status_code, msg) from exc
+    return entitlements.plan_status(uid)
 
 
 @router.get("/api/plan/report")
@@ -196,6 +225,19 @@ async def web_search_choose(body: dict = Body(...)):
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     return web_search.providers_status(current_user())
+
+
+@router.post("/api/web-search")
+async def web_search_execute(body: dict = Body(...)):
+    """Directly execute a web search with graceful fallback across providers."""
+    from .tools import web_search
+
+    query = str(body.get("query", "")).strip()
+    if not query:
+        raise HTTPException(400, "query must not be empty")
+    max_results = int(body.get("max_results", 5))
+    provider = body.get("provider")
+    return web_search.web_search(query=query, max_results=max_results, provider=provider)
 
 
 # --- the Builder's model ------------------------------------------------------------------------

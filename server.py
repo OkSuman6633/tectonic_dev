@@ -28,8 +28,8 @@ from tectonic_runtime import CallContext, get_runtime
 from tectonic_runtime.simulation import is_running, run_office_simulation
 
 PROJECT_ROOT = Path(__file__).resolve().parent
-HOST = os.getenv("AGENT_BUILDER_HOST", "127.0.0.1")
-PORT = int(os.getenv("AGENT_BUILDER_PORT", "8000"))
+HOST = os.getenv("AGENT_BUILDER_HOST", "0.0.0.0" if os.getenv("K_SERVICE") else "127.0.0.1")
+PORT = int(os.getenv("PORT") or os.getenv("AGENT_BUILDER_PORT", "8000"))
 FRONTEND_DIR = PROJECT_ROOT / "frontend" / "dist"
 
 # Get allowed origins from environment or use defaults
@@ -57,6 +57,11 @@ app = get_fast_api_app(
 app.include_router(telemetry_router)
 # Sign-in (TECTONIC_AUTH=off for a single-user Studio) and each user's own agents under /api/system.
 studio_api.install(app)
+
+@app.get("/health")
+@app.get("/healthz")
+async def health():
+    return {"status": "healthy", "adk": True, "telemetry": True, "runtime": True}
 
 # --- API routes for environment configuration (replaces vite plugin in production) ---
 @app.get("/api/env")
@@ -155,6 +160,17 @@ def _evict_app(app_name: str) -> None:
 directory.on_evict(_evict_app)
 
 
+@app.post("/api/run/stop")
+@app.post("/run/abort")
+async def server_stop_run(body: dict = Body(default_factory=dict)) -> dict:
+    from agent_builder.execution_manager import manager
+
+    session_id = body.get("sessionId") or body.get("session_id")
+    app_name = body.get("appName") or body.get("app_name") or "agent_builder"
+    count = await manager.abort_execution(session_id=session_id, app_name=app_name)
+    return {"status": "stopped", "cancelled": count}
+
+
 @app.get("/directory/agents")
 async def directory_agents() -> dict:
     return {"agents": directory.list_entries()}
@@ -164,9 +180,12 @@ async def directory_agents() -> dict:
 async def directory_chat(body: dict = Body(...)) -> dict:
     try:
         from agent_builder.attachments import parts_from_upload
+        from agent_builder.execution_manager import manager
 
+        sess_key = str(body.get("session_key") or "studio")
+        manager.register_task(sess_key)
         return await directory.run_agent(str(body.get("target", "")), str(body.get("message", "")),
-                                         session_key=str(body.get("session_key") or "studio"),
+                                         session_key=sess_key,
                                          attachments=parts_from_upload(body.get("attachments")))
     except directory.DirectoryError as exc:
         raise HTTPException(404, str(exc)) from exc
@@ -178,6 +197,12 @@ async def directory_chat(body: dict = Body(...)) -> dict:
 async def directory_edit(body: dict = Body(...)) -> dict:
     """Conversational edit of a generated agent: {target, request, session_key} → summary, diffs, status."""
     try:
+        from agent_builder.execution_manager import manager
+
+        sess_key = str(body.get("session_key") or "studio")
+        manager.register_task(sess_key)
+        return await editor.edit_agent(str(body.get("target", "")), str(body.get("request", "")),
+                                       session_key=sess_key)
         return await editor.edit_agent(str(body.get("target", "")), str(body.get("request", "")),
                                        session_key=str(body.get("session_key") or "studio"))
     except directory.DirectoryError as exc:
@@ -214,12 +239,15 @@ if FRONTEND_DIR.exists():
     # Serve static assets (JS, CSS, images)
     app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIR / "assets")), name="static-assets")
     
+    _API_PREFIXES = ("api", "auth", "health", "healthz", "modules", "directory", "studio", "connectors", "media",
+                     "run", "apps", "list-apps", "ws")
+
     # Serve other static files from frontend dist
     @app.get("/{full_path:path}")
     async def serve_frontend(request: Request, full_path: str):
         """Serve frontend files. Falls back to index.html for SPA routing."""
-        # Skip API routes
-        if full_path.startswith(("api/", "ws/", "run", "apps/", "list-apps", "directory/", "modules", "connectors/", "media/")):
+        normalized = full_path.lstrip("/")
+        if any(normalized == p or normalized.startswith(p + "/") for p in _API_PREFIXES):
             raise HTTPException(404, "Not found")
         
         file_path = FRONTEND_DIR / full_path

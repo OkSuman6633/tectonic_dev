@@ -13,6 +13,7 @@ import {
   Hammer,
   Plus,
   CornerDownLeft,
+  Square,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAgentStudioStore } from '../../store/useAgentStudioStore';
@@ -29,6 +30,7 @@ import { StreamingAgentDisplay } from './StreamingAgentDisplay';
 import { StreamingCodePanel } from '../StreamingCodePanel';
 import { AutopilotAnswerCard, IdeasCard, ReviewCard } from './ReviewCards';
 import { ConnectorNoticeCard } from '../connectors/ConnectorNoticeCard';
+import { WebSearchResultsCard } from './WebSearchResultsCard';
 import type { ChatMessage } from '../../types/agent';
 
 const AUTOPILOT_KEY = 'tectonic-autopilot';
@@ -96,6 +98,7 @@ export const SimplifiedChat: React.FC = () => {
   const {
     chatMessages,
     sendArchitectMessage,
+    stopExecution,
     isChatLoading,
     isGeneratingAgent,
     pendingFiles,
@@ -169,6 +172,11 @@ export const SimplifiedChat: React.FC = () => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Escape' && (isChatLoading || isGeneratingAgent)) {
+      e.preventDefault();
+      stopExecution();
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       handleSubmit();
@@ -196,7 +204,7 @@ export const SimplifiedChat: React.FC = () => {
       ];
     }
     return [
-      { label: 'Create another agent', icon: Plus, run: () => startNewBuilderSession() },
+      { label: 'Create Another Agent', icon: Plus, run: () => startNewBuilderSession() },
       { label: 'Analyze architecture', icon: Sparkles, run: () => send('Review the agent architecture and suggest improvements', []) },
     ];
   };
@@ -342,6 +350,7 @@ export const SimplifiedChat: React.FC = () => {
                         )}
 
                         <GeneratedImages images={msg.images} />
+                        {msg.webSearchResults && <WebSearchResultsCard data={msg.webSearchResults} />}
                         {msg.autopilot && <AutopilotAnswerCard run={msg.autopilot} />}
                         {msg.designIdeas && <IdeasCard ideas={msg.designIdeas} />}
                         {msg.designReview && <ReviewCard review={msg.designReview} />}
@@ -391,20 +400,32 @@ export const SimplifiedChat: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-3 pt-2"
               >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-500/20 border border-sky-400/40 animate-pulse">
-                    <ChatbotAvatar className="h-6 w-6" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-sky-500 dark:bg-sky-400 animate-bounce [animation-delay:-0.3s]" />
-                      <span className="h-1.5 w-1.5 rounded-full bg-sky-500 dark:bg-sky-400 animate-bounce [animation-delay:-0.15s]" />
-                      <span className="h-1.5 w-1.5 rounded-full bg-sky-500 dark:bg-sky-400 animate-bounce" />
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-500/20 border border-sky-400/40 animate-pulse">
+                      <ChatbotAvatar className="h-6 w-6" />
                     </div>
-                    <span className="text-xs font-mono font-medium text-sky-600 dark:text-sky-400 uppercase tracking-wider">
-                      Architect is synthesizing...
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-1">
+                        <span className="h-1.5 w-1.5 rounded-full bg-sky-500 dark:bg-sky-400 animate-bounce [animation-delay:-0.3s]" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-sky-500 dark:bg-sky-400 animate-bounce [animation-delay:-0.15s]" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-sky-500 dark:bg-sky-400 animate-bounce" />
+                      </div>
+                      <span className="text-xs font-mono font-medium text-sky-600 dark:text-sky-400 uppercase tracking-wider">
+                        Architect is synthesizing...
+                      </span>
+                    </div>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={stopExecution}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 border border-rose-500/35 hover:border-rose-500/60 backdrop-blur-md shadow-sm transition-all active:scale-95 shrink-0"
+                    title="Stop execution and free chat (Esc)"
+                  >
+                    <Square className="h-3 w-3 fill-current" />
+                    <span>Stop</span>
+                  </button>
                 </div>
 
                 <div className="rounded-2xl border border-white/85 dark:border-white/12 bg-white/75 dark:bg-slate-900/65 p-3.5 backdrop-blur-2xl backdrop-saturate-150 shadow-[0_10px_30px_-10px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,0.9)] dark:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)]">
@@ -534,14 +555,25 @@ export const SimplifiedChat: React.FC = () => {
                 className="flex-1 resize-none bg-transparent py-1.5 text-sm md:text-base text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none max-h-[180px] leading-relaxed"
               />
 
-              <button
-                type="submit"
-                disabled={(!inputVal.trim() && attach.files.length === 0) || isChatLoading}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white shadow-md shadow-sky-500/35 active:scale-95 transition-all disabled:opacity-30 disabled:shadow-none"
-                title="Send message (Enter)"
-              >
-                <Send className="h-4 w-4" />
-              </button>
+              {isChatLoading || isGeneratingAgent ? (
+                <button
+                  type="button"
+                  onClick={stopExecution}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rose-500 hover:bg-rose-600 active:scale-95 text-white shadow-md shadow-rose-500/35 transition-all group"
+                  title="Stop execution and free chat (Esc)"
+                >
+                  <Square className="h-4 w-4 fill-current group-hover:scale-90 transition-transform" />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={!inputVal.trim() && attach.files.length === 0}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white shadow-md shadow-sky-500/35 active:scale-95 transition-all disabled:opacity-30 disabled:shadow-none"
+                  title="Send message (Enter)"
+                >
+                  <Send className="h-4 w-4" />
+                </button>
+              )}
             </div>
           </form>
 

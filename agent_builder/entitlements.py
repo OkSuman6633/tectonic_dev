@@ -370,15 +370,29 @@ def get_plan_id(user_id: str | None) -> str | None:
     """
     if not user_id:
         return _read_plans().get("local") or PLAN_WHEN_AUTH_OFF
+    try:
+        from .db import SubscriptionRepository
+
+        sub = SubscriptionRepository.get_by_user_id(user_id)
+        if sub:
+            return sub["plan_id"]
+    except Exception:
+        pass
     return _read_plans().get(user_id)
 
 
 def set_plan_id(user_id: str | None, plan_id: str) -> None:
-    """Record (or change) the account's plan. No payment: switching is free and immediate."""
+    """Record (or change) the account's plan. Enforces role and expiration rules."""
     plan_definition(plan_id)  # validate
+    pid = plan_id.strip().lower()
+    if user_id:
+        from .db import SubscriptionRepository
+
+        SubscriptionRepository.set_plan(user_id, pid)
+
     with _plans_lock:
         store = _read_plans()
-        store[user_id or "local"] = plan_id.strip().lower()
+        store[user_id or "local"] = pid
         _write_plans(store)
 
 
@@ -645,8 +659,45 @@ def public_plan(plan_id: str, chosen: bool) -> dict[str, Any]:
 
 
 def public_plans(user_id: str | None) -> list[dict[str, Any]]:
+    username = ""
+    sub = None
+    if user_id:
+        try:
+            from .db import SubscriptionRepository, UserRepository
+
+            user = UserRepository.get_by_id(user_id)
+            if user:
+                username = user.get("username", "") or ""
+            sub = SubscriptionRepository.get_by_user_id(user_id)
+        except Exception:
+            pass
+
+    has_admin = "admin" in username.lower()
+    now = time.time()
+    starter_expired = bool(sub and (sub.get("status") == "expired" or now >= sub.get("expires_at", 0)))
     current = get_plan_id(user_id)
-    return [public_plan(pid, current == pid) for pid in PLAN_IDS]
+
+    result: list[dict[str, Any]] = []
+    for pid in PLAN_IDS:
+        p = public_plan(pid, current == pid)
+        if pid == "starter":
+            if starter_expired:
+                p["available"] = False
+                p["unavailable_reason"] = "7-day Starter trial ended. Please create another account to use Starter."
+            else:
+                p["available"] = True
+                p["unavailable_reason"] = None
+        else:
+            if has_admin:
+                p["available"] = True
+                p["unavailable_reason"] = None
+            else:
+                p["available"] = False
+                p["unavailable_reason"] = (
+                    "Available only for Owner accounts."
+                )
+        result.append(p)
+    return result
 
 
 def plan_status(user_id: str | None) -> dict[str, Any]:
@@ -657,6 +708,22 @@ def plan_status(user_id: str | None) -> dict[str, Any]:
     p = plan_definition(plan_id)
     agent_count = len(projects())  # projects() handles the no-sign-in case via the shared output dir
     max_agents = int(p["max_agents"])
+
+    sub = None
+    if user_id:
+        try:
+            from .db import SubscriptionRepository
+
+            sub = SubscriptionRepository.get_by_user_id(user_id)
+        except Exception:
+            pass
+
+    now = time.time()
+    sub_status = sub["status"] if sub else "active"
+    started_at = sub["started_at"] if sub else now
+    expires_at = sub["expires_at"] if sub else (now + 7 * 86400)
+    is_expired = sub_status == "expired" or now >= expires_at
+
     return {
         "plan_id": get_plan_id(user_id),  # None until the user has chosen (the UI then shows the picker)
         "effective_plan_id": plan_id,
@@ -667,6 +734,10 @@ def plan_status(user_id: str | None) -> dict[str, Any]:
         "locked_modules": sorted(locked_modules(plan_id)),
         "locked_tools": sorted(locked_tools(plan_id)),
         "allow_byok": p["allow_byok"],
+        "subscription_status": sub_status,
+        "plan_started_at": started_at,
+        "plan_expires_at": expires_at,
+        "is_expired": is_expired,
         "usage": {
             "monthly_tokens": monthly_tokens(user_id),
             "monthly_quota": monthly_quota(plan_id),

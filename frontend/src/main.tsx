@@ -21,12 +21,13 @@ const start = async () => {
     root.render(<StrictMode><LoginScreen /></StrictMode>)
     return
   }
-  // A signed-in user who has not picked a plan yet chooses first (free — no payment).
+  // A signed-in user who has not picked a plan yet or whose subscription has expired chooses first.
   if (needAuth && getToken()) {
     const status = await getPlan()
-    if (status && !status.plan_id) {
+    const isExpired = Boolean(status?.is_expired || status?.subscription_status === 'expired');
+    if (status && (!status.plan_id || isExpired)) {
       const { PlanPicker } = await import('./components/plans/PlanPicker.tsx')
-      root.render(<StrictMode><PlanPicker /></StrictMode>)
+      root.render(<StrictMode><PlanPicker expired={isExpired} /></StrictMode>)
       return
     }
   }

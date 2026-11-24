@@ -272,6 +272,11 @@ async def edit_agent(target: str, request: str, session_key: str = "studio") -> 
     if not request:
         raise DirectoryError("Describe the change you want to make.")
     entry = _target(target)
+    try:
+        from .execution_manager import manager
+        manager.register_task(session_key)
+    except Exception:
+        pass
     return await _detached(_edit_locked(entry, request, session_key))
 
 

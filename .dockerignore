@@ -50,23 +50,5 @@ logs/
 generated_agents/
 data/
 
-# Modules: only the src/ trees tectonic_runtime loads in-process (keep in sync with
-# tectonic_runtime/_paths.py MODULE_PACKAGES; the Dockerfile's build check fails if one is missing).
-modules
-!modules/guardrails/src
-!modules/intent-detection/src
-!modules/short-term-memory/src
-!modules/long-term-memory/src
-!modules/tool-orchestration/src
-!modules/agentic-rag/src
-!modules/finops/src
-!modules/promptops/src
-!modules/vector-db/src
-!modules/auditability/src
-
-# Documentation (keep design playbook needed by agent_builder)
-!agent_builder/profiles/design_playbook.md
-LICENSE
-
 # Production server files to exclude
 server_production.py

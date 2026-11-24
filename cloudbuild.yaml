@@ -1,4 +1,8 @@
 # Cloud Build configuration for Tectonic - Full Agent Builder
+substitutions:
+  _REGION: 'us-central1'
+  _SERVICE_NAME: 'tectonic'
+
 steps:
   # Step 1: Build the Docker image
   - name: 'gcr.io/cloud-builders/docker'
@@ -15,11 +19,11 @@ steps:
     args:
       - 'run'
       - 'deploy'
-      - 'tectonic'
+      - '${_SERVICE_NAME}'
       - '--image'
       - 'gcr.io/$PROJECT_ID/tectonic:latest'
       - '--region'
-      - 'us-central1'
+      - '${_REGION}'
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'

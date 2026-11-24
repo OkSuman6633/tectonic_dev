@@ -24,6 +24,8 @@ export interface PlanSummary {
   private_deployment: boolean;
   sla: string;
   chosen: boolean;
+  available?: boolean;
+  unavailable_reason?: string | null;
 }
 
 export interface PlanUsage {
@@ -42,6 +44,10 @@ export interface PlanStatus {
   allowed_connectors: string[];
   allow_byok: boolean;
   usage: PlanUsage;
+  subscription_status?: 'active' | 'expired' | 'cancelled';
+  plan_started_at?: number;
+  plan_expires_at?: number;
+  is_expired?: boolean;
 }
 
 export async function getPlans(): Promise<PlanSummary[]> {
