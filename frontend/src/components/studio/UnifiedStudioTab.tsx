@@ -8,17 +8,15 @@ import {
   PanelLeftClose,
   PanelRightClose,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { SimplifiedChat } from '../chat/SimplifiedChat';
 import { Office3D } from '../office/Office3D';
 import { useTelemetryStore } from '../../store/useTelemetryStore';
-import { useAgentStudioStore } from '../../store/useAgentStudioStore';
 
 interface UnifiedStudioTabProps {
   onSelectAgent?: (id: string) => void;
 }
 
-export const UnifiedStudioTab: React.FC<UnifiedStudioTabProps> = ({ onSelectAgent }) => {
+export const UnifiedStudioTab: React.FC<UnifiedStudioTabProps> = ({ onSelectAgent: _onSelectAgent }) => {
   // Split ratio: percentage width of the left panel (Chat)
   const [splitRatio, setSplitRatio] = useState<number>(() => {
     try {
@@ -39,9 +37,7 @@ export const UnifiedStudioTab: React.FC<UnifiedStudioTabProps> = ({ onSelectAgen
     s.agentOrder.filter((id) => ['thinking', 'tool_execution'].includes(s.agents[id]?.state ?? '')).length,
   );
   const totalAgents = useTelemetryStore((s) => s.agentOrder.length);
-  const activeRuns = useTelemetryStore((s) => s.activeRuns);
   const isSimulating = useTelemetryStore((s) => s.isSimulating);
-  const isChatLoading = useAgentStudioStore((s) => s.isChatLoading);
 
   // Handle divider drag
   const handleMouseDown = useCallback((e: React.MouseEvent) => {

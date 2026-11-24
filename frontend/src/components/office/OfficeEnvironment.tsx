@@ -562,9 +562,11 @@ const MeetingRoomFurniture = memo(function MeetingRoomFurniture({
 const LoungeAndCafeArea = memo(function LoungeAndCafeArea({
   lounge,
   cafe,
+  isDark = false,
 }: {
   lounge: SatellitePad;
   cafe: SatellitePad;
+  isDark?: boolean;
 }) {
   return (
     <group>
@@ -645,8 +647,22 @@ const LoungeAndCafeArea = memo(function LoungeAndCafeArea({
           </mesh>
           <mesh position={[0, 1.72, 0]} castShadow>
             <cylinderGeometry args={[0.16, 0.26, 0.34, 18]} />
-            <meshStandardMaterial color="#FFF7E6" emissive="#FDE68A" emissiveIntensity={0.55} roughness={0.8} />
+            <meshStandardMaterial
+              color="#FFF7E6"
+              emissive="#FDE68A"
+              emissiveIntensity={isDark ? 2.3 : 0.55}
+              roughness={0.8}
+            />
           </mesh>
+          {isDark && (
+            <>
+              <mesh position={[0, 1.54, 0]} rotation={[Math.PI / 2, 0, 0]}>
+                <circleGeometry args={[0.24, 18]} />
+                <meshBasicMaterial color="#FFFBEB" side={DoubleSide} />
+              </mesh>
+              <pointLight position={[0, 1.55, 0]} color="#FFE4AC" intensity={10.5} distance={16} decay={1.45} />
+            </>
+          )}
         </group>
       </group>
 
@@ -717,7 +733,7 @@ const LoungeAndCafeArea = memo(function LoungeAndCafeArea({
  *   Whiteboard, Glass Partitions, Pendant Lights, and Lush Indoor Greenery
  * - ZERO backend servers or AI infrastructure machinery inside the office
  */
-function OfficeEnvironmentImpl({ layout }: { layout: OfficeLayout }) {
+function OfficeEnvironmentImpl({ layout, isDark = false }: { layout: OfficeLayout; isDark?: boolean }) {
   const oakTex = useMemo(() => makeOakFloorTexture(), []);
   const artA = useMemo(() => makeWallArtTexture('#F7F1E5', '#3B7A57', '#E59866'), []);
   const artB = useMemo(() => makeWallArtTexture('#EFECE6', '#2B5B84', '#D4A373'), []);
@@ -964,7 +980,7 @@ function OfficeEnvironmentImpl({ layout }: { layout: OfficeLayout }) {
       <MeetingRoomFurniture tableCenter={layout.meetingTableCenter} zoneCenter={layout.meetingTableCenter} />
 
       {/* Break Lounge Sofa, Coffee Table, Espresso Bar & Water Dispenser */}
-      {lounge && cafe && <LoungeAndCafeArea lounge={lounge} cafe={cafe} />}
+      {lounge && cafe && <LoungeAndCafeArea lounge={lounge} cafe={cafe} isDark={isDark} />}
 
       {/* Warm Office Bookshelves & Storage Cabinets (normal workplace furniture only) */}
       <Bookshelf position={[-4.6, 0, minZ + 0.34]} />
@@ -1021,18 +1037,77 @@ function OfficeEnvironmentImpl({ layout }: { layout: OfficeLayout }) {
                 <meshStandardMaterial color="#0F172A" roughness={0.4} metalness={0.8} />
               </mesh>
               {/* Matte-Black Spun Aluminum Lamp Shade */}
-              <mesh castShadow>
+              <mesh castShadow={!isDark}>
                 <cylinderGeometry args={[0.16, 0.38, 0.16, 24]} />
                 <meshStandardMaterial color="#1E293B" roughness={0.38} metalness={0.65} />
               </mesh>
               {/* Warm Glowing Bulb inside shade */}
-              <mesh position={[0, -0.05, 0]}>
-                <sphereGeometry args={[0.09, 14, 14]} />
-                <meshStandardMaterial color="#FFFBEB" emissive="#FDE68A" emissiveIntensity={1.6} />
+              <mesh position={[0, isDark ? -0.095 : -0.05, 0]}>
+                <sphereGeometry args={[isDark ? 0.11 : 0.09, 14, 14]} />
+                <meshStandardMaterial
+                  color="#FFFBEB"
+                  emissive="#FDE68A"
+                  emissiveIntensity={isDark ? 4.2 : 1.6}
+                />
               </mesh>
+
+              {/* Dark-mode-only illuminated lamp underside, warm rim halo, soft volumetric light cone, floor light pool & real warm pointLight */}
+              {isDark && (
+                <>
+                  {/* Glowing warm brass/amber rim & inner diffuser visible at the shade opening */}
+                  <mesh position={[0, -0.082, 0]} rotation={[Math.PI / 2, 0, 0]}>
+                    <circleGeometry args={[0.365, 24]} />
+                    <meshStandardMaterial
+                      color="#FFFBEB"
+                      emissive="#FDE68A"
+                      emissiveIntensity={3.4}
+                      side={DoubleSide}
+                    />
+                  </mesh>
+                  <mesh position={[0, -0.082, 0]} rotation={[Math.PI / 2, 0, 0]}>
+                    <torusGeometry args={[0.38, 0.016, 8, 28]} />
+                    <meshStandardMaterial color="#FFF7D6" emissive="#FBBF24" emissiveIntensity={3.2} />
+                  </mesh>
+                  {/* Soft warm volumetric downward light cone */}
+                  <mesh position={[0, -1.18, 0]} raycast={() => null}>
+                    <coneGeometry args={[1.45, 2.2, 24, 1, true]} />
+                    <meshBasicMaterial
+                      color="#FDE68A"
+                      transparent
+                      opacity={0.085}
+                      side={DoubleSide}
+                      depthWrite={false}
+                    />
+                  </mesh>
+                  {/* Warm circular glow pool on the office floor beneath each pendant */}
+                  <mesh position={[0, -lampY + 0.018, 0]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
+                    <circleGeometry args={[2.1, 28]} />
+                    <meshBasicMaterial color="#FFF3C4" transparent opacity={0.14} depthWrite={false} />
+                  </mesh>
+                  {/* Real warm downward interior illumination from each pendant lamp */}
+                  <pointLight position={[0, -0.22, 0.65]} color="#FFE8B6" intensity={14.5} distance={22} decay={1.45} />
+                </>
+              )}
             </group>
           );
         })}
+
+        {/* Dark-mode-only warm interior architectural cove lighting along the upper north & west wall lintels */}
+        {isDark && (
+          <>
+            <mesh position={[centerX, wallH - 0.5, minZ + 0.02]}>
+              <boxGeometry args={[floorW - 1.2, 0.036, 0.04]} />
+              <meshStandardMaterial color="#FFFBEB" emissive="#FDE68A" emissiveIntensity={2.6} />
+            </mesh>
+            <mesh position={[minX + 0.02, wallH - 0.5, centerZ]}>
+              <boxGeometry args={[0.04, 0.036, floorD - 1.2]} />
+              <meshStandardMaterial color="#FFFBEB" emissive="#FDE68A" emissiveIntensity={2.4} />
+            </mesh>
+            {/* Warm front-right workspace overhead fill so all desks & engineering floor stay well-lit in dark mode */}
+            <pointLight position={[-3.2, 3.4, 2.4]} color="#FFE8BA" intensity={13.0} distance={22} decay={1.45} />
+            <pointLight position={[5.4, 3.4, 2.2]} color="#FFE8BA" intensity={12.0} distance={22} decay={1.45} />
+          </>
+        )}
       </group>
 
       {/* Lush Indoor Trees & Potted Greenery throughout the central human office */}
