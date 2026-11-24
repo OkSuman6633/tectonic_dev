@@ -1,14 +1,10 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Sparkles,
-  Box,
   Columns,
   Maximize2,
   Minimize2,
   RotateCcw,
-  Bot,
-  Activity,
-  Layers,
   PanelLeftClose,
   PanelRightClose,
 } from 'lucide-react';
@@ -266,16 +262,13 @@ export const UnifiedStudioTab: React.FC<UnifiedStudioTabProps> = ({ onSelectAgen
             mobileTab === 'chat' ? 'hidden md:flex' : 'flex w-full md:w-auto'
           }`}
         >
-          {/* Floating Viewport Tag */}
-          <div className="pointer-events-none absolute left-4 top-4 z-10 flex items-center gap-2 rounded-xl border border-slate-300/60 dark:border-white/10 bg-white/70 dark:bg-black/40 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 shadow-xl backdrop-blur-xl">
-            <Box className="h-3.5 w-3.5 text-purple-500 dark:text-purple-400" />
-            <span>Blueprint · 3D Office Campus</span>
-            {isSimulating && (
-              <span className="flex items-center gap-1 rounded-full bg-sky-500/20 px-2 py-0.2 text-[10px] text-sky-300 font-mono">
-                Simulation Active
-              </span>
-            )}
-          </div>
+          {/* Simulation indicator positioned cleanly at top-center so it never overlaps Office3D's top-left HUD pill */}
+          {isSimulating && (
+            <div className="pointer-events-none absolute left-1/2 top-3.5 z-10 -translate-x-1/2 flex items-center gap-1.5 rounded-xl border border-cyan-400/40 bg-[#040E26]/85 px-3 py-1 text-[11px] font-mono text-cyan-300 shadow-[0_0_18px_rgba(0,180,255,0.22)] backdrop-blur-xl">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-400" />
+              <span>Simulation Active</span>
+            </div>
+          )}
 
           <div className="h-full w-full">
             <Office3D />

@@ -1,497 +1,999 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useFrame } from '@react-three/fiber';
-import { Line } from '@react-three/drei';
-import { useReducedMotion } from 'framer-motion';
-import { CatmullRomCurve3, Vector3, type Group, type Mesh, type MeshBasicMaterial, type Sprite } from 'three';
-import { shallow } from 'zustand/shallow';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { useFrame, type ThreeEvent } from '@react-three/fiber';
+import { Html, Line } from '@react-three/drei';
+import type { Group } from 'three';
 import { useTelemetryStore } from '../../store/useTelemetryStore';
-import type { Packet } from '../../types/telemetry';
-import { Halo } from './glow';
-import { moduleZoneKind, type OfficeLayout, type Vec3 } from './officeLayout';
+import { STATE_STYLES, agentRole, formatCount } from '../command/agentStateStyles';
+import { HumanCharacter, type HumanPoseInput } from './HumanCharacter';
+import {
+  getEmployeeAppearance,
+  resolveEmployeeDirective,
+  type EmployeeAppearance,
+  type EmployeePhase,
+  type TaskDirective,
+} from './employeeWorkflow';
+import {
+  buildNavGrid,
+  computeAvoidanceOffset,
+  findOfficePath,
+  type NavGrid,
+  type Point2D,
+  type Waypoint3D,
+} from './officePathfinding';
+import { OFFICE_FLOOR_Y, type OfficeLayout, type Vec3 } from './officeLayout';
+import type { CampusActivityRefs } from './ExternalCampus';
 
 /**
- * Runtime-Driven Communication System & Courier Fleet:
- * 1. Persistent architectural topology conduits between real agents & modules (subtle when idle).
- * 2. When real runtime packets occur, routes brighten with directional flowing light particles,
- *    glowing arched splines clearing island gaps, destination arrival rings, and humanoid/drone couriers.
- *    Never generates random or fake traffic when no runtime events are occurring.
+ * Knowledge Worker & Office Boy Courier Architecture:
+ * 1. Seated Employees: Every desk agent sits permanently in their chair at their workstation.
+ *    They never stand up, walk through aisles, or cross bridges to fetch data. When a task
+ *    or simulation is active, they type intensely on their keyboard and interact with their screens.
+ * 2. Office Boy / Courier Runners: When an employee needs external data or tool execution
+ *    (Tool Orchestration, Memory, Operations & Safety, Process Studio, Content Studio, or team sync):
+ *    - The seated employee instructs the dedicated Office Boy / Courier.
+ *    - The Office Boy moves to the employee's desk to receive the task instruction.
+ *    - The Office Boy navigates along office aisles, exits through the wall portal, crosses the
+ *      illuminated skybridge to the external tech platform, and interacts with the hardware console.
+ *    - The Office Boy walks back across the skybridge into the office, delivers the collected data
+ *      directly to the seated employee's desk, and returns to standby in the office corridor.
  */
 
-const DELEGATION = '#2DD4FF';
-const MODULE = '#A78BFA';
-const SPEED = 6.2; // campus units per second
-const MIN_S = 1.4;
-const MAX_S = 3.2;
-const PING_S = 0.65; // arrival ring after landing
-const MAX_TRIPS = 12; // keep busy offices smooth
-const STAND_OFF = 1.15; // take off / land cleanly beside a workstation or module plinth
+const RUNNER_WALK_SPEED = 4.8; // brisk athletic pace across office corridors & skybridges
+const MIN_INTERACT_HOLD_S = 1.5; // ensures physical module interaction is clearly visible
 
-interface Trip {
-  key: string;
-  edgeId: string;
-  from: Vec3;
-  to: Vec3;
-  color: string;
-  isModule: boolean;
-  bornAt: number;
-  duration: number;
+const DELEGATION_COLOR = '#38BDF8';
+const MODULE_COLOR = '#A855F7';
+
+function shortestAngleDiff(from: number, to: number): number {
+  let diff = ((to - from + Math.PI) % (Math.PI * 2)) - Math.PI;
+  if (diff < -Math.PI) diff += Math.PI * 2;
+  return diff;
 }
 
-interface NetworkRoute {
-  id: string;
-  fromId: string;
-  toId: string;
-  from: Vec3;
-  to: Vec3;
-  isModule: boolean;
-  color: string;
-  points: [number, number, number][];
-  curve: CatmullRomCurve3;
+interface AgentActivitySlot {
+  bridgeId: string | null;
+  zoneId: string | null;
 }
 
-function routeColor(isModule: boolean, toId: string): string {
-  if (!isModule) return DELEGATION;
-  const kind = moduleZoneKind(toId);
-  if (kind === 'tools') return '#EC4899';
-  if (kind === 'safety') return '#22D3EE';
-  return MODULE;
-}
-
-function endpoints(edgeId: string, layout: OfficeLayout): { from: Vec3; to: Vec3; module: boolean; fromId: string; toId: string } | null {
-  let a: Vec3 | undefined;
-  let b: Vec3 | undefined;
-  let module = false;
-  let fromId = '';
-  let toId = '';
-  if (edgeId.startsWith('h:')) {
-    const [parent, child] = edgeId.slice(2).split('->');
-    [a, b] = [layout.desks[parent], layout.desks[child]];
-    fromId = parent;
-    toId = child;
-  } else if (edgeId.startsWith('m:')) {
-    const [agent, mod] = edgeId.slice(2).split('->');
-    [a, b] = [layout.desks[agent], layout.stations[mod]];
-    module = true;
-    fromId = agent;
-    toId = mod;
-  } else if (edgeId.startsWith('x:')) {
-    const [x, y] = edgeId.slice(2).split('<->');
-    [a, b] = [layout.desks[x], layout.desks[y]];
-    fromId = x;
-    toId = y;
+function syncCampusActivity(
+  slots: Record<string, AgentActivitySlot>,
+  activityRef?: React.RefObject<CampusActivityRefs>,
+) {
+  const target = activityRef?.current;
+  if (!target) return;
+  target.activeBridges.clear();
+  target.activeZones.clear();
+  for (const s of Object.values(slots)) {
+    if (s.bridgeId) target.activeBridges.add(s.bridgeId);
+    if (s.zoneId) target.activeZones.add(s.zoneId);
   }
-  return a && b ? { from: a, to: b, module, fromId, toId } : null;
 }
 
-function toTrip(p: Packet, layout: OfficeLayout): Trip | null {
-  const ends = endpoints(p.edgeId, layout);
-  if (!ends) return null;
-  const [from, to] = p.reverse ? [ends.to, ends.from] : [ends.from, ends.to];
-  const a = new Vector3(from[0], from[1], from[2]);
-  const b = new Vector3(to[0], to[1], to[2]);
-  const dir = new Vector3(b.x - a.x, 0, b.z - a.z);
-  const dist = dir.length();
-  if (dist < 0.5) return null;
-  dir.normalize();
-  const start = a.clone().addScaledVector(dir, STAND_OFF);
-  const end = b.clone().addScaledVector(dir, -STAND_OFF);
-  return {
-    key: p.key,
-    edgeId: p.edgeId,
-    from: [start.x, from[1], start.z],
-    to: [end.x, to[1], end.z],
-    color: routeColor(ends.module, ends.toId),
-    isModule: ends.module,
-    bornAt: performance.now(),
-    duration: Math.min(MAX_S, Math.max(MIN_S, dist / SPEED)),
+function zoneRouteColor(layout: OfficeLayout, zoneId?: string): string {
+  if (!zoneId) return DELEGATION_COLOR;
+  const z = layout.externalZones.find((ez) => ez.id === zoneId);
+  return z?.accent ?? MODULE_COLOR;
+}
+
+export interface RunnerDispatch {
+  taskKey: string;
+  agentId: string;
+  agentName: string;
+  directive: TaskDirective;
+  status: 'pending' | 'in_transit' | 'interacting' | 'delivering' | 'delivered';
+  assignedRunnerId?: string;
+  updatedAt: number;
+}
+
+// Dedicated appearances for the agile Office Boy / Courier runners
+const RUNNER_APPEARANCES: EmployeeAppearance[] = [
+  {
+    skin: '#F0C7A6',
+    hair: '#1E1B18',
+    hairStyle: 'short',
+    top: '#0EA5E9', // vibrant tech courier cyan
+    jacket: '#1E293B', // dark slate service vest
+    pants: '#0F172A', // dark trousers
+    shoes: '#F8FAFC', // athletic white sneakers
+    hasGlasses: false,
+    idleStyle: 'reviewing',
+    displayFirstName: 'Leo',
+  },
+  {
+    skin: '#C8936D',
+    hair: '#111827',
+    hairStyle: 'fade',
+    top: '#6366F1', // indigo courier polo
+    jacket: '#18181B',
+    pants: '#1E293B',
+    shoes: '#E2E8F0',
+    hasGlasses: true,
+    idleStyle: 'reading',
+    displayFirstName: 'Sam',
+  },
+];
+
+// =========================================================================================
+// 1. SEATED EMPLOYEE ACTOR (Knowledge Worker - Stays Seated at Desk at All Times)
+// =========================================================================================
+
+interface SeatedEmployeeProps {
+  id: string;
+  layout: OfficeLayout;
+  showLabels: boolean;
+  indexSeed: number;
+  runnerMissionsRef: React.MutableRefObject<Record<string, { runnerName: string; label: string; phase: string } | null>>;
+  recentDeliveriesRef: React.MutableRefObject<Record<string, { label: string; time: number }>>;
+}
+
+const SeatedEmployeeActor = memo(function SeatedEmployeeActor({
+  id,
+  layout,
+  showLabels,
+  indexSeed,
+  runnerMissionsRef,
+  recentDeliveriesRef,
+}: SeatedEmployeeProps) {
+  const agent = useTelemetryStore((s) => s.agents[id]);
+  const selected = useTelemetryStore((s) => s.selectedAgentId === id);
+  const selectAgent = useTelemetryStore((s) => s.selectAgent);
+
+  const appearance = useMemo(() => getEmployeeAppearance(id), [id]);
+  const deskPos = layout.desks[id] ?? ([0, OFFICE_FLOOR_Y, 0] as Vec3);
+  const deskYaw = layout.deskRotations[id] ?? Math.PI;
+  // Exact seated position directly in the ergonomic desk chair
+  const chairPos = useMemo<Vec3>(() => [deskPos[0], deskPos[1], deskPos[2] + 0.5], [deskPos]);
+
+  const groupRef = useRef<Group>(null);
+  const [hovered, setHovered] = useState(false);
+
+  const [tagState, setTagState] = useState<{
+    statusText: string;
+    taskLabel: string | null;
+    completedLabel: string | null;
+  }>({
+    statusText: 'Seated at workstation',
+    taskLabel: null,
+    completedLabel: null,
+  });
+
+  const poseRef = useRef<HumanPoseInput>({
+    phase: 'seated_idle',
+    activity: 'coding',
+    standBlend: 0, // Permanently seated in chair (0 = seated)
+    walkSpeed: 0,
+    seed: indexSeed * 1.73,
+    workingAtDesk: false,
+  });
+
+  const lastTagKey = useRef('');
+
+  useFrame((_, rawDelta) => {
+    const dt = Math.min(rawDelta, 0.05);
+    const store = useTelemetryStore.getState();
+    const liveAgent = store.agents[id];
+    if (!liveAgent) return;
+
+    // Resolve live directive
+    const liveDirective = resolveEmployeeDirective(
+      id,
+      liveAgent,
+      layout,
+      store.toolCalls,
+      store.moduleCalls,
+      store.packets,
+      store.agentOrder,
+      Date.now(),
+    );
+
+    // Active working states: thinking, running, tool_execution, waiting, or active directive
+    const isActivelyWorking =
+      liveAgent.state === 'thinking' ||
+      liveAgent.state === 'tool_execution' ||
+      liveAgent.state === 'running' ||
+      liveAgent.state === 'waiting' ||
+      Boolean(liveDirective);
+
+    // Knowledge worker types at desk keyboard & reviews monitor while seated
+    poseRef.current.standBlend = 0; // Strictly seated in chair
+    poseRef.current.phase = 'seated_idle';
+    poseRef.current.walkSpeed = 0;
+    poseRef.current.workingAtDesk = isActivelyWorking;
+    poseRef.current.activity = liveDirective?.activity ?? 'coding';
+
+    // Check if Office Boy runner is active for this agent
+    const activeMission = runnerMissionsRef.current[id];
+    const recentDelivery = recentDeliveriesRef.current[id];
+    const hasRecentDelivery = recentDelivery && Date.now() - recentDelivery.time < 5000;
+
+    let statusText = 'Seated at workstation';
+    let taskLabel: string | null = null;
+    let completedLabel: string | null = null;
+
+    if (activeMission) {
+      statusText = `Instructed ${activeMission.runnerName}`;
+      taskLabel = activeMission.label;
+    } else if (hasRecentDelivery) {
+      statusText = 'Received external data';
+      completedLabel = recentDelivery.label;
+    } else if (liveDirective?.targetKind === 'desk') {
+      statusText = 'Working at desk';
+      taskLabel = liveDirective.label;
+    } else if (liveAgent.state === 'thinking') {
+      statusText = 'Analyzing requirements';
+    } else if (liveAgent.state === 'tool_execution') {
+      statusText = 'Processing tool';
+    } else if (liveAgent.state === 'waiting') {
+      statusText = 'Awaiting input';
+    } else if (liveAgent.state === 'ready') {
+      statusText = 'Ready for assignment';
+    }
+
+    const tagKey = `${statusText}|${taskLabel ?? ''}|${completedLabel ?? ''}`;
+    if (tagKey !== lastTagKey.current) {
+      lastTagKey.current = tagKey;
+      setTagState({ statusText, taskLabel, completedLabel });
+    }
+  });
+
+  if (!agent) return null;
+  const style = STATE_STYLES[agent.state];
+  const role = agentRole(id);
+  const isWorking =
+    agent.state === 'thinking' ||
+    agent.state === 'tool_execution' ||
+    agent.state === 'running' ||
+    agent.state === 'waiting';
+  const showTag = showLabels || hovered || selected || isWorking || agent.state === 'error';
+
+  const onClick = (e: ThreeEvent<MouseEvent>) => {
+    e.stopPropagation();
+    selectAgent(id, 'office');
   };
-}
-
-const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
-
-/** Runtime-driven communication pathway: subtle topology line when idle; directional particles only during real active trips. */
-const CommunicationPathway = memo(function CommunicationPathway({
-  route,
-  activeTrip,
-}: {
-  route: NetworkRoute;
-  activeTrip: Trip | undefined;
-}) {
-  const reducedMotion = useReducedMotion();
-  const pulseA = useRef<Mesh>(null);
-  const pulseB = useRef<Mesh>(null);
-  const pulseC = useRef<Mesh>(null);
-  const destRing = useRef<Mesh>(null);
-  const isActive = !!activeTrip;
-
-  useFrame(({ clock }) => {
-    const t = reducedMotion ? 0.5 : clock.elapsedTime;
-    const speed = 0.92;
-
-    if (pulseA.current) {
-      pulseA.current.visible = isActive;
-      if (isActive) {
-        pulseA.current.position.copy(route.curve.getPointAt((t * speed) % 1));
-      }
-    }
-    if (pulseB.current) {
-      pulseB.current.visible = isActive;
-      if (isActive) {
-        pulseB.current.position.copy(route.curve.getPointAt((t * speed + 0.33) % 1));
-      }
-    }
-    if (pulseC.current) {
-      pulseC.current.visible = isActive;
-      if (isActive) {
-        pulseC.current.position.copy(route.curve.getPointAt((t * speed + 0.66) % 1));
-      }
-    }
-    if (destRing.current) {
-      destRing.current.visible = isActive;
-      if (isActive) {
-        const s = 0.88 + 0.22 * Math.sin(t * 7);
-        destRing.current.scale.set(s, s, 1);
-      }
-    }
-  });
+  const hover = (on: boolean) => (e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation();
+    document.body.style.cursor = on ? 'pointer' : '';
+    setHovered(on);
+  };
 
   return (
-    <group>
-      <Line
-        points={route.points}
-        color={route.color}
-        lineWidth={isActive ? 2.6 : 1.0}
-        transparent
-        opacity={isActive ? 0.82 : 0.14}
-      />
-      {/* Directional flowing light particles — active only during live runtime transmissions */}
-      <mesh ref={pulseA} visible={false}>
-        <sphereGeometry args={[0.095, 10, 10]} />
-        <meshBasicMaterial color={route.color} transparent opacity={0.95} toneMapped={false} />
-      </mesh>
-      <mesh ref={pulseB} visible={false}>
-        <sphereGeometry args={[0.085, 10, 10]} />
-        <meshBasicMaterial color="#FFFFFF" transparent opacity={0.92} toneMapped={false} />
-      </mesh>
-      <mesh ref={pulseC} visible={false}>
-        <sphereGeometry args={[0.08, 10, 10]} />
-        <meshBasicMaterial color={route.color} transparent opacity={0.85} toneMapped={false} />
-      </mesh>
-      {/* Active destination highlight ring */}
-      <mesh
-        ref={destRing}
-        position={[route.to[0], route.to[1] + 0.14, route.to[2]]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        visible={false}
-      >
-        <ringGeometry args={[0.92, 1.08, 32]} />
-        <meshBasicMaterial color={route.color} transparent opacity={0.72} toneMapped={false} depthWrite={false} />
-      </mesh>
-    </group>
-  );
-});
+    <group
+      ref={groupRef}
+      position={chairPos}
+      rotation={[0, deskYaw, 0]}
+      onClick={onClick}
+      onDoubleClick={onClick}
+      onPointerOver={hover(true)}
+      onPointerOut={hover(false)}
+    >
+      <HumanCharacter appearance={appearance} poseRef={poseRef} />
 
-/** Upgraded futuristic humanoid/drone courier with distinct visuals for Delegation vs. Module Calls. */
-function CourierRobot({
-  color,
-  isModule,
-  eyes,
-  bulb,
-  flame,
-  cube,
-}: {
-  color: string;
-  isModule: boolean;
-  eyes: React.Ref<Group>;
-  bulb: React.Ref<MeshBasicMaterial>;
-  flame: React.Ref<Sprite>;
-  cube: React.Ref<Mesh>;
-}) {
-  const shell = isModule ? '#E9D5FF' : '#E0F2FE';
-  const trim = isModule ? '#6D28D9' : '#0284C7';
-  const darkMetal = '#09152B';
-  return (
-    <group scale={0.8}>
-      {/* Thruster nozzle + plasma flame */}
-      <mesh position={[0, 0.16, 0]}>
-        <cylinderGeometry args={[0.11, 0.17, 0.16, 16]} />
-        <meshStandardMaterial color={trim} metalness={0.65} roughness={0.28} />
-      </mesh>
-      <Halo ref={flame} color={isModule ? '#C084FC' : '#38BDF8'} size={0.75} opacity={0.9} position={[0, 0.02, 0]} />
-
-      {/* Articulated lower thrusters / legs */}
-      {[-0.12, 0.12].map((lx) => (
-        <mesh key={lx} position={[lx, 0.28, -0.04]} rotation={[0.35, 0, 0]} castShadow>
-          <capsuleGeometry args={[0.042, 0.18, 4, 10]} />
-          <meshStandardMaterial color={darkMetal} metalness={0.6} roughness={0.3} />
-        </mesh>
-      ))}
-
-      {/* Armored Torso */}
-      <mesh position={[0, 0.64, 0]} castShadow>
-        <capsuleGeometry args={[0.3, 0.3, 8, 20]} />
-        <meshStandardMaterial color={shell} metalness={0.45} roughness={0.25} />
-      </mesh>
-
-      {/* Distinct back wing stabilizers for delegation vs orbital ring for module calls */}
-      {isModule ? (
-        <mesh position={[0, 0.68, -0.05]} rotation={[Math.PI / 3, 0, 0]}>
-          <torusGeometry args={[0.42, 0.024, 10, 28]} />
-          <meshBasicMaterial color={color} transparent opacity={0.8} toneMapped={false} />
-        </mesh>
-      ) : (
-        [-1, 1].map((side) => (
-          <mesh key={side} position={[side * 0.36, 0.72, -0.12]} rotation={[0.2, side * -0.35, side * 0.4]}>
-            <boxGeometry args={[0.28, 0.08, 0.03]} />
-            <meshBasicMaterial color={color} transparent opacity={0.85} toneMapped={false} />
-          </mesh>
-        ))
+      {/* Floating agent status card unhiding employee face and body */}
+      {showTag && (
+        <Html position={[0, 2.95, 0]} center distanceFactor={14} zIndexRange={[25, 0]} style={{ pointerEvents: 'none' }}>
+          <div
+            className={`office-tag relative flex min-w-[158px] max-w-[245px] flex-col rounded-xl border px-2.5 py-1.5 shadow-xl backdrop-blur-md transition-all ${
+              selected
+                ? 'border-blue-500/90 dark:border-blue-400/90 bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-slate-100 shadow-blue-500/15'
+                : 'border-stone-300/90 dark:border-slate-700/80 bg-white/92 dark:bg-slate-900/90 text-slate-800 dark:text-slate-100'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="truncate text-[11.5px] font-semibold text-slate-900 dark:text-white">
+                {appearance.displayFirstName} · <span className="font-mono text-[10.5px] text-slate-600 dark:text-slate-400">{agent.id}</span>
+              </span>
+              <span className="rounded bg-stone-100 dark:bg-slate-800 px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wider text-stone-600 dark:text-slate-300">
+                {role}
+              </span>
+            </div>
+            <div className="mt-0.5 flex items-center justify-between gap-2 text-[10.5px]">
+              <span className="flex items-center gap-1 font-medium text-slate-800 dark:text-slate-200">
+                <span className="h-1.5 w-1.5 rounded-full" style={{ background: style.color }} />
+                {tagState.statusText}
+              </span>
+              <span className="font-mono text-[9.5px] text-slate-500 dark:text-slate-400">
+                {agent.toolCallCount} tools · {formatCount(agent.tokens.total)} tok
+              </span>
+            </div>
+            {(tagState.taskLabel || tagState.completedLabel) && (
+              <div
+                className={`mt-0.5 truncate border-t border-stone-200 dark:border-slate-700/70 pt-0.5 font-mono text-[9.5px] ${
+                  tagState.completedLabel ? 'font-semibold text-emerald-700 dark:text-emerald-400' : 'text-blue-700 dark:text-cyan-400'
+                }`}
+              >
+                {tagState.completedLabel ? `✓ ${tagState.completedLabel}` : `→ ${tagState.taskLabel}`}
+              </div>
+            )}
+            {/* Downward indicator pointer to employee head */}
+            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 h-0 w-0 border-x-4 border-x-transparent border-t-4 border-t-stone-300 dark:border-t-slate-700" />
+          </div>
+        </Html>
       )}
-
-      {/* Chest reactor core */}
-      <mesh position={[0, 0.68, 0.3]}>
-        <circleGeometry args={[0.1, 24]} />
-        <meshBasicMaterial color={color} toneMapped={false} />
-      </mesh>
-
-      {/* Robotic Head */}
-      <group position={[0, 1.22, 0]}>
-        <mesh castShadow>
-          <sphereGeometry args={[0.28, 28, 28]} />
-          <meshStandardMaterial color={shell} metalness={0.45} roughness={0.25} />
-        </mesh>
-        {/* Visor */}
-        <mesh position={[0, 0.0, 0.16]} scale={[1, 0.7, 0.55]}>
-          <sphereGeometry args={[0.23, 24, 24]} />
-          <meshStandardMaterial color={darkMetal} metalness={0.75} roughness={0.15} />
-        </mesh>
-        <group ref={eyes} position={[0, 0.02, 0.28]}>
-          {[-0.08, 0.08].map((x) => (
-            <mesh key={x} position={[x, 0, 0]}>
-              <capsuleGeometry args={[0.032, 0.048, 4, 10]} />
-              <meshBasicMaterial color={color} toneMapped={false} />
-            </mesh>
-          ))}
-        </group>
-        {/* Ear transceivers */}
-        {[-0.29, 0.29].map((x) => (
-          <mesh key={x} position={[x, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.065, 0.065, 0.055, 14]} />
-            <meshStandardMaterial color={trim} metalness={0.65} roughness={0.28} />
-          </mesh>
-        ))}
-        {/* Crown Antenna */}
-        <mesh position={[0, 0.34, 0]}>
-          <cylinderGeometry args={[0.014, 0.014, 0.16, 6]} />
-          <meshStandardMaterial color={trim} />
-        </mesh>
-        <mesh position={[0, 0.44, 0]}>
-          <sphereGeometry args={[0.052, 14, 14]} />
-          <meshBasicMaterial ref={bulb} color={color} toneMapped={false} transparent />
-        </mesh>
-      </group>
-
-      {/* Articulated arms holding payload */}
-      {[-1, 1].map((s) => (
-        <mesh key={s} position={[s * 0.34, 0.7, 0.16]} rotation={[-1.1, 0, s * 0.25]} castShadow>
-          <capsuleGeometry args={[0.058, 0.24, 4, 10]} />
-          <meshStandardMaterial color={trim} metalness={0.5} roughness={0.3} />
-        </mesh>
-      ))}
-
-      {/* Payload: Octahedron crystal for Delegation, Data Cube for Module Call */}
-      <mesh ref={cube} position={[0, 0.66, 0.5]}>
-        {isModule ? <boxGeometry args={[0.21, 0.21, 0.21]} /> : <octahedronGeometry args={[0.16, 0]} />}
-        <meshBasicMaterial color={color} toneMapped={false} />
-      </mesh>
-      <Halo color={color} size={0.82} opacity={0.65} position={[0, 0.66, 0.5]} />
-    </group>
-  );
-}
-
-const Courier = memo(function Courier({ trip, onDone }: { trip: Trip; onDone: (key: string) => void }) {
-  const body = useRef<Group>(null);
-  const eyes = useRef<Group>(null);
-  const bulb = useRef<MeshBasicMaterial>(null);
-  const flame = useRef<Sprite>(null);
-  const cube = useRef<Mesh>(null);
-  const shadow = useRef<Mesh>(null);
-  const ping = useRef<Mesh>(null);
-  const done = useRef(false);
-
-  const { a, b, heading, cruise, arcPoints } = useMemo(() => {
-    const from = new Vector3(...trip.from);
-    const to = new Vector3(...trip.to);
-    const d = from.distanceTo(to);
-    const h = 1.45 + d * 0.1;
-    const mid = from.clone().lerp(to, 0.5);
-    mid.y = Math.max(from.y, to.y) + h * 0.65;
-    const curve = new CatmullRomCurve3([
-      new Vector3(from.x, from.y + 0.15, from.z),
-      mid,
-      new Vector3(to.x, to.y + 0.15, to.z),
-    ]);
-    const pts = curve.getPoints(24).map((p) => [p.x, p.y, p.z] as [number, number, number]);
-    return {
-      a: from,
-      b: to,
-      heading: Math.atan2(to.x - from.x, to.z - from.z),
-      cruise: h,
-      arcPoints: pts,
-    };
-  }, [trip]);
-
-  useFrame(({ clock }) => {
-    const elapsed = (performance.now() - trip.bornAt) / 1000;
-    const t = Math.min(1, elapsed / trip.duration);
-    const e = easeInOut(t);
-    const now = clock.elapsedTime;
-
-    if (body.current) {
-      const x = a.x + (b.x - a.x) * e;
-      const z = a.z + (b.z - a.z) * e;
-      const baseY = a.y + (b.y - a.y) * e;
-      const lift = Math.sin(Math.PI * e) * cruise;
-      body.current.position.set(x, baseY + 0.05 + lift + 0.05 * Math.sin(now * 9), z);
-      body.current.rotation.set(0.28 * Math.sin(Math.PI * t), heading, 0.06 * Math.sin(now * 5));
-      body.current.visible = t < 1;
-    }
-    if (eyes.current) eyes.current.scale.y = Math.sin(now * 2.3 + trip.bornAt) > 0.96 ? 0.15 : 1;
-    if (bulb.current) bulb.current.opacity = 0.55 + 0.45 * Math.sin(now * 10);
-    if (cube.current) {
-      cube.current.rotation.y = now * 3.2;
-      cube.current.rotation.x = now * 2.1;
-    }
-    if (flame.current) {
-      const s = t < 1 ? 0.58 + 0.2 * Math.sin(now * 18) + Math.sin(Math.PI * e) * 0.35 : 0;
-      flame.current.scale.set(s, s * 1.4, 1);
-    }
-    if (shadow.current && body.current) {
-      const h = body.current.position.y;
-      const groundY = a.y + (b.y - a.y) * e + 0.02;
-      shadow.current.position.set(body.current.position.x, groundY, body.current.position.z);
-      const s = Math.max(0.32, 1 - h * 0.2);
-      shadow.current.scale.set(s, s, s);
-      shadow.current.visible = t < 1;
-    }
-
-    const after = elapsed - trip.duration;
-    if (ping.current) {
-      ping.current.visible = after > -0.1 && after < PING_S;
-      const p = Math.max(0, after) / PING_S;
-      ping.current.scale.setScalar(0.45 + p * 1.75);
-      (ping.current.material as MeshBasicMaterial).opacity = 0.9 * (1 - p);
-    }
-    if (after > PING_S && !done.current) {
-      done.current = true;
-      onDone(trip.key);
-    }
-  });
-
-  return (
-    <group>
-      {/* Glowing arched telemetry beam while courier is in flight */}
-      <Line points={arcPoints} color={trip.color} lineWidth={2.2} transparent opacity={0.55} />
-      <mesh ref={shadow} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[0.32, 24]} />
-        <meshBasicMaterial color="#000000" transparent opacity={0.32} depthWrite={false} />
-      </mesh>
-      <group ref={body}>
-        <CourierRobot color={trip.color} isModule={trip.isModule} eyes={eyes} bulb={bulb} flame={flame} cube={cube} />
-      </group>
-      <mesh ref={ping} position={[b.x, b.y + 0.04, b.z]} rotation={[-Math.PI / 2, 0, 0]} visible={false}>
-        <ringGeometry args={[0.58, 0.74, 40]} />
-        <meshBasicMaterial color={trip.color} transparent opacity={0} toneMapped={false} depthWrite={false} />
-      </mesh>
     </group>
   );
 });
 
-function CouriersImpl({ layout }: { layout: OfficeLayout }) {
-  const [trips, setTrips] = useState<Trip[]>([]);
-  const seen = useRef(new Set<string>());
-  const layoutRef = useRef(layout);
-  layoutRef.current = layout;
+// =========================================================================================
+// 2. OFFICE BOY / COURIER RUNNER ACTOR (Handles physical dispatches, bridges, and delivery)
+// =========================================================================================
 
-  // Build persistent communication pathways from actual store topology (hierarchy, extraEdges, moduleLinks)
-  const edgeTopology = useTelemetryStore(
-    (s) => ({
-      hierarchy: s.agentOrder
-        .map((id) => (s.agents[id]?.parentId ? `h:${s.agents[id].parentId}->${id}` : ''))
-        .filter(Boolean)
-        .join('|'),
-      extra: s.extraEdges.map((e) => e.id).join('|'),
-      modules: s.moduleLinks.map((m) => m.id).join('|'),
-    }),
-    shallow,
+type RunnerPhase =
+  | 'standby'
+  | 'walking_to_desk'
+  | 'receiving_instruction'
+  | 'walking_to_resource'
+  | 'interacting'
+  | 'walking_to_delivery'
+  | 'delivering'
+  | 'returning_to_standby';
+
+interface RunnerActorProps {
+  runnerId: string;
+  appearance: EmployeeAppearance;
+  standbyPos: Vec3;
+  layout: OfficeLayout;
+  navGrid: NavGrid;
+  sharedPositions: React.MutableRefObject<Record<string, Point2D>>;
+  activitySlots: React.MutableRefObject<Record<string, AgentActivitySlot>>;
+  activityRef?: React.RefObject<CampusActivityRefs>;
+  dispatchesRef: React.MutableRefObject<Record<string, RunnerDispatch>>;
+  runnerMissionsRef: React.MutableRefObject<Record<string, { runnerName: string; label: string; phase: string } | null>>;
+  recentDeliveriesRef: React.MutableRefObject<Record<string, { label: string; time: number }>>;
+  laneOffset: number;
+}
+
+const OfficeRunnerActor = memo(function OfficeRunnerActor({
+  runnerId,
+  appearance,
+  standbyPos,
+  layout,
+  navGrid,
+  sharedPositions,
+  activitySlots,
+  activityRef,
+  dispatchesRef,
+  runnerMissionsRef,
+  recentDeliveriesRef,
+  laneOffset,
+}: RunnerActorProps) {
+  const groupRef = useRef<Group>(null);
+  const [hovered, setHovered] = useState(false);
+
+  const [badgeState, setBadgeState] = useState<{
+    phase: RunnerPhase;
+    statusText: string;
+    missionLabel: string | null;
+    pathPoints: [number, number, number][] | null;
+    pathColor: string;
+  }>({
+    phase: 'standby',
+    statusText: 'Standby in office',
+    missionLabel: null,
+    pathPoints: null,
+    pathColor: DELEGATION_COLOR,
+  });
+
+  const actor = useRef<{
+    phase: RunnerPhase;
+    phaseTime: number;
+    x: number;
+    y: number;
+    z: number;
+    yaw: number;
+    standBlend: number;
+    activeDispatch: RunnerDispatch | null;
+    waypoints: Waypoint3D[];
+    waypointIndex: number;
+    interactHeldS: number;
+    activeBridgeId: string | null;
+    activeZoneId: string | null;
+  }>({
+    phase: 'standby',
+    phaseTime: 0,
+    x: standbyPos[0],
+    y: standbyPos[1],
+    z: standbyPos[2],
+    yaw: Math.PI,
+    standBlend: 1, // Standing upright on floor
+    activeDispatch: null,
+    waypoints: [],
+    waypointIndex: 0,
+    interactHeldS: 0,
+    activeBridgeId: null,
+    activeZoneId: null,
+  });
+
+  const poseRef = useRef<HumanPoseInput>({
+    phase: 'seated_idle',
+    activity: 'coding',
+    standBlend: 1, // Always on feet
+    walkSpeed: 0,
+    seed: 42.5,
+    workingAtDesk: false,
+  });
+
+  const lastBadgeKey = useRef('');
+
+  useEffect(
+    () => () => {
+      delete sharedPositions.current[runnerId];
+      delete activitySlots.current[runnerId];
+      syncCampusActivity(activitySlots.current, activityRef);
+    },
+    [runnerId, sharedPositions, activitySlots, activityRef],
   );
 
-  const routes = useMemo<NetworkRoute[]>(() => {
-    const edgeIds = [
-      ...edgeTopology.hierarchy.split('|').filter(Boolean),
-      ...edgeTopology.extra.split('|').filter(Boolean),
-      ...edgeTopology.modules.split('|').filter(Boolean),
-    ];
-    const built: NetworkRoute[] = [];
-    for (const id of edgeIds) {
-      const ends = endpoints(id, layout);
-      if (!ends) continue;
-      const p0 = new Vector3(ends.from[0], ends.from[1] + 0.16, ends.from[2]);
-      const p2 = new Vector3(ends.to[0], ends.to[1] + 0.16, ends.to[2]);
-      const dist = p0.distanceTo(p2);
-      const mid = p0.clone().lerp(p2, 0.5);
-      // Graceful elevated arc so inter-island conduits clear platform edges & structures cleanly
-      mid.y = Math.max(p0.y, p2.y) + (ends.module ? 0.85 + Math.min(1.4, dist * 0.07) : 0.35 + Math.min(0.6, dist * 0.04));
-      const curve = new CatmullRomCurve3([p0, mid, p2]);
-      const points = curve.getPoints(24).map((pt) => [pt.x, pt.y, pt.z] as [number, number, number]);
-      built.push({
-        id,
-        fromId: ends.fromId,
-        toId: ends.toId,
-        from: ends.from,
-        to: ends.to,
-        isModule: ends.module,
-        color: routeColor(ends.module, ends.toId),
-        points,
-        curve,
+  useFrame((_, rawDelta) => {
+    const dt = Math.min(rawDelta, 0.05);
+    const a = actor.current;
+    a.phaseTime += dt;
+
+    let walkSpeedNorm = 0;
+    let currentBridgeId: string | null = null;
+    let currentZoneId: string | null = null;
+
+    // -------------------------------------------------------------------------------------
+    // Runner State Machine: Standby -> Instruction -> Bridge Transit -> Module -> Delivery
+    // -------------------------------------------------------------------------------------
+    switch (a.phase) {
+      case 'standby': {
+        a.x += (standbyPos[0] - a.x) * Math.min(1, dt * 6);
+        a.y += (standbyPos[1] - a.y) * Math.min(1, dt * 8);
+        a.z += (standbyPos[2] - a.z) * Math.min(1, dt * 6);
+        a.yaw += shortestAngleDiff(a.yaw, Math.PI) * Math.min(1, dt * 6);
+        a.standBlend = 1;
+
+        // Check if there is an unassigned pending dispatch from any seated employee
+        const pendingKey = Object.keys(dispatchesRef.current).find(
+          (k) => dispatchesRef.current[k].status === 'pending',
+        );
+
+        if (pendingKey) {
+          const dispatch = dispatchesRef.current[pendingKey];
+          dispatch.status = 'in_transit';
+          dispatch.assignedRunnerId = runnerId;
+          dispatch.updatedAt = Date.now();
+          a.activeDispatch = dispatch;
+
+          // Notify employee of runner assignment
+          runnerMissionsRef.current[dispatch.agentId] = {
+            runnerName: appearance.displayFirstName,
+            label: dispatch.directive.label,
+            phase: 'dispatched',
+          };
+
+          const deskStand = layout.deskStandPoints[dispatch.agentId] ?? [0, OFFICE_FLOOR_Y, 0];
+          const distToDesk = Math.hypot(deskStand[0] - a.x, deskStand[2] - a.z);
+
+          if (distToDesk < 0.6) {
+            a.phase = 'receiving_instruction';
+            a.phaseTime = 0;
+          } else {
+            a.waypoints = findOfficePath(navGrid, [a.x, a.y, a.z], deskStand, laneOffset);
+            a.waypointIndex = 0;
+            a.phase = 'walking_to_desk';
+            a.phaseTime = 0;
+          }
+        }
+        break;
+      }
+
+      case 'walking_to_desk': {
+        a.standBlend = 1;
+        const wp = a.waypoints[a.waypointIndex];
+        if (!wp) {
+          a.phase = 'receiving_instruction';
+          a.phaseTime = 0;
+          break;
+        }
+
+        const dx = wp.x - a.x;
+        const dz = wp.z - a.z;
+        const dist = Math.hypot(dx, dz);
+        if (dist < 0.18) {
+          a.y = wp.y;
+          a.waypointIndex += 1;
+          if (a.waypointIndex >= a.waypoints.length) {
+            a.phase = 'receiving_instruction';
+            a.phaseTime = 0;
+          }
+          break;
+        }
+
+        const avoid = computeAvoidanceOffset(runnerId, { x: a.x, z: a.z }, sharedPositions.current, 0.88, false);
+        const dirX = dx / dist + avoid.x;
+        const dirZ = dz / dist + avoid.z;
+        const mag = Math.hypot(dirX, dirZ) || 1;
+        const step = Math.min(dist, RUNNER_WALK_SPEED * dt);
+        a.x += (dirX / mag) * step;
+        a.z += (dirZ / mag) * step;
+        a.y += (wp.y - a.y) * Math.min(1, dt * 10);
+
+        const targetYaw = Math.atan2(dirX, dirZ);
+        a.yaw += shortestAngleDiff(a.yaw, targetYaw) * Math.min(1, dt * 11);
+        walkSpeedNorm = Math.min(1, step / Math.max(0.001, RUNNER_WALK_SPEED * dt));
+        break;
+      }
+
+      case 'receiving_instruction': {
+        a.standBlend = 1;
+        if (a.activeDispatch) {
+          const deskPos = layout.desks[a.activeDispatch.agentId];
+          if (deskPos) {
+            const chairPos: Vec3 = [deskPos[0], deskPos[1], deskPos[2] + 0.5];
+            const targetYaw = Math.atan2(chairPos[0] - a.x, chairPos[2] - a.z);
+            a.yaw += shortestAngleDiff(a.yaw, targetYaw) * Math.min(1, dt * 10);
+          }
+        }
+
+        // Brief handover pause (~0.35s) receiving task assignment at the desk
+        if (a.phaseTime >= 0.35) {
+          if (a.activeDispatch) {
+            a.waypoints = findOfficePath(
+              navGrid,
+              [a.x, a.y, a.z],
+              a.activeDispatch.directive.destination,
+              laneOffset,
+            );
+            a.waypointIndex = 0;
+            a.phase = 'walking_to_resource';
+            a.phaseTime = 0;
+          } else {
+            a.phase = 'returning_to_standby';
+            a.phaseTime = 0;
+          }
+        }
+        break;
+      }
+
+      case 'walking_to_resource': {
+        a.standBlend = 1;
+        currentBridgeId = a.waypoints.find((w) => w.bridgeId)?.bridgeId ?? null;
+        if (a.activeDispatch?.directive.zoneId) {
+          currentZoneId = a.activeDispatch.directive.zoneId;
+        }
+
+        const wp = a.waypoints[a.waypointIndex];
+        if (!wp) {
+          a.phase = 'interacting';
+          a.phaseTime = 0;
+          a.interactHeldS = 0;
+          break;
+        }
+
+        const dx = wp.x - a.x;
+        const dz = wp.z - a.z;
+        const dist = Math.hypot(dx, dz);
+        if (dist < 0.18) {
+          a.y = wp.y;
+          a.waypointIndex += 1;
+          if (a.waypointIndex >= a.waypoints.length) {
+            a.phase = 'interacting';
+            a.phaseTime = 0;
+            a.interactHeldS = 0;
+          }
+          break;
+        }
+
+        const onBridge = Boolean(wp.bridgeId);
+        const avoid = computeAvoidanceOffset(runnerId, { x: a.x, z: a.z }, sharedPositions.current, 0.88, onBridge);
+        const dirX = dx / dist + avoid.x;
+        const dirZ = dz / dist + avoid.z;
+        const mag = Math.hypot(dirX, dirZ) || 1;
+        const step = Math.min(dist, RUNNER_WALK_SPEED * dt);
+        a.x += (dirX / mag) * step;
+        a.z += (dirZ / mag) * step;
+
+        const frac = Math.min(1, step / Math.max(0.001, dist));
+        a.y += (wp.y - a.y) * Math.max(frac, Math.min(1, dt * 10));
+
+        const targetYaw = Math.atan2(dirX, dirZ);
+        a.yaw += shortestAngleDiff(a.yaw, targetYaw) * Math.min(1, dt * 11);
+        walkSpeedNorm = Math.min(1, step / Math.max(0.001, RUNNER_WALK_SPEED * dt));
+        break;
+      }
+
+      case 'interacting': {
+        a.standBlend = 1;
+        a.interactHeldS += dt;
+        if (a.activeDispatch) {
+          currentZoneId = a.activeDispatch.directive.zoneId ?? null;
+          a.x += (a.activeDispatch.directive.destination[0] - a.x) * Math.min(1, dt * 6);
+          a.y += (a.activeDispatch.directive.destination[1] - a.y) * Math.min(1, dt * 8);
+          a.z += (a.activeDispatch.directive.destination[2] - a.z) * Math.min(1, dt * 6);
+          a.yaw += shortestAngleDiff(a.yaw, a.activeDispatch.directive.facingYaw) * Math.min(1, dt * 8);
+        }
+
+        // Complete data collection after holding for minimum interaction duration
+        if (a.interactHeldS >= MIN_INTERACT_HOLD_S) {
+          if (a.activeDispatch) {
+            const deskStand = layout.deskStandPoints[a.activeDispatch.agentId] ?? [0, OFFICE_FLOOR_Y, 0];
+            a.waypoints = findOfficePath(navGrid, [a.x, a.y, a.z], deskStand, -laneOffset);
+            a.waypointIndex = 0;
+            a.phase = 'walking_to_delivery';
+            a.phaseTime = 0;
+          } else {
+            a.phase = 'returning_to_standby';
+            a.phaseTime = 0;
+          }
+        }
+        break;
+      }
+
+      case 'walking_to_delivery': {
+        a.standBlend = 1;
+        currentBridgeId = a.waypoints.find((w) => w.bridgeId)?.bridgeId ?? null;
+        if (a.activeDispatch?.directive.zoneId) {
+          currentZoneId = a.activeDispatch.directive.zoneId;
+        }
+
+        const wp = a.waypoints[a.waypointIndex];
+        if (!wp) {
+          a.phase = 'delivering';
+          a.phaseTime = 0;
+          break;
+        }
+
+        const dx = wp.x - a.x;
+        const dz = wp.z - a.z;
+        const dist = Math.hypot(dx, dz);
+        if (dist < 0.18) {
+          a.y = wp.y;
+          a.waypointIndex += 1;
+          if (a.waypointIndex >= a.waypoints.length) {
+            a.phase = 'delivering';
+            a.phaseTime = 0;
+          }
+          break;
+        }
+
+        const onBridge = Boolean(wp.bridgeId);
+        const avoid = computeAvoidanceOffset(runnerId, { x: a.x, z: a.z }, sharedPositions.current, 0.88, onBridge);
+        const dirX = dx / dist + avoid.x;
+        const dirZ = dz / dist + avoid.z;
+        const mag = Math.hypot(dirX, dirZ) || 1;
+        const step = Math.min(dist, RUNNER_WALK_SPEED * dt);
+        a.x += (dirX / mag) * step;
+        a.z += (dirZ / mag) * step;
+
+        const frac = Math.min(1, step / Math.max(0.001, dist));
+        a.y += (wp.y - a.y) * Math.max(frac, Math.min(1, dt * 10));
+
+        const targetYaw = Math.atan2(dirX, dirZ);
+        a.yaw += shortestAngleDiff(a.yaw, targetYaw) * Math.min(1, dt * 11);
+        walkSpeedNorm = Math.min(1, step / Math.max(0.001, RUNNER_WALK_SPEED * dt));
+        break;
+      }
+
+      case 'delivering': {
+        a.standBlend = 1;
+        if (a.activeDispatch) {
+          const deskPos = layout.desks[a.activeDispatch.agentId];
+          if (deskPos) {
+            const chairPos: Vec3 = [deskPos[0], deskPos[1], deskPos[2] + 0.5];
+            const targetYaw = Math.atan2(chairPos[0] - a.x, chairPos[2] - a.z);
+            a.yaw += shortestAngleDiff(a.yaw, targetYaw) * Math.min(1, dt * 10);
+          }
+
+          // Mark dispatch delivered and register completion for the seated employee
+          a.activeDispatch.status = 'delivered';
+          recentDeliveriesRef.current[a.activeDispatch.agentId] = {
+            label: a.activeDispatch.directive.label,
+            time: Date.now(),
+          };
+          runnerMissionsRef.current[a.activeDispatch.agentId] = null;
+        }
+
+        // Stand before the seated employee for ~0.7s handing over the data packet
+        if (a.phaseTime >= 0.7) {
+          a.waypoints = findOfficePath(navGrid, [a.x, a.y, a.z], standbyPos, 0);
+          a.waypointIndex = 0;
+          a.phase = 'returning_to_standby';
+          a.phaseTime = 0;
+          a.activeDispatch = null;
+        }
+        break;
+      }
+
+      case 'returning_to_standby': {
+        a.standBlend = 1;
+        const wp = a.waypoints[a.waypointIndex];
+        if (!wp) {
+          a.phase = 'standby';
+          a.phaseTime = 0;
+          break;
+        }
+
+        const dx = wp.x - a.x;
+        const dz = wp.z - a.z;
+        const dist = Math.hypot(dx, dz);
+        if (dist < 0.22) {
+          a.y = wp.y;
+          a.waypointIndex += 1;
+          if (a.waypointIndex >= a.waypoints.length) {
+            a.phase = 'standby';
+            a.phaseTime = 0;
+          }
+          break;
+        }
+
+        const avoid = computeAvoidanceOffset(runnerId, { x: a.x, z: a.z }, sharedPositions.current, 0.88, false);
+        const dirX = dx / dist + avoid.x;
+        const dirZ = dz / dist + avoid.z;
+        const mag = Math.hypot(dirX, dirZ) || 1;
+        const step = Math.min(dist, RUNNER_WALK_SPEED * dt);
+        a.x += (dirX / mag) * step;
+        a.z += (dirZ / mag) * step;
+        a.y += (wp.y - a.y) * Math.min(1, dt * 10);
+
+        const targetYaw = Math.atan2(dirX, dirZ);
+        a.yaw += shortestAngleDiff(a.yaw, targetYaw) * Math.min(1, dt * 11);
+        walkSpeedNorm = Math.min(1, step / Math.max(0.001, RUNNER_WALK_SPEED * dt));
+        break;
+      }
+    }
+
+    // Publish runner position for collision avoidance
+    sharedPositions.current[runnerId] = { x: a.x, z: a.z };
+
+    // Synchronize bridge & platform illumination via activitySlots
+    if (a.activeBridgeId !== currentBridgeId || a.activeZoneId !== currentZoneId) {
+      a.activeBridgeId = currentBridgeId;
+      a.activeZoneId = currentZoneId;
+      activitySlots.current[runnerId] = { bridgeId: currentBridgeId, zoneId: currentZoneId };
+      syncCampusActivity(activitySlots.current, activityRef);
+    }
+
+    if (groupRef.current) {
+      groupRef.current.position.set(a.x, a.y, a.z);
+      groupRef.current.rotation.y = a.yaw;
+    }
+
+    // Update runner articulation pose
+    const isWalking =
+      a.phase === 'walking_to_desk' ||
+      a.phase === 'walking_to_resource' ||
+      a.phase === 'walking_to_delivery' ||
+      a.phase === 'returning_to_standby';
+
+    poseRef.current.phase = isWalking ? 'walking_to_resource' : a.phase === 'interacting' ? 'interacting' : 'seated_idle';
+    poseRef.current.activity = a.activeDispatch?.directive.activity ?? 'research';
+    poseRef.current.standBlend = 1;
+    poseRef.current.walkSpeed = walkSpeedNorm;
+    poseRef.current.workingAtDesk = false;
+
+    // Derived status text for runner floating badge
+    let statusText = 'Standby in office';
+    let missionLabel: string | null = null;
+    if (a.phase === 'walking_to_desk') {
+      statusText = `Dispatched to ${a.activeDispatch?.agentName ?? 'Desk'}`;
+      missionLabel = 'Receiving assignment';
+    } else if (a.phase === 'receiving_instruction') {
+      statusText = `Briefing with ${a.activeDispatch?.agentName ?? 'Agent'}`;
+      missionLabel = a.activeDispatch?.directive.label ?? null;
+    } else if (a.phase === 'walking_to_resource') {
+      statusText = a.activeDispatch?.directive.travelLabel ?? 'Crossing skybridge';
+      missionLabel = a.activeDispatch?.directive.label ?? null;
+    } else if (a.phase === 'interacting') {
+      statusText = a.activeDispatch?.directive.interactLabel ?? 'Collecting data';
+      missionLabel = a.activeDispatch?.directive.label ?? null;
+    } else if (a.phase === 'walking_to_delivery') {
+      statusText = `Delivering to ${a.activeDispatch?.agentName ?? 'Desk'}`;
+      missionLabel = a.activeDispatch?.directive.label ?? null;
+    } else if (a.phase === 'delivering') {
+      statusText = `Handing data to ${a.activeDispatch?.agentName ?? 'Agent'}`;
+      missionLabel = 'Task complete';
+    } else if (a.phase === 'returning_to_standby') {
+      statusText = 'Returning to standby';
+    }
+
+    const showPath = (a.phase === 'walking_to_resource' || a.phase === 'walking_to_delivery') && a.waypoints.length >= 2;
+    const pathColor =
+      a.activeDispatch?.directive.targetKind === 'meeting'
+        ? DELEGATION_COLOR
+        : zoneRouteColor(layout, a.activeDispatch?.directive.zoneId ?? currentZoneId ?? undefined);
+
+    const badgeKey = `${a.phase}|${statusText}|${missionLabel ?? ''}|${showPath ? a.waypoints.length : 0}|${pathColor}`;
+    if (badgeKey !== lastBadgeKey.current) {
+      lastBadgeKey.current = badgeKey;
+      setBadgeState({
+        phase: a.phase,
+        statusText,
+        missionLabel,
+        pathPoints: showPath ? a.waypoints.map((pt) => [pt.x, pt.y + 0.06, pt.z]) : null,
+        pathColor,
       });
     }
-    return built;
-  }, [edgeTopology, layout]);
+  });
 
-  useEffect(() =>
-    useTelemetryStore.subscribe((s, prev) => {
-      if (s.packets === prev.packets) return;
-      const fresh = s.packets.filter((p) => !seen.current.has(p.key));
-      if (fresh.length === 0) return;
-      fresh.forEach((p) => seen.current.add(p.key));
-      if (seen.current.size > 2000) seen.current = new Set(s.packets.map((p) => p.key));
-      const added = fresh.map((p) => toTrip(p, layoutRef.current)).filter((t): t is Trip => !!t);
-      if (added.length) setTrips((cur) => [...cur, ...added].slice(-MAX_TRIPS));
-    }), []);
-
-  const finish = useCallback((key: string) => setTrips((cur) => cur.filter((t) => t.key !== key)), []);
-
-  const activeByEdge = useMemo(() => {
-    const map = new Map<string, Trip>();
-    for (const t of trips) map.set(t.edgeId, t);
-    return map;
-  }, [trips]);
+  const showRunnerTag = hovered || badgeState.phase !== 'standby';
 
   return (
     <group>
-      {routes.map((route) => (
-        <CommunicationPathway key={route.id} route={route} activeTrip={activeByEdge.get(route.id)} />
+      {/* Illuminated 3D route ribbon following runner's path along corridor and skybridge */}
+      {badgeState.pathPoints && (
+        <Line
+          points={badgeState.pathPoints}
+          color={badgeState.pathColor}
+          lineWidth={2.8}
+          dashed
+          dashSize={0.38}
+          gapSize={0.2}
+          transparent
+          opacity={0.88}
+        />
+      )}
+
+      <group
+        ref={groupRef}
+        position={standbyPos}
+        rotation={[0, Math.PI, 0]}
+        onPointerOver={() => setHovered(true)}
+        onPointerOut={() => setHovered(false)}
+      >
+        <HumanCharacter appearance={appearance} poseRef={poseRef} />
+
+        {/* Floating badge for Office Boy / Courier */}
+        {showRunnerTag && (
+          <Html position={[0, 2.45, 0]} center distanceFactor={14} zIndexRange={[25, 0]} style={{ pointerEvents: 'none' }}>
+            <div className="office-tag relative flex min-w-[145px] max-w-[230px] flex-col rounded-xl border border-sky-400/80 dark:border-sky-500/80 bg-white/95 dark:bg-slate-900/95 px-2.5 py-1.5 text-slate-800 dark:text-slate-100 shadow-xl backdrop-blur-md transition-all">
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate text-[11px] font-bold text-sky-800 dark:text-sky-300">
+                  🏃 {appearance.displayFirstName}
+                </span>
+                <span className="rounded bg-sky-100 dark:bg-sky-950/80 px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wider text-sky-700 dark:text-sky-300">
+                  OFFICE RUNNER
+                </span>
+              </div>
+              <div className="mt-0.5 text-[10px] font-medium text-slate-700 dark:text-slate-200">
+                {badgeState.statusText}
+              </div>
+              {badgeState.missionLabel && (
+                <div className="mt-0.5 truncate border-t border-stone-200 dark:border-slate-700/70 pt-0.5 font-mono text-[9px] text-cyan-700 dark:text-cyan-300">
+                  {badgeState.missionLabel}
+                </div>
+              )}
+              {/* Downward indicator pointer */}
+              <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 h-0 w-0 border-x-4 border-x-transparent border-t-4 border-t-sky-400 dark:border-t-sky-500" />
+            </div>
+          </Html>
+        )}
+      </group>
+    </group>
+  );
+});
+
+// =========================================================================================
+// 3. WORKFORCE CONTROLLER (Orchestrates Seated Employees + Dedicated Office Runners)
+// =========================================================================================
+
+function EmployeeWorkforceImpl({
+  layout,
+  activityRef,
+  showLabels = false,
+}: {
+  layout: OfficeLayout;
+  activityRef?: React.RefObject<CampusActivityRefs>;
+  showLabels?: boolean;
+}) {
+  const navGrid = useMemo(() => buildNavGrid(layout), [layout]);
+  const sharedPositions = useRef<Record<string, Point2D>>({});
+  const activitySlots = useRef<Record<string, AgentActivitySlot>>({});
+  const agentIds = useMemo(() => Object.keys(layout.desks), [layout.desks]);
+
+  // Shared dispatches queue and status registers
+  const dispatchesRef = useRef<Record<string, RunnerDispatch>>({});
+  const runnerMissionsRef = useRef<Record<string, { runnerName: string; label: string; phase: string } | null>>({});
+  const recentDeliveriesRef = useRef<Record<string, { label: string; time: number }>>({});
+
+  // Dynamic dispatch detection: Seated employees dispatch tasks to Office Boy runners
+  useFrame(() => {
+    const store = useTelemetryStore.getState();
+    const now = Date.now();
+
+    for (const agentId of agentIds) {
+      const liveAgent = store.agents[agentId];
+      if (!liveAgent) continue;
+
+      const liveDirective = resolveEmployeeDirective(
+        agentId,
+        liveAgent,
+        layout,
+        store.toolCalls,
+        store.moduleCalls,
+        store.packets,
+        store.agentOrder,
+        now,
+      );
+
+      // External platforms / meeting rooms require physical data collection by the Office Runner
+      if (liveDirective && (liveDirective.targetKind === 'station' || liveDirective.targetKind === 'meeting')) {
+        const existing = dispatchesRef.current[liveDirective.taskKey];
+        if (!existing) {
+          const hasActiveForAgent = Object.values(dispatchesRef.current).some(
+            (d) =>
+              d.agentId === agentId &&
+              (d.status === 'pending' || d.status === 'in_transit' || d.status === 'interacting' || d.status === 'delivering'),
+          );
+
+          if (!hasActiveForAgent) {
+            const appearance = getEmployeeAppearance(agentId);
+            dispatchesRef.current[liveDirective.taskKey] = {
+              taskKey: liveDirective.taskKey,
+              agentId,
+              agentName: appearance.displayFirstName,
+              directive: liveDirective,
+              status: 'pending',
+              updatedAt: now,
+            };
+          }
+        }
+      }
+    }
+
+    // Clean up delivered dispatches older than 8 seconds
+    for (const [key, d] of Object.entries(dispatchesRef.current)) {
+      if (d.status === 'delivered' && now - d.updatedAt > 8000) {
+        delete dispatchesRef.current[key];
+      }
+    }
+  });
+
+  // Standby posts for the two Office Runners in the open central office corridor
+  const runner1Standby = useMemo<Vec3>(() => [1.2, OFFICE_FLOOR_Y, 3.8], []);
+  const runner2Standby = useMemo<Vec3>(() => [-0.8, OFFICE_FLOOR_Y, 3.8], []);
+
+  return (
+    <group>
+      {/* 1. All knowledge worker employees remain permanently seated at their desks */}
+      {agentIds.map((id, idx) => (
+        <SeatedEmployeeActor
+          key={id}
+          id={id}
+          layout={layout}
+          showLabels={showLabels}
+          indexSeed={idx + 1}
+          runnerMissionsRef={runnerMissionsRef}
+          recentDeliveriesRef={recentDeliveriesRef}
+        />
       ))}
-      {trips.map((t) => (
-        <Courier key={t.key} trip={t} onDone={finish} />
-      ))}
+
+      {/* 2. Primary Office Runner "Leo" (Tech Courier) */}
+      <OfficeRunnerActor
+        runnerId="runner-1"
+        appearance={RUNNER_APPEARANCES[0]}
+        standbyPos={runner1Standby}
+        layout={layout}
+        navGrid={navGrid}
+        sharedPositions={sharedPositions}
+        activitySlots={activitySlots}
+        activityRef={activityRef}
+        dispatchesRef={dispatchesRef}
+        runnerMissionsRef={runnerMissionsRef}
+        recentDeliveriesRef={recentDeliveriesRef}
+        laneOffset={0.18}
+      />
+
+      {/* 3. Secondary Office Runner "Sam" (Tech Courier) */}
+      <OfficeRunnerActor
+        runnerId="runner-2"
+        appearance={RUNNER_APPEARANCES[1]}
+        standbyPos={runner2Standby}
+        layout={layout}
+        navGrid={navGrid}
+        sharedPositions={sharedPositions}
+        activitySlots={activitySlots}
+        activityRef={activityRef}
+        dispatchesRef={dispatchesRef}
+        runnerMissionsRef={runnerMissionsRef}
+        recentDeliveriesRef={recentDeliveriesRef}
+        laneOffset={-0.18}
+      />
     </group>
   );
 }
 
-export const Couriers = memo(CouriersImpl);
+export const Couriers = memo(EmployeeWorkforceImpl);
 
-/** For the legend: the two courier colours. */
-export const COURIER_COLORS = { delegation: DELEGATION, module: MODULE };
-
+/** Legend colors for active walking paths (team collaboration vs external infrastructure visit). */
+export const COURIER_COLORS = { delegation: DELEGATION_COLOR, module: MODULE_COLOR };
