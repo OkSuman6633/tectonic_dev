@@ -1,4 +1,4 @@
-import { memo, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import { Html, Line } from '@react-three/drei';
 import type { Group } from 'three';
@@ -8,31 +8,41 @@ import { HumanCharacter, type HumanPoseInput } from './HumanCharacter';
 import {
   getEmployeeAppearance,
   resolveEmployeeDirective,
+  type EmployeeAppearance,
   type EmployeePhase,
   type TaskDirective,
 } from './employeeWorkflow';
-import { buildNavGrid, computeAvoidanceOffset, findOfficePath, type NavGrid, type Point2D } from './officePathfinding';
+import {
+  buildNavGrid,
+  computeAvoidanceOffset,
+  findOfficePath,
+  type NavGrid,
+  type Point2D,
+  type Waypoint3D,
+} from './officePathfinding';
 import { OFFICE_FLOOR_Y, type OfficeLayout, type Vec3 } from './officeLayout';
+import type { CampusActivityRefs } from './ExternalCampus';
 
 /**
- * Human-Operated Employee Activity Controller (replaces flying robot couriers).
- * Each live agent in Tectonic is represented by an articulated 3D human employee who:
- * 1. Works naturally at their assigned desk while idle (typing, reading, reviewing).
- * 2. Reacts immediately when a real backend task, tool call, module call, or A2A collaboration starts.
- * 3. Stands up from their chair, navigates along collision-free A* floor paths with smooth turning,
- *    and avoids colliding with other walking employees.
- * 4. Performs resource-specific working animations at the destination workstation or conference table.
- * 5. Displays a brief completion reaction when done, then walks back to their desk (or directly to the next task).
+ * Knowledge Worker & Office Boy Courier Architecture:
+ * 1. Seated Employees: Every desk agent sits permanently in their chair at their workstation.
+ *    They never stand up, walk through aisles, or cross bridges to fetch data. When a task
+ *    or simulation is active, they type intensely on their keyboard and interact with their screens.
+ * 2. Office Boy / Courier Runners: When an employee needs external data or tool execution
+ *    (Tool Orchestration, Memory, Operations & Safety, Process Studio, Content Studio, or team sync):
+ *    - The seated employee instructs the dedicated Office Boy / Courier.
+ *    - The Office Boy moves to the employee's desk to receive the task instruction.
+ *    - The Office Boy navigates along office aisles, exits through the wall portal, crosses the
+ *      illuminated skybridge to the external tech platform, and interacts with the hardware console.
+ *    - The Office Boy walks back across the skybridge into the office, delivers the collected data
+ *      directly to the seated employee's desk, and returns to standby in the office corridor.
  */
 
-const WALK_SPEED = 2.85; // office floor units per second
-const REACT_DURATION_S = 0.32;
-const STAND_SIT_DURATION_S = 0.45;
-const COMPLETE_DURATION_S = 0.65;
-const MIN_INTERACT_HOLD_S = 1.35; // ensures rapid backend module calls remain visibly clear without faking tasks
+const RUNNER_WALK_SPEED = 4.8; // brisk athletic pace across office corridors & skybridges
+const MIN_INTERACT_HOLD_S = 1.5; // ensures physical module interaction is clearly visible
 
-const DELEGATION_COLOR = '#2563EB';
-const MODULE_COLOR = '#7C3AED';
+const DELEGATION_COLOR = '#38BDF8';
+const MODULE_COLOR = '#A855F7';
 
 function shortestAngleDiff(from: number, to: number): number {
   let diff = ((to - from + Math.PI) % (Math.PI * 2)) - Math.PI;
@@ -40,87 +50,123 @@ function shortestAngleDiff(from: number, to: number): number {
   return diff;
 }
 
-interface ActorRuntime {
-  phase: EmployeePhase;
-  phaseTime: number;
-  x: number;
-  y: number;
-  z: number;
-  yaw: number;
-  standBlend: number;
-  directive: TaskDirective | null;
-  waypoints: Point2D[];
-  waypointIndex: number;
-  interactHeldS: number;
-  completedBanner: string | null;
+interface AgentActivitySlot {
+  bridgeId: string | null;
+  zoneId: string | null;
 }
 
-const HumanEmployeeActor = memo(function HumanEmployeeActor({
-  id,
-  layout,
-  navGrid,
-  sharedPositions,
-  showLabels,
-  indexSeed,
-}: {
+function syncCampusActivity(
+  slots: Record<string, AgentActivitySlot>,
+  activityRef?: React.RefObject<CampusActivityRefs>,
+) {
+  const target = activityRef?.current;
+  if (!target) return;
+  target.activeBridges.clear();
+  target.activeZones.clear();
+  for (const s of Object.values(slots)) {
+    if (s.bridgeId) target.activeBridges.add(s.bridgeId);
+    if (s.zoneId) target.activeZones.add(s.zoneId);
+  }
+}
+
+function zoneRouteColor(layout: OfficeLayout, zoneId?: string): string {
+  if (!zoneId) return DELEGATION_COLOR;
+  const z = layout.externalZones.find((ez) => ez.id === zoneId);
+  return z?.accent ?? MODULE_COLOR;
+}
+
+export interface RunnerDispatch {
+  taskKey: string;
+  agentId: string;
+  agentName: string;
+  directive: TaskDirective;
+  status: 'pending' | 'in_transit' | 'interacting' | 'delivering' | 'delivered';
+  assignedRunnerId?: string;
+  updatedAt: number;
+}
+
+// Dedicated appearances for the agile Office Boy / Courier runners
+const RUNNER_APPEARANCES: EmployeeAppearance[] = [
+  {
+    skin: '#F0C7A6',
+    hair: '#1E1B18',
+    hairStyle: 'short',
+    top: '#0EA5E9', // vibrant tech courier cyan
+    jacket: '#1E293B', // dark slate service vest
+    pants: '#0F172A', // dark trousers
+    shoes: '#F8FAFC', // athletic white sneakers
+    hasGlasses: false,
+    idleStyle: 'reviewing',
+    displayFirstName: 'Leo',
+  },
+  {
+    skin: '#C8936D',
+    hair: '#111827',
+    hairStyle: 'fade',
+    top: '#6366F1', // indigo courier polo
+    jacket: '#18181B',
+    pants: '#1E293B',
+    shoes: '#E2E8F0',
+    hasGlasses: true,
+    idleStyle: 'reading',
+    displayFirstName: 'Sam',
+  },
+];
+
+// =========================================================================================
+// 1. SEATED EMPLOYEE ACTOR (Knowledge Worker - Stays Seated at Desk at All Times)
+// =========================================================================================
+
+interface SeatedEmployeeProps {
   id: string;
   layout: OfficeLayout;
-  navGrid: NavGrid;
-  sharedPositions: React.MutableRefObject<Record<string, Point2D>>;
   showLabels: boolean;
   indexSeed: number;
-}) {
+  runnerMissionsRef: React.MutableRefObject<Record<string, { runnerName: string; label: string; phase: string } | null>>;
+  recentDeliveriesRef: React.MutableRefObject<Record<string, { label: string; time: number }>>;
+}
+
+const SeatedEmployeeActor = memo(function SeatedEmployeeActor({
+  id,
+  layout,
+  showLabels,
+  indexSeed,
+  runnerMissionsRef,
+  recentDeliveriesRef,
+}: SeatedEmployeeProps) {
   const agent = useTelemetryStore((s) => s.agents[id]);
   const selected = useTelemetryStore((s) => s.selectedAgentId === id);
   const selectAgent = useTelemetryStore((s) => s.selectAgent);
 
   const appearance = useMemo(() => getEmployeeAppearance(id), [id]);
   const deskPos = layout.desks[id] ?? ([0, OFFICE_FLOOR_Y, 0] as Vec3);
-  const standPoint = layout.deskStandPoints[id] ?? ([deskPos[0], OFFICE_FLOOR_Y, deskPos[2] + 1.15] as Vec3);
   const deskYaw = layout.deskRotations[id] ?? Math.PI;
-  const chairPos: Vec3 = [deskPos[0], deskPos[1], deskPos[2] + 0.5];
+  // Exact seated position directly in the ergonomic desk chair
+  const chairPos = useMemo<Vec3>(() => [deskPos[0], deskPos[1], deskPos[2] + 0.5], [deskPos]);
 
   const groupRef = useRef<Group>(null);
   const [hovered, setHovered] = useState(false);
-  const [badgeState, setBadgeState] = useState<{
-    phase: EmployeePhase;
+
+  const [tagState, setTagState] = useState<{
+    statusText: string;
     taskLabel: string | null;
     completedLabel: string | null;
-    pathPoints: [number, number, number][] | null;
-    pathColor: string;
   }>({
-    phase: 'seated_idle',
+    statusText: 'Seated at workstation',
     taskLabel: null,
     completedLabel: null,
-    pathPoints: null,
-    pathColor: MODULE_COLOR,
-  });
-
-  const actor = useRef<ActorRuntime>({
-    phase: 'seated_idle',
-    phaseTime: 0,
-    x: chairPos[0],
-    y: chairPos[1],
-    z: chairPos[2],
-    yaw: deskYaw,
-    standBlend: 0,
-    directive: null,
-    waypoints: [],
-    waypointIndex: 0,
-    interactHeldS: 0,
-    completedBanner: null,
   });
 
   const poseRef = useRef<HumanPoseInput>({
     phase: 'seated_idle',
     activity: 'coding',
-    standBlend: 0,
+    standBlend: 0, // Permanently seated in chair (0 = seated)
     walkSpeed: 0,
     seed: indexSeed * 1.73,
     workingAtDesk: false,
   });
 
-  const lastBadgeKey = useRef('');
+  const lastTagKey = useRef('');
 
   useFrame((_, rawDelta) => {
     const dt = Math.min(rawDelta, 0.05);
@@ -128,10 +174,7 @@ const HumanEmployeeActor = memo(function HumanEmployeeActor({
     const liveAgent = store.agents[id];
     if (!liveAgent) return;
 
-    const a = actor.current;
-    a.phaseTime += dt;
-
-    // Resolve live backend task directive from real telemetry
+    // Resolve live directive
     const liveDirective = resolveEmployeeDirective(
       id,
       liveAgent,
@@ -143,219 +186,53 @@ const HumanEmployeeActor = memo(function HumanEmployeeActor({
       Date.now(),
     );
 
-    const needsWalkTo = (d: TaskDirective | null): d is TaskDirective =>
-      Boolean(d && (d.targetKind === 'station' || d.targetKind === 'meeting'));
+    // Active working states: thinking, running, tool_execution, waiting, or active directive
+    const isActivelyWorking =
+      liveAgent.state === 'thinking' ||
+      liveAgent.state === 'tool_execution' ||
+      liveAgent.state === 'running' ||
+      liveAgent.state === 'waiting' ||
+      Boolean(liveDirective);
 
-    // Handle live task assignment / reassignment / cancellation cleanly
-    if (needsWalkTo(liveDirective)) {
-      const sameTarget = a.directive && a.directive.targetId === liveDirective.targetId && a.directive.targetKind === liveDirective.targetKind;
-      if (!sameTarget) {
-        a.directive = liveDirective;
-        a.completedBanner = null;
-        a.interactHeldS = 0;
-        if (a.phase === 'seated_idle' || a.phase === 'sitting_down') {
-          a.phase = 'reacting';
-          a.phaseTime = 0;
-        } else {
-          // Already standing/walking/interacting -> smoothly reroute via A* directly to new resource
-          a.waypoints = findOfficePath(navGrid, [a.x, OFFICE_FLOOR_Y, a.z], liveDirective.destination);
-          a.waypointIndex = 0;
-          a.phase = 'walking_to_resource';
-          a.phaseTime = 0;
-        }
-      } else if (a.directive) {
-        // Keep updated label/activity while staying on the same resource
-        a.directive = liveDirective;
-      }
-    } else if (a.directive && needsWalkTo(a.directive)) {
-      // Backend finished the remote resource operation
-      if (a.phase === 'interacting' && a.interactHeldS >= MIN_INTERACT_HOLD_S) {
-        a.completedBanner = a.directive.label;
-        a.directive = null;
-        a.phase = 'completing';
-        a.phaseTime = 0;
-      } else if (a.phase === 'reacting' || a.phase === 'standing_up') {
-        // Task cancelled or finished before employee left desk -> sit back smoothly
-        a.directive = null;
-        a.phase = 'sitting_down';
-        a.phaseTime = 0;
-      }
-      // If currently walking_to_resource, let them arrive and briefly interact before completing so motion never snaps
+    // Knowledge worker types at desk keyboard & reviews monitor while seated
+    poseRef.current.standBlend = 0; // Strictly seated in chair
+    poseRef.current.phase = 'seated_idle';
+    poseRef.current.walkSpeed = 0;
+    poseRef.current.workingAtDesk = isActivelyWorking;
+    poseRef.current.activity = liveDirective?.activity ?? 'coding';
+
+    // Check if Office Boy runner is active for this agent
+    const activeMission = runnerMissionsRef.current[id];
+    const recentDelivery = recentDeliveriesRef.current[id];
+    const hasRecentDelivery = recentDelivery && Date.now() - recentDelivery.time < 5000;
+
+    let statusText = 'Seated at workstation';
+    let taskLabel: string | null = null;
+    let completedLabel: string | null = null;
+
+    if (activeMission) {
+      statusText = `Instructed ${activeMission.runnerName}`;
+      taskLabel = activeMission.label;
+    } else if (hasRecentDelivery) {
+      statusText = 'Received external data';
+      completedLabel = recentDelivery.label;
+    } else if (liveDirective?.targetKind === 'desk') {
+      statusText = 'Working at desk';
+      taskLabel = liveDirective.label;
+    } else if (liveAgent.state === 'thinking') {
+      statusText = 'Analyzing requirements';
+    } else if (liveAgent.state === 'tool_execution') {
+      statusText = 'Processing tool';
+    } else if (liveAgent.state === 'waiting') {
+      statusText = 'Awaiting input';
+    } else if (liveAgent.state === 'ready') {
+      statusText = 'Ready for assignment';
     }
 
-    let walkSpeedNorm = 0;
-
-    switch (a.phase) {
-      case 'seated_idle': {
-        a.x += (chairPos[0] - a.x) * Math.min(1, dt * 8);
-        a.y += (chairPos[1] - a.y) * Math.min(1, dt * 8);
-        a.z += (chairPos[2] - a.z) * Math.min(1, dt * 8);
-        a.yaw += shortestAngleDiff(a.yaw, deskYaw) * Math.min(1, dt * 8);
-        a.standBlend = Math.max(0, a.standBlend - dt * 3);
-        break;
-      }
-
-      case 'reacting': {
-        a.standBlend = Math.max(0, a.standBlend - dt * 2);
-        if (a.phaseTime >= REACT_DURATION_S) {
-          a.phase = 'standing_up';
-          a.phaseTime = 0;
-        }
-        break;
-      }
-
-      case 'standing_up': {
-        const p = Math.min(1, a.phaseTime / STAND_SIT_DURATION_S);
-        a.standBlend = p;
-        // Smoothly step out from chair onto desk stand point
-        a.x = chairPos[0] + (standPoint[0] - chairPos[0]) * p;
-        a.y = chairPos[1] + (standPoint[1] - chairPos[1]) * p;
-        a.z = chairPos[2] + (standPoint[2] - chairPos[2]) * p;
-        if (p >= 1) {
-          if (a.directive && needsWalkTo(a.directive)) {
-            a.waypoints = findOfficePath(navGrid, [a.x, OFFICE_FLOOR_Y, a.z], a.directive.destination);
-            a.waypointIndex = 0;
-            a.phase = 'walking_to_resource';
-            a.phaseTime = 0;
-          } else {
-            a.phase = 'sitting_down';
-            a.phaseTime = 0;
-          }
-        }
-        break;
-      }
-
-      case 'walking_to_resource':
-      case 'walking_back': {
-        a.standBlend = 1;
-        a.y += (OFFICE_FLOOR_Y - a.y) * Math.min(1, dt * 10);
-        const wp = a.waypoints[a.waypointIndex];
-        if (!wp) {
-          if (a.phase === 'walking_to_resource') {
-            a.phase = 'interacting';
-            a.phaseTime = 0;
-            a.interactHeldS = 0;
-          } else {
-            a.phase = 'sitting_down';
-            a.phaseTime = 0;
-          }
-          break;
-        }
-        const dx = wp.x - a.x;
-        const dz = wp.z - a.z;
-        const dist = Math.hypot(dx, dz);
-        if (dist < 0.14) {
-          a.waypointIndex += 1;
-          if (a.waypointIndex >= a.waypoints.length) {
-            if (a.phase === 'walking_to_resource') {
-              a.phase = 'interacting';
-              a.phaseTime = 0;
-              a.interactHeldS = 0;
-            } else {
-              a.phase = 'sitting_down';
-              a.phaseTime = 0;
-            }
-          }
-          break;
-        }
-
-        // Pairwise collision avoidance with other walking/standing employees
-        const avoid = computeAvoidanceOffset(id, { x: a.x, z: a.z }, sharedPositions.current);
-        const dirX = dx / dist + avoid.x;
-        const dirZ = dz / dist + avoid.z;
-        const mag = Math.hypot(dirX, dirZ) || 1;
-        const step = Math.min(dist, WALK_SPEED * dt);
-        a.x += (dirX / mag) * step;
-        a.z += (dirZ / mag) * step;
-
-        const targetYaw = Math.atan2(dirX, dirZ);
-        a.yaw += shortestAngleDiff(a.yaw, targetYaw) * Math.min(1, dt * 10);
-        walkSpeedNorm = Math.min(1, step / Math.max(0.001, WALK_SPEED * dt));
-        break;
-      }
-
-      case 'interacting': {
-        a.standBlend = 1;
-        a.interactHeldS += dt;
-        if (a.directive) {
-          a.x += (a.directive.destination[0] - a.x) * Math.min(1, dt * 6);
-          a.z += (a.directive.destination[2] - a.z) * Math.min(1, dt * 6);
-          a.yaw += shortestAngleDiff(a.yaw, a.directive.facingYaw) * Math.min(1, dt * 8);
-        }
-        // Complete once backend finishes AND minimum readable interaction window elapsed
-        const stillSameRemote =
-          liveDirective &&
-          a.directive &&
-          liveDirective.targetId === a.directive.targetId &&
-          liveDirective.targetKind === a.directive.targetKind;
-        if (!stillSameRemote && a.interactHeldS >= MIN_INTERACT_HOLD_S) {
-          a.completedBanner = a.directive?.label ?? 'Task done';
-          a.directive = null;
-          a.phase = 'completing';
-          a.phaseTime = 0;
-        }
-        break;
-      }
-
-      case 'completing': {
-        a.standBlend = 1;
-        if (a.phaseTime >= COMPLETE_DURATION_S) {
-          a.completedBanner = null;
-          a.waypoints = findOfficePath(navGrid, [a.x, OFFICE_FLOOR_Y, a.z], standPoint);
-          a.waypointIndex = 0;
-          a.phase = 'walking_back';
-          a.phaseTime = 0;
-        }
-        break;
-      }
-
-      case 'sitting_down': {
-        const p = Math.min(1, a.phaseTime / STAND_SIT_DURATION_S);
-        a.standBlend = 1 - p;
-        a.x = standPoint[0] + (chairPos[0] - standPoint[0]) * p;
-        a.y = standPoint[1] + (chairPos[1] - standPoint[1]) * p;
-        a.z = standPoint[2] + (chairPos[2] - standPoint[2]) * p;
-        a.yaw += shortestAngleDiff(a.yaw, deskYaw) * Math.min(1, dt * 10);
-        if (p >= 1) {
-          a.phase = 'seated_idle';
-          a.phaseTime = 0;
-        }
-        break;
-      }
-    }
-
-    // Publish live floor coordinates for multi-employee collision avoidance
-    sharedPositions.current[id] = { x: a.x, z: a.z };
-
-    if (groupRef.current) {
-      groupRef.current.position.set(a.x, a.y, a.z);
-      groupRef.current.rotation.y = a.yaw;
-    }
-
-    // Update pose ref (zero React re-renders)
-    const workingAtDesk = Boolean(liveDirective && liveDirective.targetKind === 'desk');
-    poseRef.current.phase = a.phase;
-    poseRef.current.activity = a.directive?.activity ?? liveDirective?.activity ?? 'coding';
-    poseRef.current.standBlend = a.standBlend;
-    poseRef.current.walkSpeed = walkSpeedNorm;
-    poseRef.current.workingAtDesk = workingAtDesk;
-
-    // Sync lightweight UI badge/path state only when phase or label changes
-    const taskLabel = a.directive?.label ?? (workingAtDesk ? liveDirective?.label ?? null : null);
-    const showPath = a.phase === 'walking_to_resource' || a.phase === 'walking_back';
-    const badgeKey = `${a.phase}|${taskLabel ?? ''}|${a.completedBanner ?? ''}|${showPath ? a.waypoints.length : 0}`;
-    if (badgeKey !== lastBadgeKey.current) {
-      lastBadgeKey.current = badgeKey;
-      setBadgeState({
-        phase: a.phase,
-        taskLabel,
-        completedLabel: a.completedBanner,
-        pathPoints:
-          showPath && a.waypoints.length >= 2
-            ? a.waypoints.map((pt) => [pt.x, OFFICE_FLOOR_Y + 0.035, pt.z])
-            : null,
-        pathColor: a.directive?.targetKind === 'meeting' ? DELEGATION_COLOR : MODULE_COLOR,
-      });
+    const tagKey = `${statusText}|${taskLabel ?? ''}|${completedLabel ?? ''}`;
+    if (tagKey !== lastTagKey.current) {
+      lastTagKey.current = tagKey;
+      setTagState({ statusText, taskLabel, completedLabel });
     }
   });
 
@@ -363,7 +240,6 @@ const HumanEmployeeActor = memo(function HumanEmployeeActor({
   const style = STATE_STYLES[agent.state];
   const role = agentRole(id);
   const isWorking =
-    badgeState.phase !== 'seated_idle' ||
     agent.state === 'thinking' ||
     agent.state === 'tool_execution' ||
     agent.state === 'running' ||
@@ -381,75 +257,604 @@ const HumanEmployeeActor = memo(function HumanEmployeeActor({
   };
 
   return (
+    <group
+      ref={groupRef}
+      position={chairPos}
+      rotation={[0, deskYaw, 0]}
+      onClick={onClick}
+      onDoubleClick={onClick}
+      onPointerOver={hover(true)}
+      onPointerOut={hover(false)}
+    >
+      <HumanCharacter appearance={appearance} poseRef={poseRef} />
+
+      {/* Floating agent status card unhiding employee face and body */}
+      {showTag && (
+        <Html position={[0, 2.95, 0]} center distanceFactor={14} zIndexRange={[25, 0]} style={{ pointerEvents: 'none' }}>
+          <div
+            className={`office-tag relative flex min-w-[158px] max-w-[245px] flex-col rounded-xl border px-2.5 py-1.5 shadow-xl backdrop-blur-md transition-all ${
+              selected
+                ? 'border-blue-500/90 dark:border-blue-400/90 bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-slate-100 shadow-blue-500/15'
+                : 'border-stone-300/90 dark:border-slate-700/80 bg-white/92 dark:bg-slate-900/90 text-slate-800 dark:text-slate-100'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="truncate text-[11.5px] font-semibold text-slate-900 dark:text-white">
+                {appearance.displayFirstName} · <span className="font-mono text-[10.5px] text-slate-600 dark:text-slate-400">{agent.id}</span>
+              </span>
+              <span className="rounded bg-stone-100 dark:bg-slate-800 px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wider text-stone-600 dark:text-slate-300">
+                {role}
+              </span>
+            </div>
+            <div className="mt-0.5 flex items-center justify-between gap-2 text-[10.5px]">
+              <span className="flex items-center gap-1 font-medium text-slate-800 dark:text-slate-200">
+                <span className="h-1.5 w-1.5 rounded-full" style={{ background: style.color }} />
+                {tagState.statusText}
+              </span>
+              <span className="font-mono text-[9.5px] text-slate-500 dark:text-slate-400">
+                {agent.toolCallCount} tools · {formatCount(agent.tokens.total)} tok
+              </span>
+            </div>
+            {(tagState.taskLabel || tagState.completedLabel) && (
+              <div
+                className={`mt-0.5 truncate border-t border-stone-200 dark:border-slate-700/70 pt-0.5 font-mono text-[9.5px] ${
+                  tagState.completedLabel ? 'font-semibold text-emerald-700 dark:text-emerald-400' : 'text-blue-700 dark:text-cyan-400'
+                }`}
+              >
+                {tagState.completedLabel ? `✓ ${tagState.completedLabel}` : `→ ${tagState.taskLabel}`}
+              </div>
+            )}
+            {/* Downward indicator pointer to employee head */}
+            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 h-0 w-0 border-x-4 border-x-transparent border-t-4 border-t-stone-300 dark:border-t-slate-700" />
+          </div>
+        </Html>
+      )}
+    </group>
+  );
+});
+
+// =========================================================================================
+// 2. OFFICE BOY / COURIER RUNNER ACTOR (Handles physical dispatches, bridges, and delivery)
+// =========================================================================================
+
+type RunnerPhase =
+  | 'standby'
+  | 'walking_to_desk'
+  | 'receiving_instruction'
+  | 'walking_to_resource'
+  | 'interacting'
+  | 'walking_to_delivery'
+  | 'delivering'
+  | 'returning_to_standby';
+
+interface RunnerActorProps {
+  runnerId: string;
+  appearance: EmployeeAppearance;
+  standbyPos: Vec3;
+  layout: OfficeLayout;
+  navGrid: NavGrid;
+  sharedPositions: React.MutableRefObject<Record<string, Point2D>>;
+  activitySlots: React.MutableRefObject<Record<string, AgentActivitySlot>>;
+  activityRef?: React.RefObject<CampusActivityRefs>;
+  dispatchesRef: React.MutableRefObject<Record<string, RunnerDispatch>>;
+  runnerMissionsRef: React.MutableRefObject<Record<string, { runnerName: string; label: string; phase: string } | null>>;
+  recentDeliveriesRef: React.MutableRefObject<Record<string, { label: string; time: number }>>;
+  laneOffset: number;
+}
+
+const OfficeRunnerActor = memo(function OfficeRunnerActor({
+  runnerId,
+  appearance,
+  standbyPos,
+  layout,
+  navGrid,
+  sharedPositions,
+  activitySlots,
+  activityRef,
+  dispatchesRef,
+  runnerMissionsRef,
+  recentDeliveriesRef,
+  laneOffset,
+}: RunnerActorProps) {
+  const groupRef = useRef<Group>(null);
+  const [hovered, setHovered] = useState(false);
+
+  const [badgeState, setBadgeState] = useState<{
+    phase: RunnerPhase;
+    statusText: string;
+    missionLabel: string | null;
+    pathPoints: [number, number, number][] | null;
+    pathColor: string;
+  }>({
+    phase: 'standby',
+    statusText: 'Standby in office',
+    missionLabel: null,
+    pathPoints: null,
+    pathColor: DELEGATION_COLOR,
+  });
+
+  const actor = useRef<{
+    phase: RunnerPhase;
+    phaseTime: number;
+    x: number;
+    y: number;
+    z: number;
+    yaw: number;
+    standBlend: number;
+    activeDispatch: RunnerDispatch | null;
+    waypoints: Waypoint3D[];
+    waypointIndex: number;
+    interactHeldS: number;
+    activeBridgeId: string | null;
+    activeZoneId: string | null;
+  }>({
+    phase: 'standby',
+    phaseTime: 0,
+    x: standbyPos[0],
+    y: standbyPos[1],
+    z: standbyPos[2],
+    yaw: Math.PI,
+    standBlend: 1, // Standing upright on floor
+    activeDispatch: null,
+    waypoints: [],
+    waypointIndex: 0,
+    interactHeldS: 0,
+    activeBridgeId: null,
+    activeZoneId: null,
+  });
+
+  const poseRef = useRef<HumanPoseInput>({
+    phase: 'seated_idle',
+    activity: 'coding',
+    standBlend: 1, // Always on feet
+    walkSpeed: 0,
+    seed: 42.5,
+    workingAtDesk: false,
+  });
+
+  const lastBadgeKey = useRef('');
+
+  useEffect(
+    () => () => {
+      delete sharedPositions.current[runnerId];
+      delete activitySlots.current[runnerId];
+      syncCampusActivity(activitySlots.current, activityRef);
+    },
+    [runnerId, sharedPositions, activitySlots, activityRef],
+  );
+
+  useFrame((_, rawDelta) => {
+    const dt = Math.min(rawDelta, 0.05);
+    const a = actor.current;
+    a.phaseTime += dt;
+
+    let walkSpeedNorm = 0;
+    let currentBridgeId: string | null = null;
+    let currentZoneId: string | null = null;
+
+    // -------------------------------------------------------------------------------------
+    // Runner State Machine: Standby -> Instruction -> Bridge Transit -> Module -> Delivery
+    // -------------------------------------------------------------------------------------
+    switch (a.phase) {
+      case 'standby': {
+        a.x += (standbyPos[0] - a.x) * Math.min(1, dt * 6);
+        a.y += (standbyPos[1] - a.y) * Math.min(1, dt * 8);
+        a.z += (standbyPos[2] - a.z) * Math.min(1, dt * 6);
+        a.yaw += shortestAngleDiff(a.yaw, Math.PI) * Math.min(1, dt * 6);
+        a.standBlend = 1;
+
+        // Check if there is an unassigned pending dispatch from any seated employee
+        const pendingKey = Object.keys(dispatchesRef.current).find(
+          (k) => dispatchesRef.current[k].status === 'pending',
+        );
+
+        if (pendingKey) {
+          const dispatch = dispatchesRef.current[pendingKey];
+          dispatch.status = 'in_transit';
+          dispatch.assignedRunnerId = runnerId;
+          dispatch.updatedAt = Date.now();
+          a.activeDispatch = dispatch;
+
+          // Notify employee of runner assignment
+          runnerMissionsRef.current[dispatch.agentId] = {
+            runnerName: appearance.displayFirstName,
+            label: dispatch.directive.label,
+            phase: 'dispatched',
+          };
+
+          const deskStand = layout.deskStandPoints[dispatch.agentId] ?? [0, OFFICE_FLOOR_Y, 0];
+          const distToDesk = Math.hypot(deskStand[0] - a.x, deskStand[2] - a.z);
+
+          if (distToDesk < 0.6) {
+            a.phase = 'receiving_instruction';
+            a.phaseTime = 0;
+          } else {
+            a.waypoints = findOfficePath(navGrid, [a.x, a.y, a.z], deskStand, laneOffset);
+            a.waypointIndex = 0;
+            a.phase = 'walking_to_desk';
+            a.phaseTime = 0;
+          }
+        }
+        break;
+      }
+
+      case 'walking_to_desk': {
+        a.standBlend = 1;
+        const wp = a.waypoints[a.waypointIndex];
+        if (!wp) {
+          a.phase = 'receiving_instruction';
+          a.phaseTime = 0;
+          break;
+        }
+
+        const dx = wp.x - a.x;
+        const dz = wp.z - a.z;
+        const dist = Math.hypot(dx, dz);
+        if (dist < 0.18) {
+          a.y = wp.y;
+          a.waypointIndex += 1;
+          if (a.waypointIndex >= a.waypoints.length) {
+            a.phase = 'receiving_instruction';
+            a.phaseTime = 0;
+          }
+          break;
+        }
+
+        const avoid = computeAvoidanceOffset(runnerId, { x: a.x, z: a.z }, sharedPositions.current, 0.88, false);
+        const dirX = dx / dist + avoid.x;
+        const dirZ = dz / dist + avoid.z;
+        const mag = Math.hypot(dirX, dirZ) || 1;
+        const step = Math.min(dist, RUNNER_WALK_SPEED * dt);
+        a.x += (dirX / mag) * step;
+        a.z += (dirZ / mag) * step;
+        a.y += (wp.y - a.y) * Math.min(1, dt * 10);
+
+        const targetYaw = Math.atan2(dirX, dirZ);
+        a.yaw += shortestAngleDiff(a.yaw, targetYaw) * Math.min(1, dt * 11);
+        walkSpeedNorm = Math.min(1, step / Math.max(0.001, RUNNER_WALK_SPEED * dt));
+        break;
+      }
+
+      case 'receiving_instruction': {
+        a.standBlend = 1;
+        if (a.activeDispatch) {
+          const deskPos = layout.desks[a.activeDispatch.agentId];
+          if (deskPos) {
+            const chairPos: Vec3 = [deskPos[0], deskPos[1], deskPos[2] + 0.5];
+            const targetYaw = Math.atan2(chairPos[0] - a.x, chairPos[2] - a.z);
+            a.yaw += shortestAngleDiff(a.yaw, targetYaw) * Math.min(1, dt * 10);
+          }
+        }
+
+        // Brief handover pause (~0.35s) receiving task assignment at the desk
+        if (a.phaseTime >= 0.35) {
+          if (a.activeDispatch) {
+            a.waypoints = findOfficePath(
+              navGrid,
+              [a.x, a.y, a.z],
+              a.activeDispatch.directive.destination,
+              laneOffset,
+            );
+            a.waypointIndex = 0;
+            a.phase = 'walking_to_resource';
+            a.phaseTime = 0;
+          } else {
+            a.phase = 'returning_to_standby';
+            a.phaseTime = 0;
+          }
+        }
+        break;
+      }
+
+      case 'walking_to_resource': {
+        a.standBlend = 1;
+        currentBridgeId = a.waypoints.find((w) => w.bridgeId)?.bridgeId ?? null;
+        if (a.activeDispatch?.directive.zoneId) {
+          currentZoneId = a.activeDispatch.directive.zoneId;
+        }
+
+        const wp = a.waypoints[a.waypointIndex];
+        if (!wp) {
+          a.phase = 'interacting';
+          a.phaseTime = 0;
+          a.interactHeldS = 0;
+          break;
+        }
+
+        const dx = wp.x - a.x;
+        const dz = wp.z - a.z;
+        const dist = Math.hypot(dx, dz);
+        if (dist < 0.18) {
+          a.y = wp.y;
+          a.waypointIndex += 1;
+          if (a.waypointIndex >= a.waypoints.length) {
+            a.phase = 'interacting';
+            a.phaseTime = 0;
+            a.interactHeldS = 0;
+          }
+          break;
+        }
+
+        const onBridge = Boolean(wp.bridgeId);
+        const avoid = computeAvoidanceOffset(runnerId, { x: a.x, z: a.z }, sharedPositions.current, 0.88, onBridge);
+        const dirX = dx / dist + avoid.x;
+        const dirZ = dz / dist + avoid.z;
+        const mag = Math.hypot(dirX, dirZ) || 1;
+        const step = Math.min(dist, RUNNER_WALK_SPEED * dt);
+        a.x += (dirX / mag) * step;
+        a.z += (dirZ / mag) * step;
+
+        const frac = Math.min(1, step / Math.max(0.001, dist));
+        a.y += (wp.y - a.y) * Math.max(frac, Math.min(1, dt * 10));
+
+        const targetYaw = Math.atan2(dirX, dirZ);
+        a.yaw += shortestAngleDiff(a.yaw, targetYaw) * Math.min(1, dt * 11);
+        walkSpeedNorm = Math.min(1, step / Math.max(0.001, RUNNER_WALK_SPEED * dt));
+        break;
+      }
+
+      case 'interacting': {
+        a.standBlend = 1;
+        a.interactHeldS += dt;
+        if (a.activeDispatch) {
+          currentZoneId = a.activeDispatch.directive.zoneId ?? null;
+          a.x += (a.activeDispatch.directive.destination[0] - a.x) * Math.min(1, dt * 6);
+          a.y += (a.activeDispatch.directive.destination[1] - a.y) * Math.min(1, dt * 8);
+          a.z += (a.activeDispatch.directive.destination[2] - a.z) * Math.min(1, dt * 6);
+          a.yaw += shortestAngleDiff(a.yaw, a.activeDispatch.directive.facingYaw) * Math.min(1, dt * 8);
+        }
+
+        // Complete data collection after holding for minimum interaction duration
+        if (a.interactHeldS >= MIN_INTERACT_HOLD_S) {
+          if (a.activeDispatch) {
+            const deskStand = layout.deskStandPoints[a.activeDispatch.agentId] ?? [0, OFFICE_FLOOR_Y, 0];
+            a.waypoints = findOfficePath(navGrid, [a.x, a.y, a.z], deskStand, -laneOffset);
+            a.waypointIndex = 0;
+            a.phase = 'walking_to_delivery';
+            a.phaseTime = 0;
+          } else {
+            a.phase = 'returning_to_standby';
+            a.phaseTime = 0;
+          }
+        }
+        break;
+      }
+
+      case 'walking_to_delivery': {
+        a.standBlend = 1;
+        currentBridgeId = a.waypoints.find((w) => w.bridgeId)?.bridgeId ?? null;
+        if (a.activeDispatch?.directive.zoneId) {
+          currentZoneId = a.activeDispatch.directive.zoneId;
+        }
+
+        const wp = a.waypoints[a.waypointIndex];
+        if (!wp) {
+          a.phase = 'delivering';
+          a.phaseTime = 0;
+          break;
+        }
+
+        const dx = wp.x - a.x;
+        const dz = wp.z - a.z;
+        const dist = Math.hypot(dx, dz);
+        if (dist < 0.18) {
+          a.y = wp.y;
+          a.waypointIndex += 1;
+          if (a.waypointIndex >= a.waypoints.length) {
+            a.phase = 'delivering';
+            a.phaseTime = 0;
+          }
+          break;
+        }
+
+        const onBridge = Boolean(wp.bridgeId);
+        const avoid = computeAvoidanceOffset(runnerId, { x: a.x, z: a.z }, sharedPositions.current, 0.88, onBridge);
+        const dirX = dx / dist + avoid.x;
+        const dirZ = dz / dist + avoid.z;
+        const mag = Math.hypot(dirX, dirZ) || 1;
+        const step = Math.min(dist, RUNNER_WALK_SPEED * dt);
+        a.x += (dirX / mag) * step;
+        a.z += (dirZ / mag) * step;
+
+        const frac = Math.min(1, step / Math.max(0.001, dist));
+        a.y += (wp.y - a.y) * Math.max(frac, Math.min(1, dt * 10));
+
+        const targetYaw = Math.atan2(dirX, dirZ);
+        a.yaw += shortestAngleDiff(a.yaw, targetYaw) * Math.min(1, dt * 11);
+        walkSpeedNorm = Math.min(1, step / Math.max(0.001, RUNNER_WALK_SPEED * dt));
+        break;
+      }
+
+      case 'delivering': {
+        a.standBlend = 1;
+        if (a.activeDispatch) {
+          const deskPos = layout.desks[a.activeDispatch.agentId];
+          if (deskPos) {
+            const chairPos: Vec3 = [deskPos[0], deskPos[1], deskPos[2] + 0.5];
+            const targetYaw = Math.atan2(chairPos[0] - a.x, chairPos[2] - a.z);
+            a.yaw += shortestAngleDiff(a.yaw, targetYaw) * Math.min(1, dt * 10);
+          }
+
+          // Mark dispatch delivered and register completion for the seated employee
+          a.activeDispatch.status = 'delivered';
+          recentDeliveriesRef.current[a.activeDispatch.agentId] = {
+            label: a.activeDispatch.directive.label,
+            time: Date.now(),
+          };
+          runnerMissionsRef.current[a.activeDispatch.agentId] = null;
+        }
+
+        // Stand before the seated employee for ~0.7s handing over the data packet
+        if (a.phaseTime >= 0.7) {
+          a.waypoints = findOfficePath(navGrid, [a.x, a.y, a.z], standbyPos, 0);
+          a.waypointIndex = 0;
+          a.phase = 'returning_to_standby';
+          a.phaseTime = 0;
+          a.activeDispatch = null;
+        }
+        break;
+      }
+
+      case 'returning_to_standby': {
+        a.standBlend = 1;
+        const wp = a.waypoints[a.waypointIndex];
+        if (!wp) {
+          a.phase = 'standby';
+          a.phaseTime = 0;
+          break;
+        }
+
+        const dx = wp.x - a.x;
+        const dz = wp.z - a.z;
+        const dist = Math.hypot(dx, dz);
+        if (dist < 0.22) {
+          a.y = wp.y;
+          a.waypointIndex += 1;
+          if (a.waypointIndex >= a.waypoints.length) {
+            a.phase = 'standby';
+            a.phaseTime = 0;
+          }
+          break;
+        }
+
+        const avoid = computeAvoidanceOffset(runnerId, { x: a.x, z: a.z }, sharedPositions.current, 0.88, false);
+        const dirX = dx / dist + avoid.x;
+        const dirZ = dz / dist + avoid.z;
+        const mag = Math.hypot(dirX, dirZ) || 1;
+        const step = Math.min(dist, RUNNER_WALK_SPEED * dt);
+        a.x += (dirX / mag) * step;
+        a.z += (dirZ / mag) * step;
+        a.y += (wp.y - a.y) * Math.min(1, dt * 10);
+
+        const targetYaw = Math.atan2(dirX, dirZ);
+        a.yaw += shortestAngleDiff(a.yaw, targetYaw) * Math.min(1, dt * 11);
+        walkSpeedNorm = Math.min(1, step / Math.max(0.001, RUNNER_WALK_SPEED * dt));
+        break;
+      }
+    }
+
+    // Publish runner position for collision avoidance
+    sharedPositions.current[runnerId] = { x: a.x, z: a.z };
+
+    // Synchronize bridge & platform illumination via activitySlots
+    if (a.activeBridgeId !== currentBridgeId || a.activeZoneId !== currentZoneId) {
+      a.activeBridgeId = currentBridgeId;
+      a.activeZoneId = currentZoneId;
+      activitySlots.current[runnerId] = { bridgeId: currentBridgeId, zoneId: currentZoneId };
+      syncCampusActivity(activitySlots.current, activityRef);
+    }
+
+    if (groupRef.current) {
+      groupRef.current.position.set(a.x, a.y, a.z);
+      groupRef.current.rotation.y = a.yaw;
+    }
+
+    // Update runner articulation pose
+    const isWalking =
+      a.phase === 'walking_to_desk' ||
+      a.phase === 'walking_to_resource' ||
+      a.phase === 'walking_to_delivery' ||
+      a.phase === 'returning_to_standby';
+
+    poseRef.current.phase = isWalking ? 'walking_to_resource' : a.phase === 'interacting' ? 'interacting' : 'seated_idle';
+    poseRef.current.activity = a.activeDispatch?.directive.activity ?? 'research';
+    poseRef.current.standBlend = 1;
+    poseRef.current.walkSpeed = walkSpeedNorm;
+    poseRef.current.workingAtDesk = false;
+
+    // Derived status text for runner floating badge
+    let statusText = 'Standby in office';
+    let missionLabel: string | null = null;
+    if (a.phase === 'walking_to_desk') {
+      statusText = `Dispatched to ${a.activeDispatch?.agentName ?? 'Desk'}`;
+      missionLabel = 'Receiving assignment';
+    } else if (a.phase === 'receiving_instruction') {
+      statusText = `Briefing with ${a.activeDispatch?.agentName ?? 'Agent'}`;
+      missionLabel = a.activeDispatch?.directive.label ?? null;
+    } else if (a.phase === 'walking_to_resource') {
+      statusText = a.activeDispatch?.directive.travelLabel ?? 'Crossing skybridge';
+      missionLabel = a.activeDispatch?.directive.label ?? null;
+    } else if (a.phase === 'interacting') {
+      statusText = a.activeDispatch?.directive.interactLabel ?? 'Collecting data';
+      missionLabel = a.activeDispatch?.directive.label ?? null;
+    } else if (a.phase === 'walking_to_delivery') {
+      statusText = `Delivering to ${a.activeDispatch?.agentName ?? 'Desk'}`;
+      missionLabel = a.activeDispatch?.directive.label ?? null;
+    } else if (a.phase === 'delivering') {
+      statusText = `Handing data to ${a.activeDispatch?.agentName ?? 'Agent'}`;
+      missionLabel = 'Task complete';
+    } else if (a.phase === 'returning_to_standby') {
+      statusText = 'Returning to standby';
+    }
+
+    const showPath = (a.phase === 'walking_to_resource' || a.phase === 'walking_to_delivery') && a.waypoints.length >= 2;
+    const pathColor =
+      a.activeDispatch?.directive.targetKind === 'meeting'
+        ? DELEGATION_COLOR
+        : zoneRouteColor(layout, a.activeDispatch?.directive.zoneId ?? currentZoneId ?? undefined);
+
+    const badgeKey = `${a.phase}|${statusText}|${missionLabel ?? ''}|${showPath ? a.waypoints.length : 0}|${pathColor}`;
+    if (badgeKey !== lastBadgeKey.current) {
+      lastBadgeKey.current = badgeKey;
+      setBadgeState({
+        phase: a.phase,
+        statusText,
+        missionLabel,
+        pathPoints: showPath ? a.waypoints.map((pt) => [pt.x, pt.y + 0.06, pt.z]) : null,
+        pathColor,
+      });
+    }
+  });
+
+  const showRunnerTag = hovered || badgeState.phase !== 'standby';
+
+  return (
     <group>
-      {/* Subtle floor walking-path breadcrumb shown only while employee is actively walking to a real task */}
+      {/* Illuminated 3D route ribbon following runner's path along corridor and skybridge */}
       {badgeState.pathPoints && (
         <Line
           points={badgeState.pathPoints}
           color={badgeState.pathColor}
-          lineWidth={2}
+          lineWidth={2.8}
           dashed
-          dashSize={0.28}
-          gapSize={0.18}
+          dashSize={0.38}
+          gapSize={0.2}
           transparent
-          opacity={0.55}
+          opacity={0.88}
         />
       )}
 
       <group
         ref={groupRef}
-        position={chairPos}
-        rotation={[0, deskYaw, 0]}
-        onClick={onClick}
-        onDoubleClick={onClick}
-        onPointerOver={hover(true)}
-        onPointerOut={hover(false)}
+        position={standbyPos}
+        rotation={[0, Math.PI, 0]}
+        onPointerOver={() => setHovered(true)}
+        onPointerOut={() => setHovered(false)}
       >
         <HumanCharacter appearance={appearance} poseRef={poseRef} />
 
-        {showTag && (
-          <Html position={[0, 1.88, 0]} center distanceFactor={12} zIndexRange={[25, 0]} style={{ pointerEvents: 'none' }}>
-            <div
-              className={`office-tag flex min-w-[146px] max-w-[220px] flex-col rounded-xl border px-2.5 py-1.5 shadow-lg backdrop-blur-md transition-all ${
-                selected
-                  ? 'border-blue-500/80 bg-white/95 text-slate-900'
-                  : 'border-stone-300/90 bg-white/92 text-slate-800'
-              }`}
-            >
+        {/* Floating badge for Office Boy / Courier */}
+        {showRunnerTag && (
+          <Html position={[0, 2.45, 0]} center distanceFactor={14} zIndexRange={[25, 0]} style={{ pointerEvents: 'none' }}>
+            <div className="office-tag relative flex min-w-[145px] max-w-[230px] flex-col rounded-xl border border-sky-400/80 dark:border-sky-500/80 bg-white/95 dark:bg-slate-900/95 px-2.5 py-1.5 text-slate-800 dark:text-slate-100 shadow-xl backdrop-blur-md transition-all">
               <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-[11.5px] font-semibold text-slate-900">
-                  {appearance.displayFirstName} · <span className="font-mono text-[10.5px] text-slate-600">{agent.id}</span>
+                <span className="truncate text-[11px] font-bold text-sky-800 dark:text-sky-300">
+                  🏃 {appearance.displayFirstName}
                 </span>
-                <span className="rounded bg-stone-100 px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wider text-stone-600">
-                  {role}
-                </span>
-              </div>
-              <div className="mt-0.5 flex items-center justify-between gap-2 text-[10.5px]">
-                <span className="flex items-center gap-1 font-medium text-slate-700">
-                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: style.color }} />
-                  {badgeState.phase === 'walking_to_resource'
-                    ? 'Walking to resource'
-                    : badgeState.phase === 'interacting'
-                      ? 'Working at resource'
-                      : badgeState.phase === 'completing'
-                        ? 'Completed'
-                        : badgeState.phase === 'walking_back'
-                          ? 'Returning to desk'
-                          : style.label}
-                </span>
-                <span className="font-mono text-[9.5px] text-slate-500">
-                  {agent.toolCallCount} tools · {formatCount(agent.tokens.total)} tok
+                <span className="rounded bg-sky-100 dark:bg-sky-950/80 px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wider text-sky-700 dark:text-sky-300">
+                  OFFICE RUNNER
                 </span>
               </div>
-              {(badgeState.taskLabel || badgeState.completedLabel) && (
-                <div
-                  className={`mt-0.5 truncate border-t border-stone-200 pt-0.5 font-mono text-[9.5px] ${
-                    badgeState.completedLabel ? 'font-semibold text-emerald-700' : 'text-blue-700'
-                  }`}
-                >
-                  {badgeState.completedLabel ? `✓ ${badgeState.completedLabel}` : `→ ${badgeState.taskLabel}`}
+              <div className="mt-0.5 text-[10px] font-medium text-slate-700 dark:text-slate-200">
+                {badgeState.statusText}
+              </div>
+              {badgeState.missionLabel && (
+                <div className="mt-0.5 truncate border-t border-stone-200 dark:border-slate-700/70 pt-0.5 font-mono text-[9px] text-cyan-700 dark:text-cyan-300">
+                  {badgeState.missionLabel}
                 </div>
               )}
+              {/* Downward indicator pointer */}
+              <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 h-0 w-0 border-x-4 border-x-transparent border-t-4 border-t-sky-400 dark:border-t-sky-500" />
             </div>
           </Html>
         )}
@@ -458,31 +863,137 @@ const HumanEmployeeActor = memo(function HumanEmployeeActor({
   );
 });
 
-function EmployeeWorkforceImpl({ layout, showLabels = false }: { layout: OfficeLayout; showLabels?: boolean }) {
+// =========================================================================================
+// 3. WORKFORCE CONTROLLER (Orchestrates Seated Employees + Dedicated Office Runners)
+// =========================================================================================
+
+function EmployeeWorkforceImpl({
+  layout,
+  activityRef,
+  showLabels = false,
+}: {
+  layout: OfficeLayout;
+  activityRef?: React.RefObject<CampusActivityRefs>;
+  showLabels?: boolean;
+}) {
   const navGrid = useMemo(() => buildNavGrid(layout), [layout]);
   const sharedPositions = useRef<Record<string, Point2D>>({});
+  const activitySlots = useRef<Record<string, AgentActivitySlot>>({});
   const agentIds = useMemo(() => Object.keys(layout.desks), [layout.desks]);
+
+  // Shared dispatches queue and status registers
+  const dispatchesRef = useRef<Record<string, RunnerDispatch>>({});
+  const runnerMissionsRef = useRef<Record<string, { runnerName: string; label: string; phase: string } | null>>({});
+  const recentDeliveriesRef = useRef<Record<string, { label: string; time: number }>>({});
+
+  // Dynamic dispatch detection: Seated employees dispatch tasks to Office Boy runners
+  useFrame(() => {
+    const store = useTelemetryStore.getState();
+    const now = Date.now();
+
+    for (const agentId of agentIds) {
+      const liveAgent = store.agents[agentId];
+      if (!liveAgent) continue;
+
+      const liveDirective = resolveEmployeeDirective(
+        agentId,
+        liveAgent,
+        layout,
+        store.toolCalls,
+        store.moduleCalls,
+        store.packets,
+        store.agentOrder,
+        now,
+      );
+
+      // External platforms / meeting rooms require physical data collection by the Office Runner
+      if (liveDirective && (liveDirective.targetKind === 'station' || liveDirective.targetKind === 'meeting')) {
+        const existing = dispatchesRef.current[liveDirective.taskKey];
+        if (!existing) {
+          const hasActiveForAgent = Object.values(dispatchesRef.current).some(
+            (d) =>
+              d.agentId === agentId &&
+              (d.status === 'pending' || d.status === 'in_transit' || d.status === 'interacting' || d.status === 'delivering'),
+          );
+
+          if (!hasActiveForAgent) {
+            const appearance = getEmployeeAppearance(agentId);
+            dispatchesRef.current[liveDirective.taskKey] = {
+              taskKey: liveDirective.taskKey,
+              agentId,
+              agentName: appearance.displayFirstName,
+              directive: liveDirective,
+              status: 'pending',
+              updatedAt: now,
+            };
+          }
+        }
+      }
+    }
+
+    // Clean up delivered dispatches older than 8 seconds
+    for (const [key, d] of Object.entries(dispatchesRef.current)) {
+      if (d.status === 'delivered' && now - d.updatedAt > 8000) {
+        delete dispatchesRef.current[key];
+      }
+    }
+  });
+
+  // Standby posts for the two Office Runners in the open central office corridor
+  const runner1Standby = useMemo<Vec3>(() => [1.2, OFFICE_FLOOR_Y, 3.8], []);
+  const runner2Standby = useMemo<Vec3>(() => [-0.8, OFFICE_FLOOR_Y, 3.8], []);
 
   return (
     <group>
+      {/* 1. All knowledge worker employees remain permanently seated at their desks */}
       {agentIds.map((id, idx) => (
-        <HumanEmployeeActor
+        <SeatedEmployeeActor
           key={id}
           id={id}
           layout={layout}
-          navGrid={navGrid}
-          sharedPositions={sharedPositions}
           showLabels={showLabels}
           indexSeed={idx + 1}
+          runnerMissionsRef={runnerMissionsRef}
+          recentDeliveriesRef={recentDeliveriesRef}
         />
       ))}
+
+      {/* 2. Primary Office Runner "Leo" (Tech Courier) */}
+      <OfficeRunnerActor
+        runnerId="runner-1"
+        appearance={RUNNER_APPEARANCES[0]}
+        standbyPos={runner1Standby}
+        layout={layout}
+        navGrid={navGrid}
+        sharedPositions={sharedPositions}
+        activitySlots={activitySlots}
+        activityRef={activityRef}
+        dispatchesRef={dispatchesRef}
+        runnerMissionsRef={runnerMissionsRef}
+        recentDeliveriesRef={recentDeliveriesRef}
+        laneOffset={0.18}
+      />
+
+      {/* 3. Secondary Office Runner "Sam" (Tech Courier) */}
+      <OfficeRunnerActor
+        runnerId="runner-2"
+        appearance={RUNNER_APPEARANCES[1]}
+        standbyPos={runner2Standby}
+        layout={layout}
+        navGrid={navGrid}
+        sharedPositions={sharedPositions}
+        activitySlots={activitySlots}
+        activityRef={activityRef}
+        dispatchesRef={dispatchesRef}
+        runnerMissionsRef={runnerMissionsRef}
+        recentDeliveriesRef={recentDeliveriesRef}
+        laneOffset={-0.18}
+      />
     </group>
   );
 }
 
 export const Couriers = memo(EmployeeWorkforceImpl);
 
-/** Legend colors for active walking paths (team collaboration vs resource visit). */
+/** Legend colors for active walking paths (team collaboration vs external infrastructure visit). */
 export const COURIER_COLORS = { delegation: DELEGATION_COLOR, module: MODULE_COLOR };
-
-

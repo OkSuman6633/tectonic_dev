@@ -11,14 +11,16 @@ import { AgentTelemetryPanel } from '../command/AgentTelemetryPanel';
 import { ModuleTelemetryPanel } from '../command/ModuleTelemetryPanel';
 import { STATE_STYLES } from '../command/agentStateStyles';
 import { MODULE_STATE_STYLES } from '../command/ModuleNode';
-import { Desk, LIGHT_PALETTE } from './Desk';
+import { Desk, DARK_PALETTE, LIGHT_PALETTE } from './Desk';
 import { Station } from './Station';
 import { COURIER_COLORS, Couriers } from './Couriers';
 import { OfficeEnvironment } from './OfficeEnvironment';
 import { layoutOffice, type OfficeLayout } from './officeLayout';
 import { getOfficeFocusTarget } from './officeCamera';
+import { ExternalCampus, type CampusActivityRefs } from './ExternalCampus';
+import { useIsDarkMode } from '../../hooks/useIsDarkMode';
 
-/** Warm isometric 3/4 room camera vector matching cozy sunlit diorama framing. */
+/** Warm isometric 3/4 room camera vector matching diorama framing with full campus visibility. */
 const VIEW_DIR = new Vector3(0.76, 0.64, 0.78).normalize();
 const LABELS_KEY = 'tectonic.office.labels';
 
@@ -48,7 +50,7 @@ function CameraRig({
 
   useEffect(() => {
     const target = new Vector3(layout.center[0] - 0.35, layout.center[1] + 0.15, layout.center[2] - 0.25);
-    const distance = (layout.radius * 1.9 + 3.4) * Math.max(1, 1.32 / aspect);
+    const distance = (layout.radius * 1.95 + 4.0) * Math.max(1, 1.32 / aspect);
     goal.current = {
       target,
       pos: target.clone().addScaledVector(VIEW_DIR, distance),
@@ -71,7 +73,7 @@ function CameraRig({
     if (zoomDelta.nonce === 0) return;
     const currentTarget = controls ? controls.target.clone() : new Vector3(...layout.center);
     const offset = camera.position.clone().sub(currentTarget);
-    const dist = Math.max(7, Math.min(85, offset.length() * (zoomDelta.step > 0 ? 0.8 : 1.25)));
+    const dist = Math.max(7, Math.min(95, offset.length() * (zoomDelta.step > 0 ? 0.8 : 1.25)));
     offset.normalize().multiplyScalar(dist);
     goal.current = {
       target: currentTarget,
@@ -97,14 +99,16 @@ function Scene({
   resetNonce,
   focusNonce,
   zoomDelta,
+  isDark,
 }: {
   showLabels: boolean;
   fitNonce: number;
   resetNonce: number;
   focusNonce: number;
   zoomDelta: { step: number; nonce: number };
+  isDark: boolean;
 }) {
-  const palette = LIGHT_PALETTE;
+  const palette = isDark ? DARK_PALETTE : LIGHT_PALETTE;
   const topology = useTelemetryStore(
     (s) => ({
       order: s.agentOrder,
@@ -121,24 +125,36 @@ function Scene({
   const selectedAgentId = useTelemetryStore((s) => s.selectedAgentId);
   const selectedModuleId = useTelemetryStore((s) => s.selectedModuleId);
   const focusTarget = getOfficeFocusTarget(layout, selectedAgentId, selectedModuleId);
-  const shadowExtent = Math.max(20, layout.radius + 7);
+  const shadowExtent = Math.max(34, layout.radius + 10);
+
+  // Shared campus activity refs passed to Couriers (writer) and ExternalCampus (reader)
+  const activityRef = useRef<CampusActivityRefs>({
+    activeBridges: new Set(),
+    activeZones: new Set(),
+  });
+
+  const bgColor = isDark ? '#040B1A' : '#EDE6DB';
+  const fogArgs: [string, number, number] = isDark ? ['#040B1A', 48, 160] : ['#EDE6DB', 56, 148];
 
   return (
     <>
-      {/* Soft warm atmospheric depth matching studio backdrop */}
-      <fog attach="fog" args={['#EDE6DB', 48, 120]} />
+      {/* Background & atmospheric depth adapting to Light & Dark theme */}
+      <color attach="background" args={[bgColor]} />
+      <fog attach="fog" args={fogArgs} />
 
-      {/* Warm natural daylight lighting rig streaming through office windows */}
-      <ambientLight intensity={0.78} color="#FFF8EE" />
-      <hemisphereLight args={['#FFFDF7', '#C9B294', 0.85]} />
+      {/* Campus ambient and hemisphere lighting */}
+      <ambientLight intensity={isDark ? 0.68 : 0.88} color={isDark ? '#DCEBFF' : '#FFFBF5'} />
+      <hemisphereLight args={[isDark ? '#1E293B' : '#FFFDF7', isDark ? '#020617' : '#D1C4B2', isDark ? 0.85 : 0.95]} />
+
+      {/* Main directional light casting crisp architectural shadows */}
       <directionalLight
-        position={[layout.center[0] - 14, 24, layout.center[2] - 12]}
-        intensity={1.95}
-        color="#FFF5E1"
+        position={[layout.center[0] - 16, 28, layout.center[2] - 14]}
+        intensity={isDark ? 1.85 : 2.15}
+        color={isDark ? '#F8FAFC' : '#FFF7E6'}
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-camera-near={2}
-        shadow-camera-far={95}
+        shadow-camera-far={115}
         shadow-camera-left={-shadowExtent}
         shadow-camera-right={shadowExtent}
         shadow-camera-top={shadowExtent}
@@ -146,16 +162,33 @@ function Scene({
         shadow-bias={-0.0004}
         shadow-normalBias={0.035}
       />
-      {/* Gentle cool sky bounce fill from opposite side for soft cozy shading */}
+      {/* Cool secondary rim/fill light from opposite campus quadrant */}
       <directionalLight
-        position={[layout.center[0] + 18, 14, layout.center[2] + 16]}
-        intensity={0.58}
-        color="#DCEBFF"
+        position={[layout.center[0] + 20, 16, layout.center[2] + 18]}
+        intensity={isDark ? 0.62 : 0.65}
+        color={isDark ? '#38BDF8' : '#E0EDFF'}
       />
-      {/* Warm interior pendant & lounge lamp accents */}
-      <pointLight position={[-7.2, 3.0, -5.4]} color="#FFE8B8" intensity={1.1} distance={14} decay={2} />
-      <pointLight position={[7.4, 3.0, -5.4]} color="#FFE8B8" intensity={1.1} distance={14} decay={2} />
-      <pointLight position={[-7.5, 2.1, 6.0]} color="#FFDDA1" intensity={0.95} distance={10} decay={2} />
+
+      {/* Warm natural interior pendant & lounge lights preserving the cozy human office */}
+      <pointLight position={[-7.2, 3.2, -6.4]} color="#FFE8B8" intensity={isDark ? 1.2 : 0.85} distance={16} decay={2} />
+      <pointLight position={[7.4, 3.2, -6.4]} color="#FFE8B8" intensity={isDark ? 1.2 : 0.85} distance={16} decay={2} />
+      <pointLight position={[-7.5, 2.2, 7.2]} color="#FFDDA1" intensity={isDark ? 1.0 : 0.75} distance={12} decay={2} />
+      <pointLight position={[0.0, 3.4, 0.0]} color="#FFF7ED" intensity={isDark ? 1.1 : 0.9} distance={18} decay={2} />
+
+      {/* Domain-specific glowing point lights illuminating each external facility platform */}
+      {/* 1. DATA & KNOWLEDGE / MEMORY (Purple) */}
+      <pointLight position={[0.0, 4.4, -20.2]} color="#C084FC" intensity={isDark ? 3.4 : 1.95} distance={26} decay={2} />
+      {/* 2. OPERATIONS & SAFETY (Electric Cyan) */}
+      <pointLight position={[-22.5, 4.0, -16.2]} color="#00E5FF" intensity={isDark ? 2.9 : 1.85} distance={24} decay={2} />
+      {/* 3. PROCESSING & GOVERNANCE / PROCESS STUDIO (Magenta / Pink) */}
+      <pointLight position={[22.5, 4.0, -16.2]} color="#F472B6" intensity={isDark ? 3.1 : 1.85} distance={24} decay={2} />
+      {/* 4. PROMPTOPS & CREATIVE AI / CONTENT STUDIO (Cyan / Sky-Blue) */}
+      <pointLight position={[-22.8, 3.8, 1.8]} color="#38BDF8" intensity={isDark ? 2.8 : 1.75} distance={24} decay={2} />
+      {/* 5. TOOL ORCHESTRATION (Golden Amber) */}
+      <pointLight position={[22.8, 3.8, 1.8]} color="#FBBF24" intensity={isDark ? 3.3 : 1.95} distance={24} decay={2} />
+
+      {/* Surrounding Futuristic External AI Infrastructure Campus (adapts to Dark & Light) */}
+      <ExternalCampus layout={layout} activityRef={activityRef} isDark={isDark} />
 
       {/* Sunlit modern isometric office shell, glass partitions, lounge, cafe, plants & conference room */}
       <OfficeEnvironment layout={layout} />
@@ -169,6 +202,7 @@ function Scene({
           facingYaw={layout.stationFacings[id]}
           palette={palette}
           showLabel={showLabels}
+          isDark={isDark}
         />
       ))}
 
@@ -178,7 +212,7 @@ function Scene({
       ))}
 
       {/* Living Articulated Human Employees with A* Pathfinding & Real Telemetry Workflows */}
-      <Couriers layout={layout} showLabels={showLabels} />
+      <Couriers layout={layout} showLabels={showLabels} activityRef={activityRef} />
 
       <OrbitControls
         makeDefault
@@ -187,7 +221,7 @@ function Scene({
         minPolarAngle={0.28}
         maxPolarAngle={1.32}
         minDistance={7}
-        maxDistance={85}
+        maxDistance={95}
       />
       <CameraRig
         layout={layout}
@@ -210,6 +244,7 @@ function Hud({
   hasFocus,
   showLabels,
   toggleLabels,
+  isDark,
 }: {
   onFit: () => void;
   onReset: () => void;
@@ -219,6 +254,7 @@ function Hud({
   hasFocus: boolean;
   showLabels: boolean;
   toggleLabels: () => void;
+  isDark: boolean;
 }) {
   const working = useTelemetryStore((s) =>
     s.agentOrder.filter((id) => ['thinking', 'tool_execution', 'running'].includes(s.agents[id]?.state ?? '')).length,
@@ -232,25 +268,30 @@ function Hud({
   });
   const modules = useTelemetryStore((s) => s.moduleOrder.length);
 
-  const pillSurface =
-    'rounded-xl border border-stone-300/80 bg-white/88 shadow-[0_6px_24px_rgba(30,24,18,0.10)] backdrop-blur-md';
-  const pillBtn =
-    'flex h-8 items-center gap-1.5 px-3 text-[12.5px] font-medium text-slate-700 transition-colors hover:bg-stone-100 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-40';
-  const iconBtn =
-    'flex h-8 w-7 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-stone-100 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-35';
+  const pillSurface = isDark
+    ? 'rounded-xl border border-white/10 bg-slate-950/80 shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-md text-slate-100'
+    : 'rounded-xl border border-stone-300/80 bg-white/92 shadow-[0_6px_24px_rgba(30,24,18,0.12)] backdrop-blur-md text-slate-800';
+
+  const pillBtn = isDark
+    ? 'flex h-8 items-center gap-1.5 px-3 text-[12.5px] font-medium text-slate-200 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40'
+    : 'flex h-8 items-center gap-1.5 px-3 text-[12.5px] font-medium text-slate-700 transition-colors hover:bg-stone-100 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-40';
+
+  const iconBtn = isDark
+    ? 'flex h-8 w-7 items-center justify-center rounded-lg text-slate-300 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-35'
+    : 'flex h-8 w-7 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-stone-100 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-35';
 
   return (
     <>
       {/* Top-Left Live Office Stats Pill */}
       <div className={`pointer-events-none absolute left-3.5 top-3.5 z-10 flex items-center gap-3.5 px-3.5 py-2 ${pillSurface}`}>
         <span className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-blue-600" />
-          <Stat value={working} of={staff} label="employees active" color={STATE_STYLES.running.color} />
+          <Users className={`h-4 w-4 ${isDark ? 'text-cyan-400' : 'text-blue-600'}`} />
+          <Stat value={working} of={staff} label="agents working" color={STATE_STYLES.running.color} isDark={isDark} />
         </span>
-        <span className="h-4 w-px bg-stone-300" />
+        <span className={`h-4 w-px ${isDark ? 'bg-white/10' : 'bg-stone-300'}`} />
         <span className="flex items-center gap-2">
-          <Wrench className="h-4 w-4 text-amber-600" />
-          <Stat value={serving} of={modules} label="resources in use" color={MODULE_STATE_STYLES.busy.color} />
+          <Wrench className={`h-4 w-4 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
+          <Stat value={serving} of={modules} label="modules serving" color={MODULE_STATE_STYLES.busy.color} isDark={isDark} />
         </span>
       </div>
 
@@ -259,24 +300,52 @@ function Hud({
         <div className={`flex items-center gap-0.5 px-1 ${pillSurface}`}>
           <button
             type="button"
-            className="flex h-8 items-center gap-1 rounded-lg px-2 text-[12px] font-medium text-blue-700 transition-colors hover:bg-blue-50 hover:text-blue-900"
+            className={`flex h-8 items-center gap-1 rounded-lg px-2 text-[12px] font-medium transition-colors ${
+              isDark
+                ? 'text-cyan-400 hover:bg-white/10 hover:text-cyan-200'
+                : 'text-blue-700 hover:bg-blue-50 hover:text-blue-900'
+            }`}
             onClick={() => void startSimulation()}
             title="Simulate an employee workflow across the office"
           >
-            <Play className="h-3.5 w-3.5" />
-            <span className="hidden xl:inline">Simulate</span>
+            <Play className="h-3.5 w-3.5 fill-current" />
+            <span>Simulate</span>
           </button>
-          <span className="mx-0.5 h-3.5 w-px bg-stone-300" />
-          <button type="button" className={iconBtn} onClick={onZoomIn} title="Zoom in">
+          <button
+            type="button"
+            className={iconBtn}
+            onClick={onZoomIn}
+            title="Zoom in (+)"
+            aria-label="Zoom in"
+          >
             <ZoomIn className="h-3.5 w-3.5" />
           </button>
-          <button type="button" className={iconBtn} onClick={onZoomOut} title="Zoom out">
+          <button
+            type="button"
+            className={iconBtn}
+            onClick={onZoomOut}
+            title="Zoom out (-)"
+            aria-label="Zoom out"
+          >
             <ZoomOut className="h-3.5 w-3.5" />
           </button>
-          <button type="button" className={iconBtn} onClick={onFocus} disabled={!hasFocus} title="Focus selected employee or workstation">
+          <button
+            type="button"
+            className={iconBtn}
+            onClick={onFocus}
+            disabled={!hasFocus}
+            title={hasFocus ? 'Focus camera on selected employee or workstation' : 'Select an employee or workstation to focus'}
+            aria-label="Focus on selection"
+          >
             <LocateFixed className="h-3.5 w-3.5" />
           </button>
-          <button type="button" className={iconBtn} onClick={onReset} title="Reset isometric camera">
+          <button
+            type="button"
+            className={iconBtn}
+            onClick={onReset}
+            title="Reset camera and clear selection"
+            aria-label="Reset camera"
+          >
             <RotateCcw className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -285,9 +354,9 @@ function Hud({
           type="button"
           className={`${pillSurface} ${pillBtn}`}
           onClick={onFit}
-          title="Frame the entire 3D office"
+          title="Frame the entire 3D office and external campus"
         >
-          <Focus className="h-3.5 w-3.5 text-blue-600" />
+          <Focus className={`h-3.5 w-3.5 ${isDark ? 'text-cyan-400' : 'text-blue-600'}`} />
           <span>Fit</span>
         </button>
 
@@ -297,19 +366,25 @@ function Hud({
           onClick={toggleLabels}
           title={showLabels ? 'Show name tags only on hover or active tasks' : 'Always show every employee and workstation tag'}
         >
-          {showLabels ? <Eye className="h-3.5 w-3.5 text-blue-600" /> : <EyeOff className="h-3.5 w-3.5 text-slate-500" />}
+          {showLabels ? (
+            <Eye className={`h-3.5 w-3.5 ${isDark ? 'text-cyan-400' : 'text-blue-600'}`} />
+          ) : (
+            <EyeOff className={`h-3.5 w-3.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
+          )}
           <span>Labels: {showLabels ? 'always' : 'on hover'}</span>
         </button>
       </div>
 
-      {/* Bottom-Left Human Workflow Status Legend */}
+      {/* Bottom-Left Human Workflow Status Legend (adapts to Dark & Light themes) */}
       <div
-        className={`pointer-events-none absolute bottom-3.5 left-3.5 z-10 flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 text-[12px] text-slate-700 ${pillSurface}`}
+        className={`pointer-events-none absolute bottom-3.5 left-3.5 z-10 flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 text-[12px] ${
+          isDark ? 'text-slate-200' : 'text-slate-700'
+        } ${pillSurface}`}
       >
         {[
-          { label: 'Thinking', color: '#D97706' },
-          { label: 'Working', color: '#2563EB' },
-          { label: 'At desk', color: '#10B981' },
+          { label: 'Thinking', color: '#EAB308' },
+          { label: 'Calling tool', color: '#2563EB' },
+          { label: 'Ready', color: '#10B981' },
           { label: 'Error', color: '#EF4444' },
         ].map(({ label, color }) => (
           <span key={label} className="flex items-center gap-1.5 font-medium">
@@ -318,38 +393,44 @@ function Hud({
           </span>
         ))}
         <span className="flex items-center gap-1.5 font-medium">
-          <span className="h-0.5 w-3.5 rounded-full" style={{ background: COURIER_COLORS.delegation }} />
-          Team collaboration
+          <span className="h-2.5 w-2.5 rounded-sm" style={{ background: '#38BDF8' }} />
+          Courier - delegation
         </span>
         <span className="flex items-center gap-1.5 font-medium">
-          <span className="h-0.5 w-3.5 rounded-full" style={{ background: COURIER_COLORS.module }} />
-          Resource visit
+          <span className="h-2.5 w-2.5 rounded-sm" style={{ background: '#A855F7' }} />
+          Courier - module call
         </span>
       </div>
     </>
   );
 }
 
-function Stat({ value, of, label, color }: { value: number; of: number; label: string; color: string }) {
+function Stat({ value, of, label, color, isDark }: { value: number; of: number; label: string; color: string; isDark: boolean }) {
   return (
     <span className="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap">
-      <span className="font-mono text-[14px] font-bold tabular-nums" style={{ color: value > 0 ? color : '#0F172A' }}>
+      <span className="font-mono text-[14px] font-bold tabular-nums" style={{ color: value > 0 ? color : (isDark ? '#F8FAFC' : '#0F172A') }}>
         {value}
       </span>
-      <span className="text-[12.5px] font-medium text-slate-600">
+      <span className={`text-[12.5px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
         / {of} {label}
       </span>
     </span>
   );
 }
 
-function EmptyOffice() {
+function EmptyOffice({ isDark }: { isDark: boolean }) {
   return (
     <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-      <div className="pointer-events-auto max-w-xs rounded-2xl border border-stone-300/90 bg-white/94 p-5 text-center shadow-xl backdrop-blur-md">
-        <Building2 className="mx-auto mb-2 h-6 w-6 text-amber-600" />
-        <h3 className="typo-panel-heading text-slate-900">The office is ready for the team</h3>
-        <p className="typo-secondary mt-1 text-slate-600">
+      <div
+        className={`pointer-events-auto max-w-xs rounded-2xl border p-5 text-center shadow-2xl backdrop-blur-md ${
+          isDark
+            ? 'border-white/10 bg-slate-950/92 text-white'
+            : 'border-stone-300/90 bg-white/94 text-slate-900'
+        }`}
+      >
+        <Building2 className={`mx-auto mb-2 h-6 w-6 ${isDark ? 'text-amber-500' : 'text-amber-600'}`} />
+        <h3 className={`typo-panel-heading ${isDark ? 'text-white' : 'text-slate-900'}`}>The office is ready for the team</h3>
+        <p className={`typo-secondary mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
           Employees take their desks as agents come online and walk to specialized workstations as tasks execute.
         </p>
         <button
@@ -366,6 +447,8 @@ function EmptyOffice() {
 
 /** Living 3D AI Office view mirroring live Tectonic telemetry with articulated human employees. */
 export function Office3D() {
+  const isDark = useIsDarkMode();
+
   const [showLabels, setShowLabels] = useState(() => {
     try {
       return localStorage.getItem(LABELS_KEY) === 'always';
@@ -398,21 +481,22 @@ export function Office3D() {
     document.body.style.cursor = '';
   }, []);
 
-  const studioBackdrop =
-    'radial-gradient(ellipse at 50% 42%, #FAF6F0 0%, #EFE8DC 55%, #E3D9CA 100%)';
+  const studioBackdrop = isDark
+    ? 'radial-gradient(ellipse at 50% 35%, #071536 0%, #040B1D 60%, #020614 100%)'
+    : 'radial-gradient(ellipse at 50% 40%, #FAF7F2 0%, #EFE8DD 55%, #E2D7C5 100%)';
 
   return (
-    <div className="relative h-full w-full overflow-hidden" style={{ background: studioBackdrop }}>
+    <div className="relative h-full w-full overflow-hidden transition-colors duration-500" style={{ background: studioBackdrop }}>
       <Canvas
         shadows
         dpr={[1, 1.75]}
-        camera={{ fov: 26, position: [24, 20, 24], near: 0.2, far: 300 }}
+        camera={{ fov: 26, position: [28, 22, 28], near: 0.2, far: 350 }}
         gl={{
           antialias: true,
           alpha: true,
           powerPreference: 'high-performance',
           toneMapping: ACESFilmicToneMapping,
-          toneMappingExposure: 1.04,
+          toneMappingExposure: isDark ? 1.04 : 1.08,
         }}
         onPointerMissed={() => {
           const s = useTelemetryStore.getState();
@@ -429,6 +513,7 @@ export function Office3D() {
             resetNonce={resetNonce}
             focusNonce={focusNonce}
             zoomDelta={zoomDelta}
+            isDark={isDark}
           />
         </Suspense>
       </Canvas>
@@ -447,8 +532,9 @@ export function Office3D() {
         hasFocus={hasFocus}
         showLabels={showLabels}
         toggleLabels={toggleLabels}
+        isDark={isDark}
       />
-      {empty && <EmptyOffice />}
+      {empty && <EmptyOffice isDark={isDark} />}
       <AgentTelemetryPanel host="office" />
       <ModuleTelemetryPanel host="office" />
     </div>
@@ -456,4 +542,3 @@ export function Office3D() {
 }
 
 export default Office3D;
-

@@ -1,12 +1,20 @@
-import type { ObstacleRect, OfficeLayout, Vec3 } from './officeLayout.ts';
+import { OFFICE_FLOOR_Y, type CampusBridge, type CampusZone, type ObstacleRect, type OfficeLayout, type Vec3 } from './officeLayout.ts';
 
 export interface Point2D {
   x: number;
   z: number;
 }
 
-const CELL_SIZE = 0.6;
-const AGENT_MARGIN = 0.36;
+export interface Waypoint3D {
+  x: number;
+  y: number;
+  z: number;
+  /** Non-null when this waypoint lies on a physical skybridge (enables bridge illumination & lane-safe steering). */
+  bridgeId?: string;
+}
+
+const CELL_SIZE = 0.55;
+const AGENT_MARGIN = 0.34;
 
 export interface NavGrid {
   minX: number;
@@ -15,11 +23,12 @@ export interface NavGrid {
   rows: number;
   cellSize: number;
   blocked: Uint8Array;
+  layout: OfficeLayout;
 }
 
 export function buildNavGrid(layout: OfficeLayout): NavGrid {
   const { minX, maxX, minZ, maxZ } = layout.floorBounds;
-  const pad = 0.55;
+  const pad = 0.45;
   const gMinX = minX + pad;
   const gMaxX = maxX - pad;
   const gMinZ = minZ + pad;
@@ -47,7 +56,7 @@ export function buildNavGrid(layout: OfficeLayout): NavGrid {
     }
   }
 
-  return { minX: gMinX, minZ: gMinZ, cols, rows, cellSize: CELL_SIZE, blocked };
+  return { minX: gMinX, minZ: gMinZ, cols, rows, cellSize: CELL_SIZE, blocked, layout };
 }
 
 function worldToCell(grid: NavGrid, x: number, z: number): [number, number] {
@@ -104,20 +113,16 @@ const DIRS: [number, number, number][] = [
   [-1, -1, Math.SQRT2],
 ];
 
-/**
- * Computes a collision-free, smoothed walkable floor path between two 3D office positions using 8-way A*.
- * Always returns waypoints at office floor elevation (never flying or teleporting through furniture).
- */
-export function findOfficePath(grid: NavGrid, start: Vec3, goal: Vec3): Point2D[] {
-  const startPt: Point2D = { x: start[0], z: start[2] };
-  const goalPt: Point2D = { x: goal[0], z: goal[2] };
-
-  if (Math.hypot(goalPt.x - startPt.x, goalPt.z - startPt.z) < 0.25) {
-    return [goalPt];
+/** Runs 8-way A* exclusively inside the central human office floor. */
+function findInteriorPath(grid: NavGrid, startPt: Point2D, goalPt: Point2D): Waypoint3D[] {
+  if (Math.hypot(goalPt.x - startPt.x, goalPt.z - startPt.z) < 0.22) {
+    return [{ x: goalPt.x, y: OFFICE_FLOOR_Y, z: goalPt.z }];
   }
-
   if (hasLineOfSight(grid, startPt, goalPt)) {
-    return [startPt, goalPt];
+    return [
+      { x: startPt.x, y: OFFICE_FLOOR_Y, z: startPt.z },
+      { x: goalPt.x, y: OFFICE_FLOOR_Y, z: goalPt.z },
+    ];
   }
 
   const [sc0, sr0] = worldToCell(grid, startPt.x, startPt.z);
@@ -168,7 +173,6 @@ export function findOfficePath(grid: NavGrid, start: Vec3, goal: Vec3): Point2D[
       if (nc < 0 || nc >= grid.cols || nr < 0 || nr >= grid.rows) continue;
       const nIdx = nr * grid.cols + nc;
       if (closed[nIdx] || grid.blocked[nIdx]) continue;
-      // Prevent corner clipping on diagonal steps
       if (dc !== 0 && dr !== 0) {
         if (grid.blocked[cr * grid.cols + nc] || grid.blocked[nr * grid.cols + cc]) continue;
       }
@@ -186,9 +190,12 @@ export function findOfficePath(grid: NavGrid, start: Vec3, goal: Vec3): Point2D[
   }
 
   if (cameFrom[goalIdx] === -1 && startIdx !== goalIdx) {
-    // Fallback via main corridor midpoint if goal is tightly enclosed
-    const mid: Point2D = { x: (startPt.x + goalPt.x) * 0.5, z: -2.5 };
-    return [startPt, mid, goalPt];
+    const mid: Point2D = { x: (startPt.x + goalPt.x) * 0.5, z: -2.2 };
+    return [
+      { x: startPt.x, y: OFFICE_FLOOR_Y, z: startPt.z },
+      { x: mid.x, y: OFFICE_FLOOR_Y, z: mid.z },
+      { x: goalPt.x, y: OFFICE_FLOOR_Y, z: goalPt.z },
+    ];
   }
 
   const raw: Point2D[] = [];
@@ -218,20 +225,176 @@ export function findOfficePath(grid: NavGrid, start: Vec3, goal: Vec3): Point2D[
     anchor = furthest;
   }
 
-  return smoothed;
+  return smoothed.map((p) => ({ x: p.x, y: OFFICE_FLOOR_Y, z: p.z }));
+}
+
+function isInsideOffice(layout: OfficeLayout, pt: Vec3): boolean {
+  const b = layout.floorBounds;
+  return pt[0] >= b.minX - 0.15 && pt[0] <= b.maxX + 0.15 && pt[2] >= b.minZ - 0.15 && pt[2] <= b.maxZ + 0.15;
+}
+
+function findExternalZoneForPoint(layout: OfficeLayout, pt: Vec3): CampusZone | null {
+  for (const z of layout.externalZones) {
+    const halfW = z.width / 2 + 0.8;
+    const halfD = z.depth / 2 + 0.8;
+    if (Math.abs(pt[0] - z.center[0]) <= halfW && Math.abs(pt[2] - z.center[2]) <= halfD) {
+      return z;
+    }
+  }
+  return null;
+}
+
+function findBridgeForPoint(layout: OfficeLayout, pt: Vec3): CampusBridge | null {
+  let best: { bridge: CampusBridge; dist: number } | null = null;
+  for (const br of layout.bridges) {
+    const ax = br.from[0];
+    const az = br.from[2];
+    const bx = br.to[0];
+    const bz = br.to[2];
+    const dx = bx - ax;
+    const dz = bz - az;
+    const lenSq = dx * dx + dz * dz || 1;
+    const t = Math.max(0, Math.min(1, ((pt[0] - ax) * dx + (pt[2] - az) * dz) / lenSq));
+    const px = ax + dx * t;
+    const pz = az + dz * t;
+    const dist = Math.hypot(pt[0] - px, pt[2] - pz);
+    if (dist <= br.width * 0.75 + 0.75 && (!best || dist < best.dist)) {
+      best = { bridge: br, dist };
+    }
+  }
+  return best?.bridge ?? null;
+}
+
+function bridgeWaypoints(bridge: CampusBridge, outbound: boolean, laneOffset = 0): Waypoint3D[] {
+  const start = outbound ? bridge.from : bridge.to;
+  const end = outbound ? bridge.to : bridge.from;
+  const dx = end[0] - start[0];
+  const dz = end[2] - start[2];
+  const len = Math.hypot(dx, dz) || 1;
+  // Perpendicular lane offset so opposing walkers pass side-by-side cleanly on the bridge
+  const perpX = (-dz / len) * laneOffset;
+  const perpZ = (dx / len) * laneOffset;
+
+  const steps = 4;
+  const pts: Waypoint3D[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    pts.push({
+      x: start[0] + dx * t + perpX,
+      y: start[1] + (end[1] - start[1]) * t,
+      z: start[2] + dz * t + perpZ,
+      bridgeId: bridge.id,
+    });
+  }
+  return pts;
+}
+
+function appendUnique(target: Waypoint3D[], next: Waypoint3D[]) {
+  for (const pt of next) {
+    const prev = target[target.length - 1];
+    if (prev && Math.hypot(prev.x - pt.x, prev.z - pt.z) < 0.14 && Math.abs(prev.y - pt.y) < 0.08) {
+      if (pt.bridgeId && !prev.bridgeId) prev.bridgeId = pt.bridgeId;
+      continue;
+    }
+    target.push(pt);
+  }
+}
+
+/**
+ * Computes a collision-free, elevation-aware 3D walking route across the connected campus:
+ * - Inside the central human office: 8-way A* around desks, lounge, cafe, and meeting table.
+ * - Between office and external futuristic platforms: physically crosses the exact connecting skybridge
+ *   (smoothly ascending/descending the bridge slope) without ever flying or cutting over open space.
+ * - Between two external platforms: returns via bridge A -> office A* -> bridge B -> platform B.
+ */
+export function findOfficePath(grid: NavGrid, start: Vec3, goal: Vec3, laneOffset = 0): Waypoint3D[] {
+  const { layout } = grid;
+  const startInOffice = isInsideOffice(layout, start);
+  const goalInOffice = isInsideOffice(layout, goal);
+
+  // Case 1: Both inside central human office
+  if (startInOffice && goalInOffice) {
+    return findInteriorPath(grid, { x: start[0], z: start[2] }, { x: goal[0], z: goal[2] });
+  }
+
+  const startExtZone = startInOffice ? null : findExternalZoneForPoint(layout, start);
+  const goalExtZone = goalInOffice ? null : findExternalZoneForPoint(layout, goal);
+  const startBridge = startInOffice
+    ? null
+    : startExtZone
+      ? layout.bridges.find((b) => b.zoneId === startExtZone.id) ?? null
+      : findBridgeForPoint(layout, start);
+  const goalBridge = goalInOffice
+    ? null
+    : goalExtZone
+      ? layout.bridges.find((b) => b.zoneId === goalExtZone.id) ?? null
+      : findBridgeForPoint(layout, goal);
+
+  // Case 2: Both on the SAME external platform -> walk directly on that platform deck
+  if (startExtZone && goalExtZone && startExtZone.id === goalExtZone.id) {
+    return [
+      { x: start[0], y: startExtZone.height, z: start[2] },
+      { x: goal[0], y: goalExtZone.height, z: goal[2] },
+    ];
+  }
+
+  const result: Waypoint3D[] = [];
+
+  // Phase A: Exit starting external platform (or current bridge) back to office portal
+  let officeStart: Point2D = { x: start[0], z: start[2] };
+  if (!startInOffice && startBridge) {
+    if (startExtZone) {
+      appendUnique(result, [
+        { x: start[0], y: startExtZone.height, z: start[2] },
+        { x: startBridge.platformEntry[0], y: startBridge.platformEntry[1], z: startBridge.platformEntry[2] },
+      ]);
+      appendUnique(result, bridgeWaypoints(startBridge, false, -laneOffset));
+    } else {
+      // Currently mid-bridge: head smoothly to bridge office anchor
+      appendUnique(result, [
+        { x: start[0], y: start[1], z: start[2], bridgeId: startBridge.id },
+        { x: startBridge.from[0], y: startBridge.from[1], z: startBridge.from[2], bridgeId: startBridge.id },
+      ]);
+    }
+    appendUnique(result, [{ x: startBridge.officeEntry[0], y: OFFICE_FLOOR_Y, z: startBridge.officeEntry[2] }]);
+    officeStart = { x: startBridge.officeEntry[0], z: startBridge.officeEntry[2] };
+  }
+
+  // Phase B: Navigate through central office aisles via A*
+  const officeGoal: Point2D = goalInOffice
+    ? { x: goal[0], z: goal[2] }
+    : goalBridge
+      ? { x: goalBridge.officeEntry[0], z: goalBridge.officeEntry[2] }
+      : { x: goal[0], z: goal[2] };
+
+  appendUnique(result, findInteriorPath(grid, officeStart, officeGoal));
+
+  // Phase C: Cross physical skybridge to destination external platform and walk to target module station
+  if (!goalInOffice && goalBridge) {
+    appendUnique(result, bridgeWaypoints(goalBridge, true, laneOffset));
+    appendUnique(result, [
+      { x: goalBridge.platformEntry[0], y: goalBridge.platformEntry[1], z: goalBridge.platformEntry[2] },
+      { x: goal[0], y: goalExtZone?.height ?? goalBridge.platformEntry[1], z: goal[2] },
+    ]);
+  }
+
+  return result.length > 0 ? result : [{ x: goal[0], y: goal[1], z: goal[2] }];
 }
 
 /**
  * Computes a gentle lateral steering vector so multiple walking employees avoid overlapping each other.
+ * Automatically dampens steering on narrow bridges so walkers stay safely within bridge guardrails.
  */
 export function computeAvoidanceOffset(
   selfId: string,
   selfPos: Point2D,
   others: Record<string, Point2D>,
-  minSeparation = 0.92,
+  minSeparation = 0.88,
+  onBridge = false,
 ): Point2D {
   let pushX = 0;
   let pushZ = 0;
+  const scale = onBridge ? 0.22 : 0.52;
   for (const [id, pos] of Object.entries(others)) {
     if (id === selfId) continue;
     const dx = selfPos.x - pos.x;
@@ -239,8 +402,8 @@ export function computeAvoidanceOffset(
     const d = Math.hypot(dx, dz);
     if (d > 0.001 && d < minSeparation) {
       const strength = (minSeparation - d) / minSeparation;
-      pushX += (dx / d) * strength * 0.55;
-      pushZ += (dz / d) * strength * 0.55;
+      pushX += (dx / d) * strength * scale;
+      pushZ += (dz / d) * strength * scale;
     }
   }
   return { x: pushX, z: pushZ };

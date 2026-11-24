@@ -1,7 +1,7 @@
 import { memo, useMemo } from 'react';
 import { RoundedBox } from '@react-three/drei';
 import { CanvasTexture, DoubleSide, RepeatWrapping, SRGBColorSpace } from 'three';
-import type { CampusZone, OfficeLayout, SatellitePad, Vec3 } from './officeLayout';
+import type { OfficeLayout, SatellitePad, Vec3 } from './officeLayout';
 
 /** Procedural warm oak hardwood plank texture for a cozy, realistic modern office floor. */
 function makeOakFloorTexture(): CanvasTexture | null {
@@ -44,7 +44,7 @@ function makeOakFloorTexture(): CanvasTexture | null {
   const tex = new CanvasTexture(canvas);
   tex.wrapS = RepeatWrapping;
   tex.wrapT = RepeatWrapping;
-  tex.repeat.set(7, 6);
+  tex.repeat.set(10, 8);
   tex.colorSpace = SRGBColorSpace;
   return tex;
 }
@@ -537,15 +537,15 @@ const MeetingRoomFurniture = memo(function MeetingRoomFurniture({
         ))}
       </group>
 
-      {/* Wall-mounted presentation TV screen on back wall */}
-      <group position={[zoneCenter[0], 1.95, zoneCenter[2] - 3.65]}>
-        <RoundedBox args={[2.6, 1.48, 0.07]} radius={0.025} castShadow>
+      {/* Wall-mounted presentation TV screen on back wall (clear of north-east bridge doorway) */}
+      <group position={[zoneCenter[0] - 1.35, 2.02, zoneCenter[2] - 3.05]}>
+        <RoundedBox args={[2.35, 1.34, 0.07]} radius={0.025} castShadow>
           <meshStandardMaterial color="#1E293B" roughness={0.38} metalness={0.45} />
         </RoundedBox>
         <mesh position={[0, 0, 0.042]}>
-          <planeGeometry args={[2.44, 1.34]} />
+          <planeGeometry args={[2.2, 1.2]} />
           {presentationTex ? (
-            <meshStandardMaterial map={presentationTex} emissive="#FFFFFF" emissiveMap={presentationTex} emissiveIntensity={0.22} roughness={0.3} />
+            <meshStandardMaterial map={presentationTex} emissive="#FFFFFF" emissiveMap={presentationTex} emissiveIntensity={0.28} roughness={0.3} />
           ) : (
             <meshStandardMaterial color="#E2E8F0" />
           )}
@@ -553,7 +553,7 @@ const MeetingRoomFurniture = memo(function MeetingRoomFurniture({
       </group>
 
       {/* Glass partition framing the Meeting Room's left edge (leaving wide doorway open) */}
-      <GlassPartition position={[zoneCenter[0] - 3.35, 0, zoneCenter[2] - 1.1]} length={2.8} rotationY={Math.PI / 2} />
+      <GlassPartition position={[zoneCenter[0] - 2.65, 0, zoneCenter[2] - 0.5]} length={2.6} rotationY={Math.PI / 2} />
     </group>
   );
 });
@@ -709,11 +709,13 @@ const LoungeAndCafeArea = memo(function LoungeAndCafeArea({
 });
 
 /**
- * Complete Sunlit Modern 3D Isometric Office Shell:
+ * Preserved Sunlit Modern 3D Human Office Interior (Image 1 visual identity):
  * - Warm oak plank floor with thick architectural cutaway slab
- * - Cream plaster back-left & back-right walls with baseboards & panoramic sunlit windows
- * - Subtle zone rugs & wood/brass wall signage
- * - Meeting Room, Break Lounge, Coffee & Water Bar, Bookshelves, Storage Cabinets, Framed Wall Art, and Indoor Greenery
+ * - Cream plaster back & left walls with panoramic sunlit windows AND open bridge portal doorways
+ *   where the futuristic skybridges physically connect to external AI infrastructure
+ * - Meeting Room, Break Lounge, Coffee & Water Bar, Bookshelves, Storage Cabinets, Framed Wall Art,
+ *   Whiteboard, Glass Partitions, Pendant Lights, and Lush Indoor Greenery
+ * - ZERO backend servers or AI infrastructure machinery inside the office
  */
 function OfficeEnvironmentImpl({ layout }: { layout: OfficeLayout }) {
   const oakTex = useMemo(() => makeOakFloorTexture(), []);
@@ -726,37 +728,42 @@ function OfficeEnvironmentImpl({ layout }: { layout: OfficeLayout }) {
   const floorD = maxZ - minZ;
   const centerX = (minX + maxX) / 2;
   const centerZ = (minZ + maxZ) / 2;
-  const wallH = 3.65;
+  const wallH = 3.55;
   const wallT = 0.34;
 
-  const processZone = layout.zones.find((z) => z.kind === 'process');
-  const hubZone = layout.zones.find((z) => z.kind === 'hub');
-  const memoryZone = layout.zones.find((z) => z.kind === 'memory');
   const lounge = layout.satellites.find((s) => s.feature === 'lounge');
   const cafe = layout.satellites.find((s) => s.feature === 'cafe');
 
+  // Back wall (-Z) spans between the 3 open bridge doorways at x = -9.2, 0.0, +9.2
+  // Each doorway is ~2.6 wide so employees walk cleanly through into the illuminated skybridges.
+  const northWallSegments: { x0: number; x1: number; hasWindow?: boolean }[] = [
+    { x0: minX, x1: -10.5 },
+    { x0: -7.9, x1: -1.35, hasWindow: true },
+    { x0: 1.35, x1: 7.9, hasWindow: true },
+    { x0: 10.5, x1: maxX },
+  ];
+
+  // Left wall (-X) spans around the West bridge doorway at z = 1.8 (doorway z = 0.5..3.1)
+  const westWallSegments: { z0: number; z1: number; hasWindow?: boolean }[] = [
+    { z0: minZ, z1: 0.5, hasWindow: true },
+    { z0: 3.1, z1: maxZ, hasWindow: false },
+  ];
+
   return (
     <group>
-      {/* Subtle studio shadow-catcher ground plane below the cutaway office diorama */}
-      <mesh position={[centerX, -0.58, centerZ]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[120, 120]} />
-        <meshStandardMaterial color="#E6DFD5" roughness={0.96} />
-      </mesh>
-
-      {/* Cutaway Architectural Floor Slab (warm stone underside + oak top deck) */}
+      {/* Low-Profile Architectural Office Floor Base Trim resting directly on the ground */}
       <RoundedBox
-        args={[floorW + 0.5, 0.56, floorD + 0.5]}
-        radius={0.08}
+        args={[floorW + 0.28, 0.02, floorD + 0.28]}
+        radius={0.01}
         smoothness={2}
-        position={[centerX, -0.29, centerZ]}
-        castShadow
+        position={[centerX, 0.005, centerZ]}
         receiveShadow
       >
         <meshStandardMaterial color="#D4C7B6" roughness={0.85} />
       </RoundedBox>
 
-      {/* Warm Oak Hardwood Main Floor */}
-      <mesh position={[centerX, 0.0, centerZ]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+      {/* Warm Oak Hardwood Main Office Floor */}
+      <mesh position={[centerX, 0.012, centerZ]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[floorW, floorD]} />
         {oakTex ? (
           <meshStandardMaterial map={oakTex} roughness={0.68} metalness={0.04} />
@@ -765,41 +772,30 @@ function OfficeEnvironmentImpl({ layout }: { layout: OfficeLayout }) {
         )}
       </mesh>
 
-      {/* Subtle architectural zone floor mats / rugs (keeps zones visually organized without clutter) */}
-      {layout.zones.map((zone: CampusZone) => (
-        <group key={zone.id} position={[zone.center[0], 0.008, zone.center[2]]}>
-          <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-            <planeGeometry args={[zone.width, zone.depth]} />
-            <meshStandardMaterial color={zone.surfaceTint} roughness={0.92} transparent opacity={0.48} />
-          </mesh>
-          {/* Thin architectural brass/wood floor border */}
-          <mesh position={[0, 0.003, zone.depth / 2]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[zone.width, 0.05]} />
-            <meshStandardMaterial color={zone.accent} transparent opacity={0.32} roughness={0.7} />
-          </mesh>
-        </group>
-      ))}
+      {/* Subtle warm workspace carpet under the Engineering desk area */}
+      <mesh position={[-3.8, 0.008, -0.55]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[12.2, 9.6]} />
+        <meshStandardMaterial color="#EAE0D1" roughness={0.94} transparent opacity={0.46} />
+      </mesh>
 
-      {/* Warm sunlit daylight patches streaming across the oak floor from the panoramic windows */}
-      {[-7.8, -0.4, 7.6].map((sx, i) => (
-        <mesh key={i} position={[sx + 1.2, 0.011, -4.6]} rotation={[-Math.PI / 2, 0, 0.14]} raycast={() => null}>
-          <planeGeometry args={[4.4, 3.6]} />
+      {/* Warm sunlit daylight patches streaming across the oak floor from the windows */}
+      {[-4.6, 4.6].map((sx, i) => (
+        <mesh key={i} position={[sx, 0.011, -5.2]} rotation={[-Math.PI / 2, 0, 0.12]} raycast={() => null}>
+          <planeGeometry args={[4.4, 3.4]} />
           <meshBasicMaterial color="#FFF6DA" transparent opacity={0.14} depthWrite={false} />
         </mesh>
       ))}
 
-      {/* Tasteful architectural room wall signs + sticky-note whiteboard */}
-      <WallSign position={[-8.1, 3.38, minZ + 0.04]} title="OPERATIONS & SAFETY" subtitle="Guardrails · Intent" accent="#0F766E" />
-      <WallSign position={[-0.4, 3.38, minZ + 0.04]} title="DATA & KNOWLEDGE" subtitle="Memory · RAG · Vector" accent="#6D28D9" />
-      <WallSign position={[7.6, 3.38, minZ + 0.04]} title="MEETING & STRATEGY" subtitle="Collaboration · Audit" accent="#C2410C" />
-      <WallSign position={[minX + 0.04, 3.38, 0.8]} rotationY={Math.PI / 2} title="RESEARCH STUDIO" subtitle="PromptOps · Creative" accent="#0284C7" />
-      <group position={[minX + 0.04, 2.02, -1.8]} rotation={[0, Math.PI / 2, 0]}>
+      {/* Clean human workplace wall signage + sticky-note sprint whiteboard */}
+      <WallSign position={[-4.6, 3.28, minZ + 0.05]} title="ENGINEERING FLOOR" subtitle="Human AI Workspace" accent="#2563EB" />
+      <WallSign position={[4.6, 3.28, minZ + 0.05]} title="MEETING & STRATEGY" subtitle="Team Collaboration" accent="#C2410C" />
+      <group position={[minX + 0.05, 1.98, -1.8]} rotation={[0, Math.PI / 2, 0]}>
         <mesh castShadow>
-          <boxGeometry args={[1.68, 1.02, 0.045]} />
+          <boxGeometry args={[1.56, 0.96, 0.045]} />
           <meshStandardMaterial color="#475569" roughness={0.45} metalness={0.35} />
         </mesh>
         <mesh position={[0, 0, 0.028]}>
-          <planeGeometry args={[1.58, 0.92]} />
+          <planeGeometry args={[1.46, 0.86]} />
           {whiteboardTex ? <meshStandardMaterial map={whiteboardTex} roughness={0.35} /> : <meshStandardMaterial color="#F8FAFC" />}
         </mesh>
       </group>
@@ -813,115 +809,142 @@ function OfficeEnvironmentImpl({ layout }: { layout: OfficeLayout }) {
         </group>
       )}
 
-      {/* Back Wall (-Z) with Large Sunlit Panoramic Windows */}
-      <group position={[centerX, 0, minZ - wallT / 2]}>
-        {/* Lower plaster wall section */}
-        <mesh position={[0, 0.52, 0]} castShadow receiveShadow>
-          <boxGeometry args={[floorW + wallT * 2, 1.04, wallT]} />
+      {/* Back Wall (-Z) with Panoramic Sunlit Windows & Open Portal Doorways to External Bridges */}
+      <group position={[0, 0, minZ - wallT / 2]}>
+        {/* Continuous upper lintel beam spanning cleanly over windows & bridge portals */}
+        <mesh position={[centerX, wallH - 0.24, 0]} castShadow receiveShadow>
+          <boxGeometry args={[floorW + wallT * 2, 0.48, wallT]} />
           <meshStandardMaterial color="#F4EFE7" roughness={0.88} />
         </mesh>
-        {/* Top lintel beam */}
-        <mesh position={[0, wallH - 0.22, 0]} castShadow receiveShadow>
-          <boxGeometry args={[floorW + wallT * 2, 0.44, wallT]} />
-          <meshStandardMaterial color="#F4EFE7" roughness={0.88} />
-        </mesh>
-        {/* Solid wall pillars separating 3 panoramic sunlit windows */}
-        {[-floorW / 2, -4.1, 4.1, floorW / 2].map((px, i) => (
-          <mesh key={i} position={[px, wallH / 2, 0]} castShadow receiveShadow>
-            <boxGeometry args={[i === 0 || i === 3 ? 0.65 : 1.15, wallH, wallT]} />
-            <meshStandardMaterial color="#F4EFE7" roughness={0.88} />
-          </mesh>
-        ))}
-        {/* Oak baseboard along back wall */}
-        <mesh position={[0, 0.09, wallT / 2 + 0.012]}>
-          <boxGeometry args={[floorW, 0.18, 0.03]} />
-          <meshStandardMaterial color="#A97F55" roughness={0.72} />
-        </mesh>
-        {/* Panoramic Window Glass & Charcoal Mullions */}
-        {[-7.95, 0, 7.95].map((wx, idx) => {
-          const ww = idx === 1 ? 7.05 : 6.55;
+        {northWallSegments.map((seg, idx) => {
+          const segW = seg.x1 - seg.x0;
+          const segCx = (seg.x0 + seg.x1) / 2;
+          if (!seg.hasWindow) {
+            return (
+              <group key={idx} position={[segCx, 0, 0]}>
+                <mesh position={[0, (wallH - 0.48) / 2, 0]} castShadow receiveShadow>
+                  <boxGeometry args={[segW, wallH - 0.48, wallT]} />
+                  <meshStandardMaterial color="#F4EFE7" roughness={0.88} />
+                </mesh>
+                <mesh position={[0, 0.09, wallT / 2 + 0.012]}>
+                  <boxGeometry args={[segW, 0.18, 0.03]} />
+                  <meshStandardMaterial color="#A97F55" roughness={0.72} />
+                </mesh>
+              </group>
+            );
+          }
+          const winW = Math.max(1.4, segW - 0.72);
           return (
-            <group key={idx} position={[wx, 2.12, 0]}>
-              {/* Bright warm daylight outdoor sky glow */}
-              <mesh position={[0, 0, -0.05]}>
-                <planeGeometry args={[ww, 2.16]} />
-                <meshBasicMaterial color="#FFFDF7" side={DoubleSide} />
+            <group key={idx} position={[segCx, 0, 0]}>
+              {/* Lower plaster wall */}
+              <mesh position={[0, 0.52, 0]} castShadow receiveShadow>
+                <boxGeometry args={[segW, 1.04, wallT]} />
+                <meshStandardMaterial color="#F4EFE7" roughness={0.88} />
               </mesh>
-              <mesh position={[0, 0, 0.02]}>
-                <boxGeometry args={[ww, 2.16, 0.03]} />
-                <meshPhysicalMaterial color="#CBE8FA" transparent opacity={0.34} roughness={0.08} />
-              </mesh>
-              {/* Mullion frame */}
-              <mesh position={[0, 1.08, 0.04]}>
-                <boxGeometry args={[ww + 0.08, 0.06, 0.1]} />
-                <meshStandardMaterial color="#374151" metalness={0.45} roughness={0.4} />
-              </mesh>
-              <mesh position={[0, -1.08, 0.04]}>
-                <boxGeometry args={[ww + 0.08, 0.08, 0.16]} />
-                <meshStandardMaterial color="#B88E63" roughness={0.62} />
-              </mesh>
-              {[-ww * 0.25, ww * 0.25].map((mx, mi) => (
-                <mesh key={mi} position={[mx, 0, 0.04]}>
-                  <boxGeometry args={[0.055, 2.16, 0.08]} />
-                  <meshStandardMaterial color="#374151" metalness={0.45} roughness={0.4} />
+              {/* Side window pillars */}
+              {[-segW / 2 + 0.18, segW / 2 - 0.18].map((px, pi) => (
+                <mesh key={pi} position={[px, wallH / 2, 0]} castShadow receiveShadow>
+                  <boxGeometry args={[0.36, wallH, wallT]} />
+                  <meshStandardMaterial color="#F4EFE7" roughness={0.88} />
                 </mesh>
               ))}
+              {/* Oak baseboard */}
+              <mesh position={[0, 0.09, wallT / 2 + 0.012]}>
+                <boxGeometry args={[segW, 0.18, 0.03]} />
+                <meshStandardMaterial color="#A97F55" roughness={0.72} />
+              </mesh>
+              {/* Panoramic Window looking out onto the External Futuristic Campus */}
+              <group position={[0, 2.06, 0]}>
+                <mesh position={[0, 0, 0.02]}>
+                  <boxGeometry args={[winW, 2.04, 0.03]} />
+                  <meshPhysicalMaterial color="#CBE8FA" transparent opacity={0.28} roughness={0.08} />
+                </mesh>
+                <mesh position={[0, 1.02, 0.04]}>
+                  <boxGeometry args={[winW + 0.06, 0.06, 0.1]} />
+                  <meshStandardMaterial color="#374151" metalness={0.45} roughness={0.4} />
+                </mesh>
+                <mesh position={[0, -1.02, 0.04]}>
+                  <boxGeometry args={[winW + 0.06, 0.08, 0.16]} />
+                  <meshStandardMaterial color="#B88E63" roughness={0.62} />
+                </mesh>
+                <mesh position={[0, 0, 0.04]}>
+                  <boxGeometry args={[0.05, 2.04, 0.08]} />
+                  <meshStandardMaterial color="#374151" metalness={0.45} roughness={0.4} />
+                </mesh>
+              </group>
             </group>
           );
         })}
       </group>
 
-      {/* Left Wall (-X) with Sunlit Window, Framed Botanical Art & Cutaway Profile */}
-      <group position={[minX - wallT / 2, 0, centerZ]}>
-        {/* Lower wall */}
-        <mesh position={[0, 0.52, 0]} castShadow receiveShadow>
-          <boxGeometry args={[wallT, 1.04, floorD]} />
+      {/* Left Wall (-X) with Window, Framed Botanical Art & Open Portal Doorway to West Bridge */}
+      <group position={[minX - wallT / 2, 0, 0]}>
+        <mesh position={[0, wallH - 0.24, centerZ]} castShadow receiveShadow>
+          <boxGeometry args={[wallT, 0.48, floorD]} />
           <meshStandardMaterial color="#EFE9DF" roughness={0.88} />
         </mesh>
-        {/* Top lintel */}
-        <mesh position={[0, wallH - 0.22, 0]} castShadow receiveShadow>
-          <boxGeometry args={[wallT, 0.44, floorD]} />
-          <meshStandardMaterial color="#EFE9DF" roughness={0.88} />
-        </mesh>
-        {/* Solid wall segments */}
-        {[-floorD / 2 + 0.35, -1.8, 3.8, floorD / 2 - 0.35].map((pz, i) => (
-          <mesh key={i} position={[0, wallH / 2, pz]} castShadow receiveShadow>
-            <boxGeometry args={[wallT, wallH, i === 1 ? 2.4 : i === 2 ? 3.2 : 0.75]} />
-            <meshStandardMaterial color="#EFE9DF" roughness={0.88} />
-          </mesh>
-        ))}
-        {/* Oak baseboard */}
-        <mesh position={[wallT / 2 + 0.012, 0.09, 0]}>
-          <boxGeometry args={[0.03, 0.18, floorD]} />
-          <meshStandardMaterial color="#A97F55" roughness={0.72} />
-        </mesh>
-        {/* Sunlit side windows */}
-        {[-5.4, 0.8].map((wz, idx) => (
-          <group key={idx} position={[0, 2.12, wz]} rotation={[0, Math.PI / 2, 0]}>
-            <mesh position={[0, 0, -0.05]}>
-              <planeGeometry args={[3.4, 2.16]} />
-              <meshBasicMaterial color="#FFFDF5" side={DoubleSide} />
-            </mesh>
-            <mesh position={[0, 0, 0.02]}>
-              <boxGeometry args={[3.4, 2.16, 0.03]} />
-              <meshPhysicalMaterial color="#CBE8FA" transparent opacity={0.32} roughness={0.08} />
-            </mesh>
-            <mesh position={[0, -1.08, 0.05]}>
-              <boxGeometry args={[3.48, 0.08, 0.16]} />
-              <meshStandardMaterial color="#B88E63" roughness={0.62} />
-            </mesh>
-            <mesh position={[0, 0, 0.04]}>
-              <boxGeometry args={[0.055, 2.16, 0.08]} />
-              <meshStandardMaterial color="#374151" metalness={0.45} roughness={0.4} />
-            </mesh>
-          </group>
-        ))}
-        {/* Framed botanical wall art prints near the Lounge & Research Studio */}
+        {westWallSegments.map((seg, idx) => {
+          const segD = seg.z1 - seg.z0;
+          const segCz = (seg.z0 + seg.z1) / 2;
+          if (!seg.hasWindow) {
+            return (
+              <group key={idx} position={[0, 0, segCz]}>
+                <mesh position={[0, (wallH - 0.48) / 2, 0]} castShadow receiveShadow>
+                  <boxGeometry args={[wallT, wallH - 0.48, segD]} />
+                  <meshStandardMaterial color="#EFE9DF" roughness={0.88} />
+                </mesh>
+                <mesh position={[wallT / 2 + 0.012, 0.09, 0]}>
+                  <boxGeometry args={[0.03, 0.18, segD]} />
+                  <meshStandardMaterial color="#A97F55" roughness={0.72} />
+                </mesh>
+              </group>
+            );
+          }
+          const winD = 3.2;
+          return (
+            <group key={idx} position={[0, 0, segCz]}>
+              <mesh position={[0, 0.52, 0]} castShadow receiveShadow>
+                <boxGeometry args={[wallT, 1.04, segD]} />
+                <meshStandardMaterial color="#EFE9DF" roughness={0.88} />
+              </mesh>
+              {/* Solid pillars on either side of the window (back section holds whiteboard) */}
+              <mesh position={[0, wallH / 2, -segD / 2 + 0.6]} castShadow receiveShadow>
+                <boxGeometry args={[wallT, wallH, 1.2]} />
+                <meshStandardMaterial color="#EFE9DF" roughness={0.88} />
+              </mesh>
+              <mesh position={[0, wallH / 2, segD / 2 - 1.25]} castShadow receiveShadow>
+                <boxGeometry args={[wallT, wallH, 2.5]} />
+                <meshStandardMaterial color="#EFE9DF" roughness={0.88} />
+              </mesh>
+              <mesh position={[wallT / 2 + 0.012, 0.09, 0]}>
+                <boxGeometry args={[0.03, 0.18, segD]} />
+                <meshStandardMaterial color="#A97F55" roughness={0.72} />
+              </mesh>
+              {/* Side panoramic window */}
+              <group position={[0, 2.06, -0.65]} rotation={[0, Math.PI / 2, 0]}>
+                <mesh position={[0, 0, 0.02]}>
+                  <boxGeometry args={[winD, 2.04, 0.03]} />
+                  <meshPhysicalMaterial color="#CBE8FA" transparent opacity={0.28} roughness={0.08} />
+                </mesh>
+                <mesh position={[0, -1.02, 0.05]}>
+                  <boxGeometry args={[winD + 0.06, 0.08, 0.16]} />
+                  <meshStandardMaterial color="#B88E63" roughness={0.62} />
+                </mesh>
+                <mesh position={[0, 0, 0.04]}>
+                  <boxGeometry args={[0.05, 2.04, 0.08]} />
+                  <meshStandardMaterial color="#374151" metalness={0.45} roughness={0.4} />
+                </mesh>
+              </group>
+            </group>
+          );
+        })}
+
+        {/* Framed botanical wall art prints near the Break Lounge */}
         {[
-          { z: 3.1, tex: artA },
-          { z: 4.5, tex: artB },
+          { z: 4.0, tex: artA },
+          { z: 5.35, tex: artB },
         ].map((frame, i) => (
-          <group key={i} position={[wallT / 2 + 0.03, 2.05, frame.z]} rotation={[0, Math.PI / 2, 0]}>
+          <group key={i} position={[wallT / 2 + 0.03, 2.02, frame.z]} rotation={[0, Math.PI / 2, 0]}>
             <mesh castShadow>
               <boxGeometry args={[0.96, 1.2, 0.04]} />
               <meshStandardMaterial color="#8F6743" roughness={0.68} />
@@ -934,57 +957,95 @@ function OfficeEnvironmentImpl({ layout }: { layout: OfficeLayout }) {
         ))}
       </group>
 
-      {/* Glass Partition separating Operations & Safety from Engineering Floor */}
-      {hubZone && <GlassPartition position={[hubZone.center[0] + 3.15, 0, hubZone.center[2] - 0.6]} length={3.2} rotationY={Math.PI / 2} />}
+      {/* Glass Partition Accent Separating Meeting Room from Central Aisle */}
+      <GlassPartition position={[4.2, 0, -4.8]} length={3.4} rotationY={Math.PI / 2} />
 
       {/* Meeting Room Conference Table, Chairs & Presentation Display */}
-      {processZone && (
-        <MeetingRoomFurniture tableCenter={layout.meetingTableCenter} zoneCenter={processZone.center} />
-      )}
+      <MeetingRoomFurniture tableCenter={layout.meetingTableCenter} zoneCenter={layout.meetingTableCenter} />
 
       {/* Break Lounge Sofa, Coffee Table, Espresso Bar & Water Dispenser */}
       {lounge && cafe && <LoungeAndCafeArea lounge={lounge} cafe={cafe} />}
 
-      {/* Bookshelves & Storage Cabinets along walls */}
-      {memoryZone && (
-        <>
-          <Bookshelf position={[memoryZone.center[0] - 4.1, 0, minZ + 0.34]} />
-          <StorageCabinet position={[memoryZone.center[0] + 3.8, 0, minZ + 0.38]} />
-        </>
-      )}
-      <Bookshelf position={[minX + 0.34, 0, -1.8]} rotationY={Math.PI / 2} />
-      <StorageCabinet position={[maxX - 0.55, 0, -1.6]} rotationY={-Math.PI / 2} />
-      <StorageCabinet position={[maxX - 0.55, 0, 5.8]} rotationY={-Math.PI / 2} />
+      {/* Warm Office Bookshelves & Storage Cabinets (normal workplace furniture only) */}
+      <Bookshelf position={[-4.6, 0, minZ + 0.34]} />
+      <StorageCabinet position={[minX + 0.6, 0, -5.8]} rotationY={Math.PI / 2} />
+      <StorageCabinet position={[maxX - 0.55, 0, -1.8]} rotationY={-Math.PI / 2} />
+      <StorageCabinet position={[maxX - 0.55, 0, 6.2]} rotationY={-Math.PI / 2} />
 
-      {/* Warm Ceiling Pendant Lights suspended subtly near back wall */}
-      {[-7.2, -0.4, 7.2].map((lx, i) => (
-        <group key={i} position={[lx, 3.35, -5.6]}>
-          <mesh position={[0, 0.16, 0]}>
-            <cylinderGeometry args={[0.014, 0.014, 0.32, 6]} />
-            <meshStandardMaterial color="#475569" />
-          </mesh>
-          <mesh castShadow>
-            <cylinderGeometry args={[0.24, 0.36, 0.16, 18]} />
-            <meshStandardMaterial color="#374151" roughness={0.45} metalness={0.4} />
-          </mesh>
-          <mesh position={[0, -0.07, 0]}>
-            <sphereGeometry args={[0.11, 12, 12]} />
-            <meshStandardMaterial color="#FFFBEB" emissive="#FDE68A" emissiveIntensity={1.2} />
-          </mesh>
-        </group>
-      ))}
+      {/* Architectural Ceiling Lighting Track & Suspension System (Full Physical Structural Support) */}
+      <group>
+        {/* Main Architectural Matte-Black Steel Track Rail spanning across the room at wall height */}
+        <mesh position={[centerX, 3.50, -4.6]} castShadow>
+          <boxGeometry args={[floorW - 0.8, 0.06, 0.08]} />
+          <meshStandardMaterial color="#1E293B" roughness={0.5} metalness={0.7} />
+        </mesh>
 
-      {/* Lush Indoor Trees & Potted Greenery throughout the office */}
-      <IndoorTree position={[minX + 0.85, 0, minZ + 0.85]} scale={1.15} potColor="#C67855" />
-      <IndoorTree position={[maxX - 0.9, 0, minZ + 0.9]} scale={1.18} potColor="#E5DDD0" />
-      <IndoorTree position={[minX + 0.9, 0, maxZ - 0.85]} scale={1.08} potColor="#B86C4B" />
-      <IndoorTree position={[maxX - 0.95, 0, maxZ - 1.1]} scale={1.12} potColor="#E2D9CB" />
-      <IndoorTree position={[-4.55, 0, -2.9]} scale={0.92} potColor="#C87D58" />
-      <IndoorTree position={[4.55, 0, -2.9]} scale={0.94} potColor="#E5DDD0" />
-      <PottedPlant position={[-4.8, 0, 4.9]} scale={1.0} potColor="#F0E9DE" />
-      <PottedPlant position={[4.8, 0, 4.6]} scale={0.95} potColor="#C67855" />
-      <PottedPlant position={[0.4, 0, maxZ - 0.8]} scale={1.05} potColor="#5B7065" />
-      <PottedPlant position={[-10.9, 0, -2.5]} scale={0.9} potColor="#E6DFD3" />
+        {/* Structural Cross-Tie Girders connecting back wall upper lintel beam to the track rail */}
+        {[-5.4, 0.0, 5.8].map((gx, i) => {
+          const tieZ = (minZ + -4.6) / 2;
+          const tieLen = Math.abs(-4.6 - minZ);
+          return (
+            <mesh key={`tie-${i}`} position={[gx, 3.50, tieZ]} castShadow>
+              <boxGeometry args={[0.06, 0.06, tieLen]} />
+              <meshStandardMaterial color="#1E293B" roughness={0.5} metalness={0.7} />
+            </mesh>
+          );
+        })}
+
+        {/* Left Wall Anchor Bracket for Track Rail */}
+        <mesh position={[minX + 0.04, 3.50, -4.6]} castShadow>
+          <boxGeometry args={[0.08, 0.16, 0.16]} />
+          <meshStandardMaterial color="#0F172A" roughness={0.4} metalness={0.8} />
+        </mesh>
+
+        {/* Warm Ceiling Pendant Lamps suspended cleanly with full support drop rods */}
+        {[-5.4, 0.0, 5.8].map((lx, i) => {
+          const lampY = 2.65;
+          const trackY = 3.50;
+          const dropHeight = trackY - lampY;
+          return (
+            <group key={i} position={[lx, lampY, -4.6]}>
+              {/* Ceiling Mounting Canopy attached to track rail */}
+              <mesh position={[0, dropHeight, 0]}>
+                <cylinderGeometry args={[0.045, 0.045, 0.03, 16]} />
+                <meshStandardMaterial color="#0F172A" roughness={0.4} metalness={0.8} />
+              </mesh>
+              {/* Continuous Steel Suspension Drop Rod connecting canopy to lamp */}
+              <mesh position={[0, dropHeight / 2, 0]}>
+                <cylinderGeometry args={[0.008, 0.008, dropHeight, 8]} />
+                <meshStandardMaterial color="#334155" roughness={0.4} metalness={0.8} />
+              </mesh>
+              {/* Upper shade collar socket */}
+              <mesh position={[0, 0.11, 0]} castShadow>
+                <cylinderGeometry args={[0.035, 0.045, 0.06, 16]} />
+                <meshStandardMaterial color="#0F172A" roughness={0.4} metalness={0.8} />
+              </mesh>
+              {/* Matte-Black Spun Aluminum Lamp Shade */}
+              <mesh castShadow>
+                <cylinderGeometry args={[0.16, 0.38, 0.16, 24]} />
+                <meshStandardMaterial color="#1E293B" roughness={0.38} metalness={0.65} />
+              </mesh>
+              {/* Warm Glowing Bulb inside shade */}
+              <mesh position={[0, -0.05, 0]}>
+                <sphereGeometry args={[0.09, 14, 14]} />
+                <meshStandardMaterial color="#FFFBEB" emissive="#FDE68A" emissiveIntensity={1.6} />
+              </mesh>
+            </group>
+          );
+        })}
+      </group>
+
+      {/* Lush Indoor Trees & Potted Greenery throughout the central human office */}
+      <IndoorTree position={[minX + 0.95, 0, minZ + 0.95]} scale={1.15} potColor="#C67855" />
+      <IndoorTree position={[maxX - 0.95, 0, minZ + 0.95]} scale={1.15} potColor="#E5DDD0" />
+      <IndoorTree position={[minX + 0.95, 0, maxZ - 0.95]} scale={1.1} potColor="#B86C4B" />
+      <IndoorTree position={[maxX - 0.95, 0, maxZ - 0.95]} scale={1.15} potColor="#E2D9CB" />
+      <IndoorTree position={[-6.8, 0, -7.5]} scale={0.95} potColor="#C87D58" />
+      <IndoorTree position={[3.2, 0, -7.5]} scale={0.95} potColor="#E5DDD0" />
+      <PottedPlant position={[-3.8, 0, 5.8]} scale={1.05} potColor="#F0E9DE" />
+      <PottedPlant position={[4.8, 0, 5.4]} scale={1.0} potColor="#C67855" />
+      <PottedPlant position={[8.5, 0, maxZ - 1.1]} scale={1.1} potColor="#5B7065" />
+      <PottedPlant position={[minX + 0.6, 0, -2.6]} scale={0.95} potColor="#E6DFD3" />
     </group>
   );
 }

@@ -42,6 +42,14 @@ export interface TaskDirective {
   targetKind: 'desk' | 'station' | 'meeting';
   /** Target resource ID (module ID or partner agent ID). */
   targetId: string;
+  /** External platform zone ID when targetKind === 'station' (used to highlight bridge & platform). */
+  zoneId?: string;
+  /** Human-readable zone title (e.g. "Data & Knowledge", "Tool Orchestration"). */
+  zoneLabel?: string;
+  /** Real-time status text shown while travelling across office/bridge. */
+  travelLabel: string;
+  /** Real-time status text shown while interacting at destination. */
+  interactLabel: string;
   /** Navigable floor standing point. */
   destination: Vec3;
   /** Yaw orientation when performing the work. */
@@ -183,6 +191,27 @@ export function isActiveAgentState(state: AgentState | string | undefined): bool
   return state === 'running' || state === 'thinking' || state === 'tool_execution' || state === 'waiting';
 }
 
+function zoneDisplayTitle(layout: OfficeLayout, modId: string): { zoneId?: string; zoneLabel: string; interactLabel: string } {
+  const zoneId = layout.stationZoneIds[modId];
+  const zone = layout.externalZones.find((z) => z.id === zoneId);
+  if (!zone) {
+    return {
+      zoneId,
+      zoneLabel: modId.replace(/_/g, ' '),
+      interactLabel: 'Accessing external system',
+    };
+  }
+  const titleMap: Record<string, { name: string; interact: string }> = {
+    memory: { name: 'Data & Knowledge', interact: 'Retrieving information' },
+    hub: { name: 'Operations & Safety', interact: 'Running safety & intent check' },
+    tools: { name: 'Tool Orchestration', interact: 'Accessing Tool Orchestration' },
+    process: { name: 'Processing & Governance', interact: 'Running audit & metering' },
+    content: { name: 'PromptOps & Creative AI', interact: 'Synthesizing creative output' },
+  };
+  const info = titleMap[zone.kind] ?? { name: zone.label, interact: 'Accessing external system' };
+  return { zoneId: zone.id, zoneLabel: info.name, interactLabel: info.interact };
+}
+
 /**
  * Resolves the real runtime task directive for an employee strictly from live telemetry state.
  * Returns null when the employee has no active backend task (they remain naturally at their desk).
@@ -199,7 +228,7 @@ export function resolveEmployeeDirective(
 ): TaskDirective | null {
   if (!agent) return null;
 
-  // 1. Check active or very recently active module call for this agent -> walk to that module workstation
+  // 1. Check active or very recently active module call for this agent -> travel across bridge to external platform
   const nowSec = nowMs / 1000;
   let bestModule: { modId: string; call: ModuleCallRecord; priority: number } | null = null;
   for (const [modId, calls] of Object.entries(moduleCalls)) {
@@ -208,7 +237,7 @@ export function resolveEmployeeDirective(
       const c = calls[i];
       if (c.agentId !== agentId) continue;
       const isRunning = c.status === 'running';
-      const isRecent = nowSec - c.startedAt < 2.8;
+      const isRecent = nowSec - c.startedAt < 3.4;
       if (isRunning || isRecent) {
         const priority = isRunning ? 1000 + c.startedAt : c.startedAt;
         if (!bestModule || priority > bestModule.priority) {
@@ -222,10 +251,15 @@ export function resolveEmployeeDirective(
   if (bestModule) {
     const { modId, call } = bestModule;
     const activity = classifyActivity(`${modId}.${call.operation}`, 'station');
+    const zoneInfo = zoneDisplayTitle(layout, modId);
     return {
       taskKey: `mod:${modId}:${call.callId}`,
       targetKind: 'station',
       targetId: modId,
+      zoneId: zoneInfo.zoneId,
+      zoneLabel: zoneInfo.zoneLabel,
+      travelLabel: `Travelling to ${zoneInfo.zoneLabel}`,
+      interactLabel: zoneInfo.interactLabel,
       destination: layout.stationStandPoints[modId],
       facingYaw: layout.stationFacings[modId] ?? Math.PI,
       activity,
@@ -233,7 +267,7 @@ export function resolveEmployeeDirective(
     };
   }
 
-  // 2. Check active A2A collaboration/delegation packet -> meet at the shared conference table
+  // 2. Check active A2A collaboration/delegation packet -> meet at the shared conference table inside office
   const recentA2A = packets
     .filter((p) => (p.edgeId.startsWith('h:') || p.edgeId.startsWith('x:')) && nowMs - p.bornAt < 3400)
     .reverse()
@@ -250,6 +284,8 @@ export function resolveEmployeeDirective(
       taskKey: `meet:${recentA2A.edgeId}:${recentA2A.key}`,
       targetKind: 'meeting',
       targetId: recentA2A.edgeId,
+      travelLabel: 'Walking to meeting room',
+      interactLabel: 'Collaborating with team',
       destination: seat.pos,
       facingYaw: seat.yaw,
       activity: 'collaboration',
@@ -257,24 +293,43 @@ export function resolveEmployeeDirective(
     };
   }
 
-  // 3. Check running tool call -> either walk to matching resource station or work intensely at desk
+  // 3. Check running tool call -> either travel across bridge to matching external system or work at desk
   const agentTools = toolCalls[agentId] ?? [];
   const runningTool = [...agentTools].reverse().find((t) => t.status === 'running');
   if (runningTool) {
     const toolLower = runningTool.toolName.toLowerCase();
-    // Map tool execution to a real physical office workstation when applicable
+    const availableMods = Object.keys(layout.stationStandPoints);
     const matchedMod =
-      Object.keys(layout.stationStandPoints).find((m) => toolLower.includes(m)) ??
-      (/search|web|research/.test(toolLower) ? Object.keys(layout.stationStandPoints).find((m) => m === 'agentic_rag' || m === 'intent_detection') : undefined) ??
-      (/guardrail|policy|safety/.test(toolLower) ? Object.keys(layout.stationStandPoints).find((m) => m === 'guardrails') : undefined) ??
-      (/save|card|db|memory|store/.test(toolLower) ? Object.keys(layout.stationStandPoints).find((m) => m === 'long_term_memory' || m === 'short_term_memory') : undefined) ??
-      (/tool|run|verify|exec/.test(toolLower) ? Object.keys(layout.stationStandPoints).find((m) => m === 'tool_orchestration') : undefined);
+      availableMods.find((m) => toolLower.includes(m)) ??
+      (/search|web|research|rag|knowledge/.test(toolLower)
+        ? availableMods.find((m) => m === 'agentic_rag' || m === 'vector_db' || m === 'intent_detection')
+        : undefined) ??
+      (/guardrail|policy|safety|intent/.test(toolLower)
+        ? availableMods.find((m) => m === 'guardrails' || m === 'intent_detection')
+        : undefined) ??
+      (/save|card|db|memory|store|recall/.test(toolLower)
+        ? availableMods.find((m) => m === 'long_term_memory' || m === 'short_term_memory' || m === 'vector_db')
+        : undefined) ??
+      (/audit|finops|cost|meter|compliance/.test(toolLower)
+        ? availableMods.find((m) => m === 'auditability' || m === 'finops')
+        : undefined) ??
+      (/prompt|image|render|creative/.test(toolLower)
+        ? availableMods.find((m) => m === 'promptops' || m === 'image_generation')
+        : undefined) ??
+      (/tool|run|verify|exec|connector|api/.test(toolLower)
+        ? availableMods.find((m) => m === 'tool_orchestration' || m === 'external_connectors' || m === 'connectors')
+        : undefined);
 
     if (matchedMod && layout.stationStandPoints[matchedMod]) {
+      const zoneInfo = zoneDisplayTitle(layout, matchedMod);
       return {
         taskKey: `tool:${runningTool.callId}:${matchedMod}`,
         targetKind: 'station',
         targetId: matchedMod,
+        zoneId: zoneInfo.zoneId,
+        zoneLabel: zoneInfo.zoneLabel,
+        travelLabel: `Travelling to ${zoneInfo.zoneLabel}`,
+        interactLabel: zoneInfo.interactLabel,
         destination: layout.stationStandPoints[matchedMod],
         facingYaw: layout.stationFacings[matchedMod] ?? Math.PI,
         activity: classifyActivity(runningTool.toolName, 'station'),
@@ -289,6 +344,8 @@ export function resolveEmployeeDirective(
         taskKey: `desk-tool:${runningTool.callId}`,
         targetKind: 'desk',
         targetId: agentId,
+        travelLabel: 'Working at desk',
+        interactLabel: 'Working at desk',
         destination: deskPos,
         facingYaw: layout.deskRotations[agentId] ?? Math.PI,
         activity: classifyActivity(runningTool.toolName, 'desk'),
@@ -303,6 +360,8 @@ export function resolveEmployeeDirective(
       taskKey: `desk-state:${agent.state}:${agent.stateDetail ?? ''}`,
       targetKind: 'desk',
       targetId: agentId,
+      travelLabel: 'Working at desk',
+      interactLabel: 'Working at desk',
       destination: layout.desks[agentId],
       facingYaw: layout.deskRotations[agentId] ?? Math.PI,
       activity: agent.state === 'thinking' ? 'coding' : 'reviewing',
