@@ -1,37 +1,30 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Sparkles } from '@react-three/drei';
+import { OrbitControls } from '@react-three/drei';
 import { ACESFilmicToneMapping, Vector3 } from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
-import { useReducedMotion } from 'framer-motion';
-import { Bot, Building2, Eye, EyeOff, Focus, LocateFixed, Play, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
+import { Building2, Eye, EyeOff, Focus, LocateFixed, Play, RotateCcw, Users, Wrench, ZoomIn, ZoomOut } from 'lucide-react';
 import { shallow } from 'zustand/shallow';
 import { useTelemetryStore } from '../../store/useTelemetryStore';
 import { startSimulation } from '../../services/telemetrySimulator';
-import { useIsLightTheme } from '../../hooks/useIsLightTheme';
 import { AgentTelemetryPanel } from '../command/AgentTelemetryPanel';
 import { ModuleTelemetryPanel } from '../command/ModuleTelemetryPanel';
 import { STATE_STYLES } from '../command/agentStateStyles';
 import { MODULE_STATE_STYLES } from '../command/ModuleNode';
-import { DARK_PALETTE, Desk, LIGHT_PALETTE } from './Desk';
+import { Desk, DARK_PALETTE, LIGHT_PALETTE } from './Desk';
 import { Station } from './Station';
 import { COURIER_COLORS, Couriers } from './Couriers';
-import {
-  CampusPlatform,
-  CommandIslandLandmarks,
-  DeepVoidBackdrop,
-  MemoryIslandLandmarks,
-  SatelliteCluster,
-  SkyBridge,
-} from './CampusArchitecture';
+import { OfficeEnvironment } from './OfficeEnvironment';
 import { layoutOffice, type OfficeLayout } from './officeLayout';
 import { getOfficeFocusTarget } from './officeCamera';
+import { ExternalCampus, type CampusActivityRefs } from './ExternalCampus';
+import { useIsDarkMode } from '../../hooks/useIsDarkMode';
 
-/** Strong elevated isometric camera vector (~45° diagonal azimuth, ~37° elevation) framing all floating islands. */
-const VIEW_DIR = new Vector3(0.84, 0.78, 0.88).normalize();
+/** Warm isometric 3/4 room camera vector matching diorama framing with full campus visibility. */
+const VIEW_DIR = new Vector3(0.76, 0.64, 0.78).normalize();
 const LABELS_KEY = 'tectonic.office.labels';
 
-/** Glides the camera to frame the campus, focus a selected entity, reset the default isometric angle, or step zoom. */
+/** Glides the camera to frame the office, focus a selected employee or resource, reset angle, or step zoom. */
 function CameraRig({
   layout,
   fitNonce,
@@ -56,9 +49,8 @@ function CameraRig({
   const focusKey = `${focusTarget?.join(',') ?? ''}:${focusNonce}`;
 
   useEffect(() => {
-    const target = new Vector3(layout.center[0] + 0.5, layout.center[1] + 0.4, layout.center[2] + 0.2);
-    // Tight isometric framing so the multi-island campus fills ~80% of the viewport cleanly
-    const distance = (layout.radius * 1.66 + 2.8) * Math.max(1, 1.38 / aspect);
+    const target = new Vector3(layout.center[0] - 0.35, layout.center[1] + 0.15, layout.center[2] - 0.25);
+    const distance = (layout.radius * 1.95 + 4.0) * Math.max(1, 1.32 / aspect);
     goal.current = {
       target,
       pos: target.clone().addScaledVector(VIEW_DIR, distance),
@@ -69,7 +61,7 @@ function CameraRig({
   useEffect(() => {
     if (!focusTarget) return;
     const target = new Vector3(focusTarget[0], focusTarget[1] + 0.85, focusTarget[2]);
-    const distance = Math.max(11.5, Math.min(18.5, layout.radius * 0.78));
+    const distance = Math.max(9.5, Math.min(16, layout.radius * 0.9));
     goal.current = {
       target,
       pos: target.clone().addScaledVector(VIEW_DIR, distance),
@@ -81,7 +73,7 @@ function CameraRig({
     if (zoomDelta.nonce === 0) return;
     const currentTarget = controls ? controls.target.clone() : new Vector3(...layout.center);
     const offset = camera.position.clone().sub(currentTarget);
-    const dist = Math.max(8, Math.min(115, offset.length() * (zoomDelta.step > 0 ? 0.8 : 1.25)));
+    const dist = Math.max(7, Math.min(95, offset.length() * (zoomDelta.step > 0 ? 0.8 : 1.25)));
     offset.normalize().multiplyScalar(dist);
     goal.current = {
       target: currentTarget,
@@ -107,16 +99,16 @@ function Scene({
   resetNonce,
   focusNonce,
   zoomDelta,
+  isDark,
 }: {
   showLabels: boolean;
   fitNonce: number;
   resetNonce: number;
   focusNonce: number;
   zoomDelta: { step: number; nonce: number };
+  isDark: boolean;
 }) {
-  const light = useIsLightTheme();
-  const reducedMotion = useReducedMotion();
-  const palette = light ? LIGHT_PALETTE : DARK_PALETTE;
+  const palette = isDark ? DARK_PALETTE : LIGHT_PALETTE;
   const topology = useTelemetryStore(
     (s) => ({
       order: s.agentOrder,
@@ -133,133 +125,103 @@ function Scene({
   const selectedAgentId = useTelemetryStore((s) => s.selectedAgentId);
   const selectedModuleId = useTelemetryStore((s) => s.selectedModuleId);
   const focusTarget = getOfficeFocusTarget(layout, selectedAgentId, selectedModuleId);
+  const shadowExtent = Math.max(34, layout.radius + 10);
 
-  const commandZone = layout.zones.find((z) => z.kind === 'command') ?? null;
-  const safetyZone = layout.zones.find((z) => z.kind === 'safety') ?? null;
-  const memoryZone = layout.zones.find((z) => z.kind === 'memory') ?? null;
-  const toolsZone = layout.zones.find((z) => z.kind === 'tools') ?? null;
-  const shadowExtent = Math.max(24, layout.radius + 8);
+  // Shared campus activity refs passed to Couriers (writer) and ExternalCampus (reader)
+  const activityRef = useRef<CampusActivityRefs>({
+    activeBridges: new Set(),
+    activeZones: new Set(),
+  });
+
+  const bgColor = isDark ? '#040B1A' : '#EDE6DB';
+  const fogArgs: [string, number, number] = isDark ? ['#040B1A', 48, 160] : ['#EDE6DB', 56, 148];
 
   return (
     <>
-      {/* Depth fog blending outer floating void tiles smoothly into luminous deep electric blue */}
-      <fog attach="fog" args={[light ? '#DBEAFE' : '#041230', 58, 145]} />
+      {/* Background & atmospheric depth adapting to Light & Dark theme */}
+      <color attach="background" args={[bgColor]} />
+      <fog attach="fog" args={fogArgs} />
 
-      {/* Primary ambient & directional lighting rig for realistic metallic depth and crisp shadows */}
-      <ambientLight intensity={light ? 0.6 : 0.62} color={light ? '#F8FAFC' : '#C8E0FF'} />
-      <hemisphereLight args={[light ? '#FFFFFF' : '#A5D0FF', light ? '#B8CAE2' : '#081B40', light ? 0.95 : 1.15]} />
+      {/* Campus ambient and hemisphere lighting */}
+      <ambientLight intensity={isDark ? 0.68 : 0.88} color={isDark ? '#DCEBFF' : '#FFFBF5'} />
+      <hemisphereLight args={[isDark ? '#1E293B' : '#FFFDF7', isDark ? '#020617' : '#D1C4B2', isDark ? 0.85 : 0.95]} />
+
+      {/* Main directional light casting crisp architectural shadows */}
       <directionalLight
-        position={[layout.center[0] + 16, 26, layout.center[2] + 18]}
-        intensity={light ? 1.55 : 2.2}
-        color={light ? '#FFFFFF' : '#EBF5FF'}
+        position={[layout.center[0] - 16, 28, layout.center[2] - 14]}
+        intensity={isDark ? 1.85 : 2.15}
+        color={isDark ? '#F8FAFC' : '#FFF7E6'}
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-camera-near={2}
-        shadow-camera-far={95}
+        shadow-camera-far={115}
         shadow-camera-left={-shadowExtent}
         shadow-camera-right={shadowExtent}
         shadow-camera-top={shadowExtent}
         shadow-camera-bottom={-shadowExtent}
         shadow-bias={-0.0004}
-        shadow-normalBias={0.04}
+        shadow-normalBias={0.035}
       />
-      {/* Cool back-left rim light catching architectural bevels and glass towers */}
+      {/* Cool secondary rim/fill light from opposite campus quadrant */}
       <directionalLight
-        position={[layout.center[0] - 20, 14, layout.center[2] - 18]}
-        intensity={light ? 0.5 : 0.85}
-        color="#38BDF8"
+        position={[layout.center[0] + 20, 16, layout.center[2] + 18]}
+        intensity={isDark ? 0.62 : 0.65}
+        color={isDark ? '#38BDF8' : '#E0EDFF'}
       />
 
-      {/* Distinct zone-colored atmospheric accent pools */}
-      {commandZone && (
-        <pointLight
-          position={[commandZone.center[0], 7.0, commandZone.center[2]]}
-          color="#2DD4FF"
-          intensity={light ? 1.2 : 2.8}
-          distance={28}
-          decay={1.5}
-        />
-      )}
-      {safetyZone && (
-        <pointLight
-          position={[safetyZone.center[0], 6.0, safetyZone.center[2]]}
-          color="#14B8A6"
-          intensity={light ? 1.0 : 2.2}
-          distance={22}
-          decay={1.5}
-        />
-      )}
-      {memoryZone && (
-        <pointLight
-          position={[memoryZone.center[0], 6.2, memoryZone.center[2]]}
-          color="#FBBF24"
-          intensity={light ? 1.0 : 2.5}
-          distance={24}
-          decay={1.5}
-        />
-      )}
-      {toolsZone && (
-        <pointLight
-          position={[toolsZone.center[0], 6.4, toolsZone.center[2]]}
-          color="#F43F98"
-          intensity={light ? 1.0 : 2.6}
-          distance={24}
-          decay={1.5}
-        />
-      )}
+      {/* Warm natural interior pendant & lounge lights preserving the cozy human office */}
+      <pointLight position={[-7.2, 3.2, -6.4]} color="#FFE8B8" intensity={isDark ? 1.2 : 0.85} distance={16} decay={2} />
+      <pointLight position={[7.4, 3.2, -6.4]} color="#FFE8B8" intensity={isDark ? 1.2 : 0.85} distance={16} decay={2} />
+      <pointLight position={[-7.5, 2.2, 7.2]} color="#FFDDA1" intensity={isDark ? 1.0 : 0.75} distance={12} decay={2} />
+      <pointLight position={[0.0, 3.4, 0.0]} color="#FFF7ED" intensity={isDark ? 1.1 : 0.9} distance={18} decay={2} />
 
-      {/* Open deep-electric-blue void backdrop with floating architectural micro-tiles (no walls, no office floor) */}
-      <DeepVoidBackdrop center={layout.center} light={light} />
+      {/* Domain-specific glowing point lights illuminating each external facility platform */}
+      {/* 1. DATA & KNOWLEDGE / MEMORY (Purple) */}
+      <pointLight position={[0.0, 4.4, -20.2]} color="#C084FC" intensity={isDark ? 3.4 : 1.95} distance={26} decay={2} />
+      {/* 2. OPERATIONS & SAFETY (Electric Cyan) */}
+      <pointLight position={[-22.5, 4.0, -16.2]} color="#00E5FF" intensity={isDark ? 2.9 : 1.85} distance={24} decay={2} />
+      {/* 3. PROCESSING & GOVERNANCE / PROCESS STUDIO (Magenta / Pink) */}
+      <pointLight position={[22.5, 4.0, -16.2]} color="#F472B6" intensity={isDark ? 3.1 : 1.85} distance={24} decay={2} />
+      {/* 4. PROMPTOPS & CREATIVE AI / CONTENT STUDIO (Cyan / Sky-Blue) */}
+      <pointLight position={[-22.8, 3.8, 1.8]} color="#38BDF8" intensity={isDark ? 2.8 : 1.75} distance={24} decay={2} />
+      {/* 5. TOOL ORCHESTRATION (Golden Amber) */}
+      <pointLight position={[22.8, 3.8, 1.8]} color="#FBBF24" intensity={isDark ? 3.3 : 1.95} distance={24} decay={2} />
 
-      {/* Independent elevated 3D floating island platforms with visible thickness & glowing perimeters */}
-      {layout.zones.map((zone) => (
-        <CampusPlatform key={zone.id} zone={zone} light={light} />
-      ))}
+      {/* Surrounding Futuristic External AI Infrastructure Campus (adapts to Dark & Light) */}
+      <ExternalCampus layout={layout} activityRef={activityRef} isDark={isDark} />
 
-      {/* Glowing translucent skybridges linking independent islands across spatial gaps */}
-      {layout.bridges.map((bridge) => (
-        <SkyBridge key={bridge.id} bridge={bridge} light={light} />
-      ))}
+      {/* Sunlit modern isometric office shell, glass partitions, lounge, cafe, plants & conference room */}
+      <OfficeEnvironment layout={layout} />
 
-      {/* Satellite floating pads off Agent Command's left flank */}
-      <SatelliteCluster satellites={layout.satellites} light={light} />
-
-      {/* Integrated sci-fi campus landmarks on Agent Command & Memory islands */}
-      {commandZone && (
-        <CommandIslandLandmarks zone={commandZone} builderDais={layout.builderDais} light={light} />
-      )}
-      {memoryZone && <MemoryIslandLandmarks zone={memoryZone} />}
-
-      {/* Subtle ambient environmental particles drifting above the floating campus */}
-      <Sparkles
-        count={light ? 34 : 85}
-        scale={[layout.width + 6, 5.5, layout.depth + 6]}
-        position={[layout.center[0], 2.8, layout.center[2]]}
-        size={2.1}
-        speed={reducedMotion ? 0 : 0.18}
-        opacity={light ? 0.28 : 0.5}
-        color={light ? '#0284C7' : '#38BDF8'}
-      />
-
-      {/* Real Tectonic Modules & Agents */}
+      {/* Interactive Live Resource Workstations (Tectonic Modules) */}
       {Object.entries(layout.stations).map(([id, pos]) => (
-        <Station key={id} id={id} position={pos} palette={palette} showLabel={showLabels} />
+        <Station
+          key={id}
+          id={id}
+          position={pos}
+          facingYaw={layout.stationFacings[id]}
+          palette={palette}
+          showLabel={showLabels}
+          isDark={isDark}
+        />
       ))}
+
+      {/* Modern Ergonomic Employee Desks & Chairs */}
       {Object.entries(layout.desks).map(([id, pos]) => (
         <Desk key={id} id={id} position={pos} palette={palette} showLabel={showLabels} />
       ))}
 
-      {/* Runtime-driven communication pathways, directional particles & courier fleet */}
-      <Couriers layout={layout} />
+      {/* Living Articulated Human Employees with A* Pathfinding & Real Telemetry Workflows */}
+      <Couriers layout={layout} showLabels={showLabels} activityRef={activityRef} />
 
       <OrbitControls
         makeDefault
         enableDamping
         dampingFactor={0.08}
-        minPolarAngle={0.25}
-        maxPolarAngle={1.28}
-        minDistance={8}
-        maxDistance={120}
+        minPolarAngle={0.28}
+        maxPolarAngle={1.32}
+        minDistance={7}
+        maxDistance={95}
       />
       <CameraRig
         layout={layout}
@@ -282,6 +244,7 @@ function Hud({
   hasFocus,
   showLabels,
   toggleLabels,
+  isDark,
 }: {
   onFit: () => void;
   onReset: () => void;
@@ -291,113 +254,189 @@ function Hud({
   hasFocus: boolean;
   showLabels: boolean;
   toggleLabels: () => void;
+  isDark: boolean;
 }) {
   const working = useTelemetryStore((s) =>
     s.agentOrder.filter((id) => ['thinking', 'tool_execution', 'running'].includes(s.agents[id]?.state ?? '')).length,
   );
   const staff = useTelemetryStore((s) => s.agentOrder.length);
   const serving = useTelemetryStore((s) => {
-    const cutoff = Date.now() / 1000 - 1.1;
+    const cutoff = Date.now() / 1000 - 1.6;
     return s.moduleOrder.filter(
       (id) => ['busy', 'booting'].includes(s.modules[id]?.state ?? '') || (s.moduleCalls[id]?.at(-1)?.startedAt ?? 0) > cutoff,
     ).length;
   });
   const modules = useTelemetryStore((s) => s.moduleOrder.length);
-  const btn =
-    'flex h-7 items-center gap-1.5 rounded-md px-2 text-[12px] font-medium text-[var(--studio-text-secondary)] transition-colors hover:bg-white/[0.08] hover:text-[var(--studio-text)] disabled:cursor-not-allowed disabled:opacity-40';
+
+  const pillSurface = isDark
+    ? 'rounded-xl border border-white/10 bg-slate-950/80 shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-md text-slate-100'
+    : 'rounded-xl border border-stone-300/80 bg-white/92 shadow-[0_6px_24px_rgba(30,24,18,0.12)] backdrop-blur-md text-slate-800';
+
+  const pillBtn = isDark
+    ? 'flex h-8 items-center gap-1.5 px-3 text-[12.5px] font-medium text-slate-200 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40'
+    : 'flex h-8 items-center gap-1.5 px-3 text-[12.5px] font-medium text-slate-700 transition-colors hover:bg-stone-100 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-40';
+
+  const iconBtn = isDark
+    ? 'flex h-8 w-7 items-center justify-center rounded-lg text-slate-300 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-35'
+    : 'flex h-8 w-7 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-stone-100 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-35';
 
   return (
     <>
-      <div className="pointer-events-none absolute left-3 top-3 z-10 flex items-center gap-3 rounded-xl border border-cyan-400/20 bg-[var(--glass-bg)] px-3.5 py-1.5 shadow-xl backdrop-blur-xl">
-        <Stat value={working} of={staff} label="agents working" color={STATE_STYLES.thinking.color} />
-        <span className="h-3.5 w-px bg-studio-border" />
-        <Stat value={serving} of={modules} label="modules serving" color={MODULE_STATE_STYLES.busy.color} />
+      {/* Top-Left Live Office Stats Pill */}
+      <div className={`pointer-events-none absolute left-3.5 top-3.5 z-10 flex items-center gap-3.5 px-3.5 py-2 ${pillSurface}`}>
+        <span className="flex items-center gap-2">
+          <Users className={`h-4 w-4 ${isDark ? 'text-cyan-400' : 'text-blue-600'}`} />
+          <Stat value={working} of={staff} label="agents working" color={STATE_STYLES.running.color} isDark={isDark} />
+        </span>
+        <span className={`h-4 w-px ${isDark ? 'bg-white/10' : 'bg-stone-300'}`} />
+        <span className="flex items-center gap-2">
+          <Wrench className={`h-4 w-4 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
+          <Stat value={serving} of={modules} label="modules serving" color={MODULE_STATE_STYLES.busy.color} isDark={isDark} />
+        </span>
       </div>
-      <div className="absolute right-3 top-3 z-10 flex items-center gap-0.5 rounded-xl border border-cyan-400/20 bg-[var(--glass-bg)] p-0.5 shadow-xl backdrop-blur-xl">
+
+      {/* Top-Right Camera & Simulation Controls */}
+      <div className="absolute right-3.5 top-3.5 z-10 flex items-center gap-2">
+        <div className={`flex items-center gap-0.5 px-1 ${pillSurface}`}>
+          <button
+            type="button"
+            className={`flex h-8 items-center gap-1 rounded-lg px-2 text-[12px] font-medium transition-colors ${
+              isDark
+                ? 'text-cyan-400 hover:bg-white/10 hover:text-cyan-200'
+                : 'text-blue-700 hover:bg-blue-50 hover:text-blue-900'
+            }`}
+            onClick={() => void startSimulation()}
+            title="Simulate an employee workflow across the office"
+          >
+            <Play className="h-3.5 w-3.5 fill-current" />
+            <span>Simulate</span>
+          </button>
+          <button
+            type="button"
+            className={iconBtn}
+            onClick={onZoomIn}
+            title="Zoom in (+)"
+            aria-label="Zoom in"
+          >
+            <ZoomIn className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            className={iconBtn}
+            onClick={onZoomOut}
+            title="Zoom out (-)"
+            aria-label="Zoom out"
+          >
+            <ZoomOut className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            className={iconBtn}
+            onClick={onFocus}
+            disabled={!hasFocus}
+            title={hasFocus ? 'Focus camera on selected employee or workstation' : 'Select an employee or workstation to focus'}
+            aria-label="Focus on selection"
+          >
+            <LocateFixed className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            className={iconBtn}
+            onClick={onReset}
+            title="Reset camera and clear selection"
+            aria-label="Reset camera"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
         <button
           type="button"
-          className={btn}
-          onClick={() => void startSimulation()}
-          title="Simulate an agent campus workflow"
+          className={`${pillSurface} ${pillBtn}`}
+          onClick={onFit}
+          title="Frame the entire 3D office and external campus"
         >
-          <Play className="h-3.5 w-3.5 text-cyan-300" /> Simulate
+          <Focus className={`h-3.5 w-3.5 ${isDark ? 'text-cyan-400' : 'text-blue-600'}`} />
+          <span>Fit</span>
         </button>
-        <span className="mx-0.5 h-3.5 w-px bg-studio-border" />
-        <button type="button" className={btn} onClick={onZoomIn} title="Zoom in">
-          <ZoomIn className="h-3.5 w-3.5" />
-        </button>
-        <button type="button" className={btn} onClick={onZoomOut} title="Zoom out">
-          <ZoomOut className="h-3.5 w-3.5" />
-        </button>
-        <span className="mx-0.5 h-3.5 w-px bg-studio-border" />
-        <button type="button" className={btn} onClick={onFit} title="Frame the entire 3D campus">
-          <Focus className="h-3.5 w-3.5" /> Fit
-        </button>
-        <button type="button" className={btn} onClick={onFocus} disabled={!hasFocus} title="Focus selected agent or module">
-          <LocateFixed className="h-3.5 w-3.5" /> Focus
-        </button>
-        <button type="button" className={btn} onClick={onReset} title="Reset isometric camera">
-          <RotateCcw className="h-3.5 w-3.5" /> Reset
-        </button>
+
         <button
           type="button"
-          className={btn}
+          className={`${pillSurface} ${pillBtn}`}
           onClick={toggleLabels}
-          title={showLabels ? 'Show name tags only when you hover a desk or module' : 'Always show every name tag'}
+          title={showLabels ? 'Show name tags only on hover or active tasks' : 'Always show every employee and workstation tag'}
         >
-          {showLabels ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />} Labels: {showLabels ? 'always' : 'on hover'}
+          {showLabels ? (
+            <Eye className={`h-3.5 w-3.5 ${isDark ? 'text-cyan-400' : 'text-blue-600'}`} />
+          ) : (
+            <EyeOff className={`h-3.5 w-3.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
+          )}
+          <span>Labels: {showLabels ? 'always' : 'on hover'}</span>
         </button>
       </div>
-      <div className="typo-metadata pointer-events-none absolute bottom-3 left-3 z-10 flex flex-wrap items-center gap-x-3.5 gap-y-1 rounded-xl border border-cyan-400/20 bg-[var(--glass-bg)] px-3.5 py-1.5 text-[var(--studio-text-secondary)] shadow-xl backdrop-blur-xl">
+
+      {/* Bottom-Left Human Workflow Status Legend (adapts to Dark & Light themes) */}
+      <div
+        className={`pointer-events-none absolute bottom-3.5 left-3.5 z-10 flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 text-[12px] ${
+          isDark ? 'text-slate-200' : 'text-slate-700'
+        } ${pillSurface}`}
+      >
         {[
-          ['Thinking', STATE_STYLES.thinking.color],
-          ['Calling tool', STATE_STYLES.tool_execution.color],
-          ['Ready', STATE_STYLES.idle.color],
-          ['Error', STATE_STYLES.error.color],
-        ].map(([label, color]) => (
-          <span key={label} className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full" style={{ background: color, boxShadow: `0 0 6px ${color}` }} />
+          { label: 'Thinking', color: '#EAB308' },
+          { label: 'Calling tool', color: '#2563EB' },
+          { label: 'Ready', color: '#10B981' },
+          { label: 'Error', color: '#EF4444' },
+        ].map(({ label, color }) => (
+          <span key={label} className="flex items-center gap-1.5 font-medium">
+            <span className="h-2.5 w-2.5 rounded-full" style={{ background: color }} />
             {label}
           </span>
         ))}
-        {[
-          ['Courier · delegation', COURIER_COLORS.delegation],
-          ['Courier · module call', COURIER_COLORS.module],
-        ].map(([label, color]) => (
-          <span key={label} className="flex items-center gap-1">
-            <Bot className="h-3 w-3" style={{ color, filter: `drop-shadow(0 0 4px ${color})` }} />
-            {label}
-          </span>
-        ))}
+        <span className="flex items-center gap-1.5 font-medium">
+          <span className="h-2.5 w-2.5 rounded-sm" style={{ background: '#38BDF8' }} />
+          Courier - delegation
+        </span>
+        <span className="flex items-center gap-1.5 font-medium">
+          <span className="h-2.5 w-2.5 rounded-sm" style={{ background: '#A855F7' }} />
+          Courier - module call
+        </span>
       </div>
     </>
   );
 }
 
-function Stat({ value, of, label, color }: { value: number; of: number; label: string; color: string }) {
+function Stat({ value, of, label, color, isDark }: { value: number; of: number; label: string; color: string; isDark: boolean }) {
   return (
-    <span className="flex shrink-0 items-baseline gap-1 whitespace-nowrap">
-      <span className="font-mono text-[13px] font-semibold tabular-nums" style={{ color: value > 0 ? color : 'var(--studio-text)' }}>
+    <span className="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap">
+      <span className="font-mono text-[14px] font-bold tabular-nums" style={{ color: value > 0 ? color : (isDark ? '#F8FAFC' : '#0F172A') }}>
         {value}
       </span>
-      <span className="typo-metadata text-[var(--studio-text-muted)]">/ {of} {label}</span>
+      <span className={`text-[12.5px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+        / {of} {label}
+      </span>
     </span>
   );
 }
 
-function EmptyOffice() {
+function EmptyOffice({ isDark }: { isDark: boolean }) {
   return (
     <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-      <div className="pointer-events-auto max-w-xs rounded-xl border border-cyan-400/25 bg-[var(--glass-bg)] p-5 text-center shadow-2xl backdrop-blur-xl">
-        <Building2 className="mx-auto mb-2 h-6 w-6 text-cyan-300" />
-        <h3 className="typo-panel-heading text-[var(--studio-text)]">The campus is on standby</h3>
-        <p className="typo-secondary mt-1 text-[var(--studio-text-secondary)]">
-          Command workstations appear as agents spawn; memory and tool infrastructure light up as agents invoke them.
+      <div
+        className={`pointer-events-auto max-w-xs rounded-2xl border p-5 text-center shadow-2xl backdrop-blur-md ${
+          isDark
+            ? 'border-white/10 bg-slate-950/92 text-white'
+            : 'border-stone-300/90 bg-white/94 text-slate-900'
+        }`}
+      >
+        <Building2 className={`mx-auto mb-2 h-6 w-6 ${isDark ? 'text-amber-500' : 'text-amber-600'}`} />
+        <h3 className={`typo-panel-heading ${isDark ? 'text-white' : 'text-slate-900'}`}>The office is ready for the team</h3>
+        <p className={`typo-secondary mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+          Employees take their desks as agents come online and walk to specialized workstations as tasks execute.
         </p>
         <button
           type="button"
           onClick={() => void startSimulation()}
-          className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-sky-400/40 bg-sky-400/10 px-3 py-1.5 text-[12px] font-medium text-sky-300 hover:bg-sky-400/20"
+          className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-1.5 text-[12px] font-medium text-white shadow-sm hover:bg-blue-700"
         >
           <Play className="h-3.5 w-3.5" /> Simulate office
         </button>
@@ -406,9 +445,10 @@ function EmptyOffice() {
   );
 }
 
-/** Blueprint: a 3D multi-agent campus mirroring the Command Center's live telemetry (same store, same selection). */
+/** Living 3D AI Office view mirroring live Tectonic telemetry with articulated human employees. */
 export function Office3D() {
-  const light = useIsLightTheme();
+  const isDark = useIsDarkMode();
+
   const [showLabels, setShowLabels] = useState(() => {
     try {
       return localStorage.getItem(LABELS_KEY) === 'always';
@@ -441,22 +481,22 @@ export function Office3D() {
     document.body.style.cursor = '';
   }, []);
 
-  const campusBackground = light
-    ? 'radial-gradient(ellipse at 50% 42%, #EFF6FF 0%, #DBEAFE 52%, #C7D7EE 100%)'
-    : 'radial-gradient(ellipse at 48% 42%, #0F3174 0%, #071A46 46%, #030A1E 100%)';
+  const studioBackdrop = isDark
+    ? 'radial-gradient(ellipse at 50% 35%, #071536 0%, #040B1D 60%, #020614 100%)'
+    : 'radial-gradient(ellipse at 50% 40%, #FAF7F2 0%, #EFE8DD 55%, #E2D7C5 100%)';
 
   return (
-    <div className="relative h-full w-full overflow-hidden" style={{ background: campusBackground }}>
+    <div className="relative h-full w-full overflow-hidden transition-colors duration-500" style={{ background: studioBackdrop }}>
       <Canvas
         shadows
         dpr={[1, 1.75]}
-        camera={{ fov: 26, position: [26, 24, 28], near: 0.2, far: 450 }}
+        camera={{ fov: 26, position: [28, 22, 28], near: 0.2, far: 350 }}
         gl={{
           antialias: true,
           alpha: true,
           powerPreference: 'high-performance',
           toneMapping: ACESFilmicToneMapping,
-          toneMappingExposure: 1.2,
+          toneMappingExposure: isDark ? 1.04 : 1.08,
         }}
         onPointerMissed={() => {
           const s = useTelemetryStore.getState();
@@ -473,6 +513,7 @@ export function Office3D() {
             resetNonce={resetNonce}
             focusNonce={focusNonce}
             zoomDelta={zoomDelta}
+            isDark={isDark}
           />
         </Suspense>
       </Canvas>
@@ -491,8 +532,9 @@ export function Office3D() {
         hasFocus={hasFocus}
         showLabels={showLabels}
         toggleLabels={toggleLabels}
+        isDark={isDark}
       />
-      {empty && <EmptyOffice />}
+      {empty && <EmptyOffice isDark={isDark} />}
       <AgentTelemetryPanel host="office" />
       <ModuleTelemetryPanel host="office" />
     </div>
@@ -500,4 +542,3 @@ export function Office3D() {
 }
 
 export default Office3D;
-

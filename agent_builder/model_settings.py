@@ -42,20 +42,79 @@ ENV_PATH: Path = PROJECT_ROOT / ".env"
 
 # Models offered in the Studio (any other model id can be typed in).
 CATALOGUE = [
-    {"id": "claude-opus-5-5", "provider": "anthropic", "label": "Claude Opus 5.5", "tag": "Recommended",
-     "description": "Anthropic's default model: strongest for designing agents and writing their code."},
-    {"id": "claude-sonnet-5-5", "provider": "anthropic", "label": "Claude Sonnet 5.5", "tag": "Balanced",
-     "description": "Fast and capable for everyday building at half Opus's price."},
-    {"id": "claude-haiku-5-5", "provider": "anthropic", "label": "Claude Haiku 5.5", "tag": "Fastest",
-     "description": "Lowest cost and latency, for simple agents."},
-    {"id": "claude-fable-5-1", "provider": "anthropic", "label": "Claude Fable 5.1", "tag": "Most capable",
-     "description": "Anthropic's most capable model, for the hardest designs (premium price, longer turns)."},
-    {"id": "gemini-3.6-flash", "provider": "google", "label": "Gemini 3.6 Flash", "tag": "Fast",
-     "description": "Google's fast multimodal model."},
-    {"id": "gemini-2.5-pro", "provider": "google", "label": "Gemini 2.5 Pro", "tag": "Reasoning",
-     "description": "Google's reasoning model."},
-    {"id": "gemini-2.5-flash", "provider": "google", "label": "Gemini 2.5 Flash", "tag": "Low latency",
-     "description": "Google's low-latency model."},
+    # --- Anthropic (Claude) ---
+    {
+        "id": "claude-fable-5-2",
+        "provider": "anthropic",
+        "label": "Claude Fable 5.2",
+        "tag": "Most capable · $8 / $40 per 1M",
+        "description": "Anthropic's most capable model for demanding reasoning, coding, and long-horizon agentic work.",
+    },
+    {
+        "id": "claude-opus-5-5",
+        "provider": "anthropic",
+        "label": "Claude Opus 5.5",
+        "tag": "Recommended · $4 / $20 per 1M",
+        "description": "Anthropic's default model: strongest for designing agents, agentic coding, and knowledge work.",
+    },
+    {
+        "id": "claude-sonnet-5-5",
+        "provider": "anthropic",
+        "label": "Claude Sonnet 5.5",
+        "tag": "Balanced · $2 / $10 per 1M",
+        "description": "Fast and capable for everyday building at half Opus's price.",
+    },
+    {
+        "id": "claude-haiku-5-5",
+        "provider": "anthropic",
+        "label": "Claude Haiku 5.5",
+        "tag": "Fastest · $0.10 / $0.50 per 1M",
+        "description": "Lowest cost and latency for high-volume tasks, subagents, and simple workflows.",
+    },
+
+    # --- Google (Gemini) ---
+    {
+        "id": "gemini-4-carbon",
+        "provider": "google",
+        "label": "Gemini 4 Carbon",
+        "tag": "Most capable · $2 / $10 per 1M",
+        "description": "Google's strongest reasoning model for complex software engineering, multimodal work, and science.",
+    },
+    {
+        "id": "gemini-4-argon",
+        "provider": "google",
+        "label": "Gemini 4 Argon",
+        "tag": "Efficient reasoning · $2 / $10 per 1M",
+        "description": "Frontier reasoning model with faster responses and lower token spend per turn than Carbon.",
+    },
+    {
+        "id": "gemini-4-neon",
+        "provider": "google",
+        "label": "Gemini 4 Neon",
+        "tag": "Balanced · $1.50 / $7.50 per 1M",
+        "description": "Balances frontier reasoning depth and efficiency for complex engineering and analytical workflows.",
+    },
+    {
+        "id": "gemini-4-hydrogen",
+        "provider": "google",
+        "label": "Gemini 4 Hydrogen",
+        "tag": "Fast · $0.75 / $3.75 per 1M",
+        "description": "Fast, cost-efficient Gemini 4 model for everyday coding and agentic execution.",
+    },
+    {
+        "id": "gemini-3.8-flash",
+        "provider": "google",
+        "label": "Gemini 3.8 Flash",
+        "tag": "Multimodal · $0.75 / $3.75 per 1M",
+        "description": "Google's latest Flash model (official replacement for deprecated Gemini 2.5 Pro).",
+    },
+    {
+        "id": "gemini-3.5-flash-lite",
+        "provider": "google",
+        "label": "Gemini 3.5 Flash-Lite",
+        "tag": "Low latency · $0.30 / $2.50 per 1M",
+        "description": "Google's cheapest, lowest-latency model for high-throughput routing and subagents (replaces Gemini 2.5 Flash).",
+    },
 ]
 _MODEL_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/@-]{1,120}$")
 _KEY_CHARS = re.compile(r"^[A-Za-z0-9._\-]{8,512}$")  # catches pasted junk; the provider check is the real test
