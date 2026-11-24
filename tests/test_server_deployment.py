@@ -30,9 +30,9 @@ def auth_context(server_app, tmp_path_factory):
     from agent_builder import auth
     # Register test admin user
     try:
-        user = auth.register("deploy_tester", "Password123!")
+        user = auth.register("deploy_admin", "Password123!")
     except auth.AuthError:
-        user = auth.login("deploy_tester", "Password123!")
+        user = auth.login("deploy_admin", "Password123!")
     token = auth.issue_token(user)
     headers = {"Authorization": f"Bearer {token}"}
     return {"user": user, "token": token, "headers": headers}
