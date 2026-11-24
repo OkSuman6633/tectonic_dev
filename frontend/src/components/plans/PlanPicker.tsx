@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, Building2, Check, Clock, Crown, FlaskConical, Loader2, RefreshCw, Rocket, X, Zap } from 'lucide-react';
-import { choosePlan, fmtTokens, getPlans, resetStarterTrial, simulateExpiration, type PlanSummary } from '../../services/plans';
+import { AlertTriangle, Building2, Check, Crown, Loader2, Rocket, UserPlus, X, Zap } from 'lucide-react';
+import { choosePlan, fmtTokens, getPlans, type PlanSummary } from '../../services/plans';
+import { getUser, signOut } from '../../services/auth';
 import { ThemeToggle } from '../ThemeToggle';
 
 /**
@@ -29,7 +30,9 @@ export const PlanPicker: React.FC<{
   const [plans, setPlans] = useState<PlanSummary[] | null>(null);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [simulating, setSimulating] = useState(false);
+
+  const currentUser = getUser();
+  const hasAdmin = Boolean(currentUser?.username && currentUser.username.toLowerCase().includes('admin'));
 
   useEffect(() => {
     getPlans()
@@ -50,37 +53,25 @@ export const PlanPicker: React.FC<{
     }
   };
 
-  const handleSimulateExpiration = async () => {
-    setSimulating(true);
-    try {
-      await simulateExpiration();
-      window.location.reload();
-    } catch (err: any) {
-      setError(err.message || 'Simulation failed');
-      setSimulating(false);
-    }
-  };
-
-  const handleResetTrial = async () => {
-    setSimulating(true);
-    try {
-      await resetStarterTrial();
-      window.location.reload();
-    } catch (err: any) {
-      setError(err.message || 'Reset failed');
-      setSimulating(false);
-    }
-  };
-
   const chosenId = current !== undefined ? current : plans?.find((p) => p.chosen)?.id;
 
   const card = (p: PlanSummary) => {
     const chosen = p.id === chosenId;
+    const isAvailable = p.available !== false;
+    let buttonText = chosen ? 'Your plan' : p.id === 'enterprise' ? 'Contact us' : `Choose ${p.name}`;
+    if (!chosen && !isAvailable) {
+      buttonText = p.id === 'starter' ? 'Trial Expired' : 'Admin Required';
+    }
+
     return (
       <div
         key={p.id}
         className={`relative flex flex-col rounded-2xl border p-5 transition-colors ${
-          chosen ? 'border-sky-400/70 bg-sky-400/[0.07] ring-1 ring-sky-400/50' : 'border-white/10 bg-studio-card'
+          chosen
+            ? 'border-sky-400/70 bg-sky-400/[0.07] ring-1 ring-sky-400/50'
+            : !isAvailable
+            ? 'border-white/5 bg-studio-card/60 opacity-80'
+            : 'border-white/10 bg-studio-card'
         }`}
       >
         {chosen && (
@@ -115,17 +106,25 @@ export const PlanPicker: React.FC<{
 
         <button
           type="button"
-          disabled={chosen || busyId !== null}
+          disabled={chosen || busyId !== null || !isAvailable}
           onClick={() => select(p.id)}
+          title={!isAvailable ? (p.unavailable_reason || 'Not available') : undefined}
           className={`flex w-full items-center justify-center gap-2 rounded-xl py-2 text-sm font-semibold transition-colors disabled:opacity-60 ${
             chosen
               ? 'cursor-default bg-white/10 text-slate-300'
+              : !isAvailable
+              ? 'cursor-not-allowed bg-white/5 text-slate-400 border border-white/5'
               : 'bg-sky-400 text-[#05222E] hover:bg-sky-300'
           }`}
         >
           {busyId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          {chosen ? 'Your plan' : p.id === 'enterprise' ? 'Contact us' : `Choose ${p.name}`}
+          {buttonText}
         </button>
+        {!isAvailable && p.unavailable_reason && (
+          <p className="mt-2 text-center text-[10px] text-amber-300/80 leading-tight">
+            {p.unavailable_reason}
+          </p>
+        )}
       </div>
     );
   };
@@ -165,12 +164,25 @@ export const PlanPicker: React.FC<{
 
       {expired && (
         <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-amber-200 animate-in fade-in">
-          <div className="flex items-center gap-2 font-semibold text-sm text-amber-300">
-            <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0" />
-            <span>7-Day Starter Trial Expired</span>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 font-semibold text-sm text-amber-300">
+              <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0" />
+              <span>7-Day Starter Trial Expired</span>
+            </div>
+            <button
+              type="button"
+              onClick={signOut}
+              className="flex items-center gap-1.5 rounded-lg border border-amber-400/40 bg-amber-400/20 px-3 py-1.5 text-xs font-semibold text-amber-100 hover:bg-amber-400/30 transition-colors"
+              title="Sign out and create another account for a fresh 7-day Starter plan"
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              <span>Create Another Account</span>
+            </button>
           </div>
-          <p className="mt-1 text-xs text-amber-200/90 leading-relaxed">
-            Your initial 7-day Starter plan has expired. To reactivate all Studio capabilities and private workspaces, please select a plan below. Your existing agents and chat records are preserved.
+          <p className="mt-2 text-xs text-amber-200/90 leading-relaxed">
+            {hasAdmin
+              ? 'Your initial 7-day Starter plan has expired. As an admin account, you can select an upgraded plan below to continue building, or register another account for a fresh Starter plan.'
+              : 'Your initial 7-day Starter plan has expired. To create one more Starter plan, please register another account using the button above. Other plans are available for administrative accounts whose username contains "admin" (e.g., "data admin", "admin portal", "admin account").'}
           </p>
         </div>
       )}
@@ -215,35 +227,6 @@ export const PlanPicker: React.FC<{
                 {compare('SLA', (p) => p.sla)}
               </tbody>
             </table>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-studio-surface/50 p-3.5 text-xs text-slate-400">
-            <div className="flex items-center gap-2">
-              <FlaskConical className="h-4 w-4 text-sky-400" />
-              <span className="font-medium text-slate-300">Subscription Testing & Verification:</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                disabled={simulating || busyId !== null}
-                onClick={handleSimulateExpiration}
-                className="flex items-center gap-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
-                title="Immediately expire the 7-day Starter subscription for testing"
-              >
-                {simulating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Clock className="h-3.5 w-3.5" />}
-                <span>Simulate 7-Day Expiry</span>
-              </button>
-              <button
-                type="button"
-                disabled={simulating || busyId !== null}
-                onClick={handleResetTrial}
-                className="flex items-center gap-1.5 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/30 px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
-                title="Reset back to a fresh 7-day active Starter plan"
-              >
-                {simulating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                <span>Reset 7-Day Trial</span>
-              </button>
-            </div>
           </div>
         </>
       ) : null}

@@ -83,26 +83,88 @@ def test_automatic_7_day_starter_trial_creation(clean_env):
     assert abs(sub["expires_at"] - expected_expiry) < 10
 
 
-def test_plan_upgrade_and_simulation(clean_env):
-    alice = auth.register("alice", "password123")
-    user_id = alice["id"]
+def test_admin_usernames_and_plan_access(clean_env):
+    # Register a standard first user to consume the first-user auto-admin slot
+    root_user = auth.register("setup_owner", "password123")
+    assert root_user["admin"] is True
 
-    # Upgrade to Pro plan
-    SubscriptionRepository.set_plan(user_id, "pro")
+    # Non-admin user (username without 'admin')
+    bob = auth.register("bob_developer", "password123")
+    assert bob["admin"] is False
+
+    # Admin users: usernames containing 'admin' with spaces and variations
+    data_admin = auth.register("data admin", "password123")
+    assert data_admin["admin"] is True
+
+    admin_portal = auth.register("admin portal", "password123")
+    assert admin_portal["admin"] is True
+
+    admin_account = auth.register("admin account", "password123")
+    assert admin_account["admin"] is True
+
+    # Non-admin user can only access Starter plan; other plans are not available
+    bob_plans = entitlements.public_plans(bob["id"])
+    for p in bob_plans:
+        if p["id"] == "starter":
+            assert p["available"] is True
+        else:
+            assert p["available"] is False
+            assert "admin" in p["unavailable_reason"].lower()
+
+    # Attempting to upgrade bob to Pro must be rejected
+    with pytest.raises(ValueError, match="admin"):
+        SubscriptionRepository.set_plan(bob["id"], "pro")
+
+    with pytest.raises(ValueError, match="admin"):
+        entitlements.set_plan_id(bob["id"], "pro")
+
+    # Admin user (e.g. data admin) has all other plans available
+    admin_plans = entitlements.public_plans(data_admin["id"])
+    for p in admin_plans:
+        assert p["available"] is True
+        assert p["unavailable_reason"] is None
+
+    # Admin user can upgrade to Pro plan
+    upgraded = SubscriptionRepository.set_plan(data_admin["id"], "pro")
+    assert upgraded["plan_id"] == "pro"
+    assert upgraded["status"] == "active"
+
+
+def test_starter_plan_expiration_and_one_per_account(clean_env):
+    user = auth.register("regular_user", "password123")
+    user_id = user["id"]
+
     sub = SubscriptionRepository.get_by_user_id(user_id)
-    assert sub["plan_id"] == "pro"
+    assert sub["plan_id"] == "starter"
     assert sub["status"] == "active"
 
-    # Simulate 7-day expiration
-    expired_sub = SubscriptionRepository.simulate_expiration(user_id)
-    assert expired_sub["status"] == "expired"
-    assert expired_sub["expires_at"] < time.time()
+    # Simulate passage of 7 days by updating expires_at to the past
+    conn = db.get_connection()
+    with db._db_lock:
+        with conn:
+            conn.execute(
+                "UPDATE subscriptions SET expires_at = ?, updated_at = ? WHERE user_id = ?",
+                (time.time() - 60, time.time(), user_id),
+            )
 
-    # Reset trial back to 7-day active Starter plan
-    fresh_sub = SubscriptionRepository.reset_starter_trial(user_id)
-    assert fresh_sub["plan_id"] == "starter"
-    assert fresh_sub["status"] == "active"
-    assert fresh_sub["expires_at"] > time.time()
+    expired_sub = SubscriptionRepository.get_by_user_id(user_id)
+    assert expired_sub["status"] == "expired"
+
+    # User cannot renew or create another Starter plan on the same account
+    with pytest.raises(ValueError, match="create another account"):
+        SubscriptionRepository.set_plan(user_id, "starter")
+
+    # Trying create_starter on existing account does not overwrite or renew expired trial
+    SubscriptionRepository.create_starter(user_id)
+    still_expired = SubscriptionRepository.get_by_user_id(user_id)
+    assert still_expired["status"] == "expired"
+
+    # But creating another account provisions a fresh 7-day Starter plan
+    new_user = auth.register("new_account_user", "password123")
+    new_sub = SubscriptionRepository.get_by_user_id(new_user["id"])
+    assert new_sub["plan_id"] == "starter"
+    assert new_sub["status"] == "active"
+    assert new_sub["expires_at"] > time.time()
 
 
 def test_auth_middleware_blocks_expired_subscription(clean_env):
@@ -132,8 +194,14 @@ def test_auth_middleware_blocks_expired_subscription(clean_env):
     res = client.get("/api/system/agents", headers=headers)
     assert res.status_code == 200
 
-    # Simulate expiration
-    SubscriptionRepository.simulate_expiration(alice["id"])
+    # Expire subscription after 7 days
+    conn = db.get_connection()
+    with db._db_lock:
+        with conn:
+            conn.execute(
+                "UPDATE subscriptions SET status = 'expired', expires_at = ?, updated_at = ? WHERE user_id = ?",
+                (time.time() - 60, time.time(), alice["id"]),
+            )
 
     # Expired user is blocked from protected execution routes with 403 PLAN_EXPIRED
     res_blocked = client.get("/api/system/agents", headers=headers)

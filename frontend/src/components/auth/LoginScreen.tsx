@@ -4,7 +4,7 @@ import { signIn } from '../../services/auth';
 import { ThemeToggle } from '../ThemeToggle';
 
 const EMAIL_REGEX = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
-const USERNAME_REGEX = /^[A-Za-z0-9_.\-]{3,32}$/;
+const USERNAME_REGEX = /^[A-Za-z0-9_.\- ]{3,32}$/;
 
 /** Sign in / create an account with local SQLite storage, secure bcrypt, and automatic 7-day Starter trial. */
 export const LoginScreen: React.FC = () => {
@@ -30,7 +30,7 @@ export const LoginScreen: React.FC = () => {
 
     if (registering) {
       if (!USERNAME_REGEX.test(identifier.trim())) {
-        setError('Username must be 3-32 characters (letters, digits, _, ., -).');
+        setError('Username must be 3-32 characters (letters, digits, spaces, _, ., -).');
         return;
       }
       if (email.trim() && !EMAIL_REGEX.test(email.trim())) {
@@ -99,11 +99,11 @@ export const LoginScreen: React.FC = () => {
                 autoComplete={registering ? 'username' : 'username email'}
                 autoFocus
                 required
-                placeholder={registering ? 'e.g., alice_dev' : 'Username or email'}
+                placeholder={registering ? 'e.g., data admin' : 'Username or email'}
               />
               {registering && identifier && !isUsernameValid && (
                 <span className="mt-1 block text-[11px] text-rose-400">
-                  3-32 characters: letters, digits, '_', '.' or '-'
+                  3-32 characters: letters, digits, spaces, '_', '.' or '-'
                 </span>
               )}
             </label>
