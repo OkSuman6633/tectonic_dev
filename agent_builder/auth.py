@@ -30,7 +30,7 @@ from .workspace import as_user, is_user_id, owner_of_app
 
 TOKEN_TTL_SECONDS = 7 * 24 * 3600
 _PBKDF2_ROUNDS = 240_000
-_USERNAME = re.compile(r"^[A-Za-z0-9_.-]{3,32}$")
+_USERNAME = re.compile(r"^[A-Za-z0-9_.\- ]{3,32}$")
 _EMAIL = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
 _MAX_FAILURES, _LOCKOUT_SECONDS = 8, 300
 BUILDER_APP = "agent_builder"
@@ -97,18 +97,30 @@ def _public(user: dict) -> dict:
     }
 
 
+def is_admin_username(username: str | None) -> bool:
+    """True when the username contains the word 'admin' (case-insensitive),
+    e.g. 'data admin', 'admin portal', 'admin account'.
+    """
+    if not username:
+        return False
+    return "admin" in username.strip().lower()
+
+
 def is_admin(user: dict) -> bool:
-    """Admins (TECTONIC_ADMINS=alice,bob; by default the first account) may change server-wide settings."""
+    """Admins (username containing 'admin', TECTONIC_ADMINS=alice,bob, or first account)."""
+    uname = (user.get("username") or "").strip()
+    if is_admin_username(uname):
+        return True
     admins = {u.strip().lower() for u in os.getenv("TECTONIC_ADMINS", "").split(",") if u.strip()}
-    if admins:
-        return user["username"].lower() in admins
+    if admins and uname.lower() in admins:
+        return True
     return bool(user.get("is_admin") or user.get("admin") or user.get("first"))
 
 
 def register(username: str, password: str, email: str | None = None) -> dict:
-    username = (username or "").strip()
-    if not _USERNAME.match(username):
-        raise AuthError("Username must be 3-32 characters: letters, digits, '_', '.' or '-'.")
+    clean_username = " ".join((username or "").strip().split())
+    if not _USERNAME.match(clean_username) or len(clean_username) < 3 or len(clean_username) > 32:
+        raise AuthError("Username must be 3-32 characters: letters, digits, spaces, '_', '.' or '-'.")
     if len(password or "") < 8:
         raise AuthError("Password must be at least 8 characters.")
 
@@ -117,27 +129,29 @@ def register(username: str, password: str, email: str | None = None) -> dict:
         if not _EMAIL.match(clean_email):
             raise AuthError("Please provide a valid email address.")
     else:
-        clean_email = f"{username.lower()}@tectonic.local"
+        email_prefix = re.sub(r"[^a-zA-Z0-9_.-]", "_", clean_username.lower())
+        clean_email = f"{email_prefix}@tectonic.local"
 
     init_db()
     with _lock:
-        if UserRepository.get_by_username(username):
+        if UserRepository.get_by_username(clean_username):
             raise AuthError("That username is taken.")
         if UserRepository.get_by_email(clean_email):
             raise AuthError("An account with that email already exists.")
 
         is_first = UserRepository.count() == 0
+        is_admin_user = is_first or is_admin_username(clean_username)
         pw_hash = _hash_bcrypt(password)
         salt = secrets.token_bytes(16).hex()
         user_id = f"u_{secrets.token_hex(6)}"
 
         user = UserRepository.create(
             user_id=user_id,
-            username=username,
+            username=clean_username,
             email=clean_email,
             password_hash=pw_hash,
             salt=salt,
-            is_admin=is_first,
+            is_admin=is_admin_user,
         )
 
         # Automatic 7-Day Starter Trial assignment
@@ -292,7 +306,7 @@ _APP_INFO_PATH = re.compile(r"^/apps/([^/]+)/app-info$")
 
 # Routes permitted even when the account's subscription is expired (so the user can view & choose a plan)
 _EXPIRED_ALLOWED_PATHS = (
-    "/api/plans", "/api/plan", "/api/subscription", "/auth/me", "/auth/config",
+    "/api/plans", "/api/plan", "/auth/me", "/auth/config",
     "/api/env", "/health", "/healthz", "/api/web-search",
 )
 
@@ -387,7 +401,11 @@ class AuthMiddleware:
                         403,
                         {
                             "code": "PLAN_EXPIRED",
-                            "detail": "Your 7-day Starter plan has expired. Please select a plan to continue.",
+                            "detail": (
+                                "Your 7-day Starter plan has expired. To create another starter plan, "
+                                "please register a new account. Other plans are available for accounts "
+                                "with username containing 'admin'."
+                            ),
                             "plan_id": sub.get("plan_id", "starter"),
                             "expires_at": sub.get("expires_at"),
                         },

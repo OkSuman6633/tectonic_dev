@@ -382,20 +382,18 @@ def get_plan_id(user_id: str | None) -> str | None:
 
 
 def set_plan_id(user_id: str | None, plan_id: str) -> None:
-    """Record (or change) the account's plan. No payment: switching is free and immediate."""
+    """Record (or change) the account's plan. Enforces role and expiration rules."""
     plan_definition(plan_id)  # validate
     pid = plan_id.strip().lower()
+    if user_id:
+        from .db import SubscriptionRepository
+
+        SubscriptionRepository.set_plan(user_id, pid)
+
     with _plans_lock:
         store = _read_plans()
         store[user_id or "local"] = pid
         _write_plans(store)
-    if user_id:
-        try:
-            from .db import SubscriptionRepository
-
-            SubscriptionRepository.set_plan(user_id, pid)
-        except Exception:
-            pass
 
 
 def effective_plan_id(user_id: str | None) -> str:
@@ -661,8 +659,45 @@ def public_plan(plan_id: str, chosen: bool) -> dict[str, Any]:
 
 
 def public_plans(user_id: str | None) -> list[dict[str, Any]]:
+    username = ""
+    sub = None
+    if user_id:
+        try:
+            from .db import SubscriptionRepository, UserRepository
+
+            user = UserRepository.get_by_id(user_id)
+            if user:
+                username = user.get("username", "") or ""
+            sub = SubscriptionRepository.get_by_user_id(user_id)
+        except Exception:
+            pass
+
+    has_admin = "admin" in username.lower()
+    now = time.time()
+    starter_expired = bool(sub and (sub.get("status") == "expired" or now >= sub.get("expires_at", 0)))
     current = get_plan_id(user_id)
-    return [public_plan(pid, current == pid) for pid in PLAN_IDS]
+
+    result: list[dict[str, Any]] = []
+    for pid in PLAN_IDS:
+        p = public_plan(pid, current == pid)
+        if pid == "starter":
+            if starter_expired:
+                p["available"] = False
+                p["unavailable_reason"] = "7-day Starter trial ended. Please create another account to use Starter."
+            else:
+                p["available"] = True
+                p["unavailable_reason"] = None
+        else:
+            if has_admin:
+                p["available"] = True
+                p["unavailable_reason"] = None
+            else:
+                p["available"] = False
+                p["unavailable_reason"] = (
+                    "Available only for Owner accounts."
+                )
+        result.append(p)
+    return result
 
 
 def plan_status(user_id: str | None) -> dict[str, Any]:

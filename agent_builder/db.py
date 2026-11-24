@@ -290,12 +290,7 @@ class SubscriptionRepository:
                     """
                     INSERT INTO subscriptions (id, user_id, plan_id, status, started_at, expires_at, created_at, updated_at)
                     VALUES (?, ?, 'starter', 'active', ?, ?, ?, ?)
-                    ON CONFLICT(user_id) DO UPDATE SET
-                        plan_id = 'starter',
-                        status = 'active',
-                        started_at = excluded.started_at,
-                        expires_at = excluded.expires_at,
-                        updated_at = excluded.updated_at
+                    ON CONFLICT(user_id) DO NOTHING
                     """,
                     (sub_id, user_id, start, expires, now, now),
                 )
@@ -313,20 +308,42 @@ class SubscriptionRepository:
     ) -> dict[str, Any]:
         """Modular plan upgrade handler.
 
-        Enables selecting/switching plans and is ready for payment gateway integration
-        (Stripe/Razorpay webhook callbacks).
+        Enforces plan availability rules:
+        - Starter plan cannot be re-selected/renewed on an existing account (one-time 7-day trial;
+          users must create a new account for another Starter plan).
+        - Other plans (Pro, Business, Enterprise) are only available for accounts with username
+          containing the word 'admin' (e.g. 'data admin', 'admin portal', 'admin account').
         """
         init_db()
-        if UserRepository.get_by_id(user_id) is None:
-            UserRepository.create(
+        user = UserRepository.get_by_id(user_id)
+        if user is None:
+            user = UserRepository.create(
                 user_id=user_id,
                 username=user_id,
                 email=f"{user_id}@tectonic.local",
                 password_hash="",
             )
+
+        target_plan = plan_id.strip().lower()
+        uname = (user.get("username") if user else "") or ""
+        is_admin_user = "admin" in uname.lower()
+
+        if target_plan == "starter":
+            existing = SubscriptionRepository.get_by_user_id(user_id)
+            if existing is not None:
+                raise ValueError(
+                    "The Starter plan is a one-time 7-day trial. To create another starter plan, "
+                    "please create another account."
+                )
+        else:
+            if not is_admin_user:
+                raise ValueError(
+                    "Plans other than Starter are only available for admin accounts whose username contains 'admin' "
+                    "(e.g., 'data admin', 'admin portal', 'admin account')."
+                )
+
         now = time.time()
-        days = SubscriptionRepository.STARTER_TRIAL_DAYS if plan_id.lower() == "starter" else duration_days
-        expires = now + days * 86400
+        expires = now + duration_days * 86400
         sub_id = f"sub_{user_id}"
 
         conn = get_connection()
@@ -343,7 +360,7 @@ class SubscriptionRepository:
                         expires_at = excluded.expires_at,
                         updated_at = excluded.updated_at
                     """,
-                    (sub_id, user_id, plan_id.lower(), status, now, expires, now, now),
+                    (sub_id, user_id, target_plan, status, now, expires, now, now),
                 )
         sub = SubscriptionRepository.get_by_user_id(user_id)
         if sub is None:
@@ -361,25 +378,3 @@ class SubscriptionRepository:
                     "UPDATE subscriptions SET status = ?, updated_at = ? WHERE user_id = ?",
                     (status, now, user_id),
                 )
-
-    @staticmethod
-    def simulate_expiration(user_id: str) -> dict[str, Any]:
-        """Testing utility: sets subscription expiration to 1 minute in the past."""
-        init_db()
-        past = time.time() - 60
-        conn = get_connection()
-        with _db_lock:
-            with conn:
-                conn.execute(
-                    "UPDATE subscriptions SET status = 'expired', expires_at = ?, updated_at = ? WHERE user_id = ?",
-                    (past, time.time(), user_id),
-                )
-        sub = SubscriptionRepository.get_by_user_id(user_id)
-        if sub is None:
-            raise RuntimeError(f"Failed to fetch subscription for {user_id}")
-        return sub
-
-    @staticmethod
-    def reset_starter_trial(user_id: str) -> dict[str, Any]:
-        """Testing utility: restores a fresh 7-day active Starter subscription."""
-        return SubscriptionRepository.create_starter(user_id)

@@ -133,31 +133,6 @@ async def auth_me():
     return {"user": user, "plan_id": plan_id, "subscription": sub}
 
 
-# --- subscription management & test simulation ----------------------------------------------------
-@router.post("/api/subscription/simulate-expiration")
-async def simulate_expiration():
-    """Testing utility: artificially sets the user's subscription to expired in the past."""
-    uid = current_user()
-    if not uid:
-        raise HTTPException(400, "Signed-in user context required")
-    from .db import SubscriptionRepository
-
-    sub = SubscriptionRepository.simulate_expiration(uid)
-    return {"status": "expired", "subscription": sub}
-
-
-@router.post("/api/subscription/reset-trial")
-async def reset_trial():
-    """Testing utility: restores a fresh 7-day active Starter subscription."""
-    uid = current_user()
-    if not uid:
-        raise HTTPException(400, "Signed-in user context required")
-    from .db import SubscriptionRepository
-
-    sub = SubscriptionRepository.reset_starter_trial(uid)
-    return {"status": "reset", "subscription": sub}
-
-
 # --- subscription plans (no payment yet: choosing/switching is free) -----------------------------
 @router.get("/api/plans")
 async def list_plans():
@@ -173,13 +148,18 @@ async def current_plan():
 
 @router.put("/api/plan")
 async def choose_plan(body: dict = Body(...)):
-    """Choose or switch plan: {plan_id}. Free and immediate while there is no billing."""
+    """Choose or switch plan: {plan_id}."""
+    uid = current_user()
+    if not uid:
+        raise HTTPException(401, "Signed-in user context required")
     plan_id = str(body.get("plan_id", "")).strip()
     try:
-        entitlements.set_plan_id(current_user(), plan_id)
+        entitlements.set_plan_id(uid, plan_id)
     except ValueError as exc:
-        raise HTTPException(400, str(exc)) from exc
-    return entitlements.plan_status(current_user())
+        msg = str(exc)
+        status_code = 403 if "admin" in msg.lower() else 400
+        raise HTTPException(status_code, msg) from exc
+    return entitlements.plan_status(uid)
 
 
 @router.get("/api/plan/report")
