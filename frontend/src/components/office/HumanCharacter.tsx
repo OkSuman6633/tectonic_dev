@@ -16,6 +16,8 @@ export interface HumanPoseInput {
   seed: number;
   /** True when the agent has an active backend task at their desk. */
   workingAtDesk: boolean;
+  /** Whether the desk equipment being worked on is a laptop, desktop monitor, or hybrid. */
+  workEquipment?: 'laptop' | 'monitor' | 'hybrid';
 }
 
 function lerpAngle(current: number, target: number, alpha: number): number {
@@ -193,36 +195,56 @@ function HumanCharacterImpl({
         }
       }
     } else if (stand < 0.4) {
-      // Seated at desk: alive natural idle or active desk coding
-      const activeRate = pose.workingAtDesk ? 13.5 : 6.5;
-      const activeAmp = pose.workingAtDesk ? 0.09 : 0.045;
-      if (pose.workingAtDesk || appearance.idleStyle === 'typing') {
-        torsoPitch = pose.workingAtDesk ? 0.12 : 0.07;
-        headPitch = 0.1 + Math.sin(t * 0.9) * 0.035;
-        headYaw = Math.sin(t * (pose.workingAtDesk ? 1.5 : 0.65)) * 0.2;
+      // Seated at desk: alive natural idle or active desk work
+      const activeRate = pose.workingAtDesk ? 14.5 : 7.0;
+      const activeAmp = pose.workingAtDesk ? 0.095 : 0.045;
+      const equip = pose.workEquipment ?? 'monitor';
+
+      if (equip === 'laptop') {
+        // Working on Laptop: head tilted down towards laptop screen, arms positioned inward over laptop keyboard & trackpad
+        torsoPitch = pose.workingAtDesk ? 0.14 : 0.08;
+        headPitch = 0.22 + Math.sin(t * 0.9) * 0.035;
+        headYaw = Math.sin(t * (pose.workingAtDesk ? 1.2 : 0.5)) * 0.12;
+
+        const t1 = Math.sin(t * activeRate) * activeAmp;
+        const t2 = Math.cos(t * (activeRate + 0.6)) * activeAmp;
+        const trackpadGesture = Math.sin(t * 0.8) > 0.85 ? 0.05 : 0;
+
+        laZ = 0.14;
+        raZ = -0.14;
+        laX = -0.58 + t1;
+        raX = -0.58 + t2 + trackpadGesture;
+        lfX = -0.94 - t1 * 0.8;
+        rfX = -0.94 - t2 * 0.8;
+      } else if (equip === 'hybrid') {
+        // Multi-screen / Hybrid: glances between laptop on the left and primary monitor on the right
+        torsoPitch = pose.workingAtDesk ? 0.10 : 0.06;
+        headPitch = 0.11 + Math.sin(t * 0.7) * 0.04;
+        headYaw = -0.18 + Math.sin(t * 1.1) * 0.32; // glances between laptop & screen
+
+        const t1 = Math.sin(t * activeRate) * activeAmp;
+        const t2 = Math.cos(t * (activeRate + 0.8)) * activeAmp;
+        laX = -0.64 + t1;
+        raX = -0.66 + t2;
+        laZ = 0.12;
+        raZ = -0.16;
+        lfX = -0.86 - t1;
+        rfX = -0.84 - t2;
+      } else {
+        // Working on Desktop Monitor: head looking up at eye-level monitors, hands on mechanical keyboard & wireless mouse
+        torsoPitch = pose.workingAtDesk ? 0.08 : 0.04;
+        headPitch = 0.03 + Math.sin(t * 0.8) * 0.03;
+        headYaw = Math.sin(t * (pose.workingAtDesk ? 1.4 : 0.7)) * 0.28; // pans across dual displays
+
         const t1 = Math.sin(t * activeRate) * activeAmp;
         const t2 = Math.cos(t * (activeRate + 0.8)) * activeAmp;
         laX = -0.68 + t1;
-        raX = -0.68 + t2;
+        // Right hand operates mouse on mousepad with intermittent typing & clicking
+        raX = -0.62 + t2 * 0.6;
+        raZ = -0.20;
+        laZ = 0.08;
         lfX = -0.82 - t1;
-        rfX = -0.82 - t2;
-      } else if (appearance.idleStyle === 'reading') {
-        torsoPitch = 0.03;
-        headPitch = 0.08 + Math.sin(t * 0.7) * 0.05;
-        headYaw = Math.sin(t * 0.55) * 0.22;
-        laX = -0.52;
-        lfX = -0.96;
-        raX = -0.58 + Math.sin(t * 1.6) * 0.04;
-        rfX = -0.86;
-      } else {
-        // Reviewing / thinking posture with occasional subtle hand movement
-        torsoPitch = 0.05 + Math.sin(t * 0.5) * 0.02;
-        headPitch = 0.05 + Math.sin(t * 0.8) * 0.04;
-        headYaw = Math.sin(t * 0.45) * 0.24;
-        laX = -0.62 + Math.sin(t * 4.2) * 0.03;
-        lfX = -0.85;
-        raX = -0.56;
-        rfX = -0.92;
+        rfX = -0.85;
       }
     }
 
@@ -251,7 +273,7 @@ function HumanCharacterImpl({
   return (
     <group ref={rootRef} position={[0, 0.49, 0]}>
       {/* Pelvis / Hip block */}
-      <RoundedBox args={[0.3, 0.14, 0.19]} radius={0.05} smoothness={2} position={[0, 0.02, 0]} castShadow>
+      <RoundedBox args={[0.3, 0.14, 0.19]} radius={0.05} smoothness={1} position={[0, 0.02, 0]}>
         <meshStandardMaterial color={appearance.pants} roughness={0.78} />
       </RoundedBox>
 
@@ -263,19 +285,20 @@ function HumanCharacterImpl({
         <group key={x} ref={thighRef} position={[x, -0.02, 0]}>
           {/* Thigh */}
           <mesh position={[0, -0.18, 0]} castShadow>
-            <capsuleGeometry args={[0.06, 0.24, 6, 12]} />
+            <capsuleGeometry args={[0.06, 0.24, 4, 8]} />
             <meshStandardMaterial color={appearance.pants} roughness={0.8} />
           </mesh>
           {/* Knee pivot -> Lower leg & Shoe */}
           <group ref={shinRef} position={[0, -0.36, 0]}>
-            <mesh position={[0, -0.17, 0]} castShadow>
-              <capsuleGeometry args={[0.05, 0.24, 6, 12]} />
+            <mesh position={[0, -0.17, 0]}>
+              <capsuleGeometry args={[0.05, 0.24, 4, 8]} />
               <meshStandardMaterial color={appearance.pants} roughness={0.82} />
             </mesh>
             {/* Ankle & Shoe */}
-            <RoundedBox args={[0.095, 0.075, 0.18]} radius={0.025} smoothness={2} position={[0, -0.35, 0.038]} castShadow>
+            <mesh position={[0, -0.35, 0.038]}>
+              <boxGeometry args={[0.095, 0.075, 0.18]} />
               <meshStandardMaterial color={appearance.shoes} roughness={0.62} />
-            </RoundedBox>
+            </mesh>
           </group>
         </group>
       ))}
@@ -283,11 +306,11 @@ function HumanCharacterImpl({
       {/* Upper Body / Spine pivot */}
       <group ref={torsoRef} position={[0, 0.08, 0]}>
         {/* Blazer / Sweater torso */}
-        <RoundedBox args={[0.34, 0.44, 0.2]} radius={0.065} smoothness={3} position={[0, 0.23, 0]} castShadow>
+        <RoundedBox args={[0.34, 0.44, 0.2]} radius={0.065} smoothness={1} position={[0, 0.23, 0]} castShadow>
           <meshStandardMaterial color={jacketColor} roughness={0.74} />
         </RoundedBox>
         {/* Crisp inner shirt V-front */}
-        <mesh position={[0, 0.28, 0.098]} castShadow>
+        <mesh position={[0, 0.28, 0.098]}>
           <boxGeometry args={[0.11, 0.24, 0.018]} />
           <meshStandardMaterial color={appearance.top} roughness={0.68} />
         </mesh>
@@ -300,8 +323,8 @@ function HumanCharacterImpl({
         ))}
 
         {/* Neck */}
-        <mesh position={[0, 0.48, 0]} castShadow>
-          <cylinderGeometry args={[0.048, 0.056, 0.1, 12]} />
+        <mesh position={[0, 0.48, 0]}>
+          <cylinderGeometry args={[0.048, 0.056, 0.1, 8]} />
           <meshStandardMaterial color={appearance.skin} roughness={0.62} />
         </mesh>
 
@@ -309,26 +332,26 @@ function HumanCharacterImpl({
         <group ref={headRef} position={[0, 0.62, 0.01]}>
           {/* Cranium / Face */}
           <mesh castShadow>
-            <sphereGeometry args={[0.135, 22, 22]} />
+            <sphereGeometry args={[0.135, 14, 12]} />
             <meshStandardMaterial color={appearance.skin} roughness={0.58} />
           </mesh>
           {/* Ears */}
           {[-0.132, 0.132].map((ex) => (
             <mesh key={ex} position={[ex, -0.01, -0.01]}>
-              <sphereGeometry args={[0.026, 10, 10]} />
+              <sphereGeometry args={[0.026, 6, 6]} />
               <meshStandardMaterial color={appearance.skin} roughness={0.62} />
             </mesh>
           ))}
           {/* Subtle nose */}
           <mesh position={[0, -0.015, 0.132]}>
-            <sphereGeometry args={[0.018, 10, 10]} />
+            <sphereGeometry args={[0.018, 6, 6]} />
             <meshStandardMaterial color={appearance.skin} roughness={0.6} />
           </mesh>
           {/* Eyes & Eyebrows */}
           {[-0.044, 0.044].map((ex) => (
             <group key={ex} position={[ex, 0.016, 0.12]}>
               <mesh>
-                <sphereGeometry args={[0.013, 10, 10]} />
+                <sphereGeometry args={[0.013, 6, 6]} />
                 <meshStandardMaterial color="#1F242D" roughness={0.25} />
               </mesh>
               <mesh position={[0, 0.026, -0.002]}>
@@ -342,7 +365,7 @@ function HumanCharacterImpl({
             <group position={[0, 0.016, 0.132]}>
               {[-0.045, 0.045].map((gx) => (
                 <mesh key={gx} position={[gx, 0, 0]}>
-                  <torusGeometry args={[0.028, 0.0045, 8, 18]} />
+                  <torusGeometry args={[0.028, 0.0045, 6, 12]} />
                   <meshStandardMaterial color="#27272A" metalness={0.55} roughness={0.3} />
                 </mesh>
               ))}
@@ -356,47 +379,47 @@ function HumanCharacterImpl({
           {/* Distinct Stylized Hairstyles */}
           {appearance.hairStyle === 'short' && (
             <group>
-              <mesh position={[0, 0.038, -0.014]} scale={[1.05, 0.92, 1.05]} castShadow>
-                <sphereGeometry args={[0.138, 18, 18, 0, Math.PI * 2, 0, Math.PI * 0.62]} />
+              <mesh position={[0, 0.038, -0.014]} scale={[1.05, 0.92, 1.05]}>
+                <sphereGeometry args={[0.138, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.62]} />
                 <meshStandardMaterial color={appearance.hair} roughness={0.85} />
               </mesh>
-              <mesh position={[0.02, 0.105, 0.055]} rotation={[-0.25, 0, -0.15]} castShadow>
+              <mesh position={[0.02, 0.105, 0.055]} rotation={[-0.25, 0, -0.15]}>
                 <boxGeometry args={[0.16, 0.045, 0.08]} />
                 <meshStandardMaterial color={appearance.hair} roughness={0.85} />
               </mesh>
             </group>
           )}
           {appearance.hairStyle === 'fade' && (
-            <mesh position={[0, 0.055, -0.01]} scale={[1.02, 0.85, 1.03]} castShadow>
-              <sphereGeometry args={[0.136, 18, 18, 0, Math.PI * 2, 0, Math.PI * 0.54]} />
+            <mesh position={[0, 0.055, -0.01]} scale={[1.02, 0.85, 1.03]}>
+              <sphereGeometry args={[0.136, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.54]} />
               <meshStandardMaterial color={appearance.hair} roughness={0.88} />
             </mesh>
           )}
           {appearance.hairStyle === 'bun' && (
             <group>
-              <mesh position={[0, 0.028, -0.016]} scale={[1.06, 0.96, 1.06]} castShadow>
-                <sphereGeometry args={[0.138, 18, 18, 0, Math.PI * 2, 0, Math.PI * 0.68]} />
+              <mesh position={[0, 0.028, -0.016]} scale={[1.06, 0.96, 1.06]}>
+                <sphereGeometry args={[0.138, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.68]} />
                 <meshStandardMaterial color={appearance.hair} roughness={0.84} />
               </mesh>
-              <mesh position={[0, 0.13, -0.1]} castShadow>
-                <sphereGeometry args={[0.062, 14, 14]} />
+              <mesh position={[0, 0.13, -0.1]}>
+                <sphereGeometry args={[0.062, 10, 8]} />
                 <meshStandardMaterial color={appearance.hair} roughness={0.84} />
               </mesh>
             </group>
           )}
           {appearance.hairStyle === 'bob' && (
             <group>
-              <mesh position={[0, 0.025, -0.015]} scale={[1.08, 0.98, 1.08]} castShadow>
-                <sphereGeometry args={[0.14, 18, 18, 0, Math.PI * 2, 0, Math.PI * 0.72]} />
+              <mesh position={[0, 0.025, -0.015]} scale={[1.08, 0.98, 1.08]}>
+                <sphereGeometry args={[0.14, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.72]} />
                 <meshStandardMaterial color={appearance.hair} roughness={0.82} />
               </mesh>
               {[-0.125, 0.125].map((hx) => (
-                <mesh key={hx} position={[hx, -0.055, -0.01]} castShadow>
-                  <capsuleGeometry args={[0.036, 0.11, 6, 10]} />
+                <mesh key={hx} position={[hx, -0.055, -0.01]}>
+                  <capsuleGeometry args={[0.036, 0.11, 4, 8]} />
                   <meshStandardMaterial color={appearance.hair} roughness={0.82} />
                 </mesh>
               ))}
-              <mesh position={[0, -0.055, -0.115]} castShadow>
+              <mesh position={[0, -0.055, -0.115]}>
                 <boxGeometry args={[0.22, 0.15, 0.06]} />
                 <meshStandardMaterial color={appearance.hair} roughness={0.82} />
               </mesh>
@@ -404,14 +427,13 @@ function HumanCharacterImpl({
           )}
           {appearance.hairStyle === 'wavy' && (
             <group>
-              <mesh position={[0, 0.024, -0.018]} scale={[1.08, 0.98, 1.08]} castShadow>
-                <sphereGeometry args={[0.14, 18, 18, 0, Math.PI * 2, 0, Math.PI * 0.72]} />
+              <mesh position={[0, 0.024, -0.018]} scale={[1.08, 0.98, 1.08]}>
+                <sphereGeometry args={[0.14, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.72]} />
                 <meshStandardMaterial color={appearance.hair} roughness={0.82} />
               </mesh>
-              <mesh position={[0, -0.09, -0.115]} castShadow>
-                <RoundedBox args={[0.24, 0.24, 0.075]} radius={0.03} smoothness={2}>
-                  <meshStandardMaterial color={appearance.hair} roughness={0.82} />
-                </RoundedBox>
+              <mesh position={[0, -0.09, -0.115]}>
+                <boxGeometry args={[0.24, 0.24, 0.075]} />
+                <meshStandardMaterial color={appearance.hair} roughness={0.82} />
               </mesh>
             </group>
           )}
@@ -424,24 +446,24 @@ function HumanCharacterImpl({
         ].map(({ x, upperRef, foreRef }) => (
           <group key={x} ref={upperRef} position={[x, 0.39, 0]}>
             {/* Shoulder cap */}
-            <mesh castShadow>
-              <sphereGeometry args={[0.058, 12, 12]} />
+            <mesh>
+              <sphereGeometry args={[0.058, 8, 6]} />
               <meshStandardMaterial color={jacketColor} roughness={0.75} />
             </mesh>
             {/* Upper arm */}
-            <mesh position={[0, -0.12, 0]} castShadow>
-              <capsuleGeometry args={[0.044, 0.16, 6, 10]} />
+            <mesh position={[0, -0.12, 0]}>
+              <capsuleGeometry args={[0.044, 0.16, 4, 8]} />
               <meshStandardMaterial color={jacketColor} roughness={0.75} />
             </mesh>
             {/* Elbow pivot -> Forearm + Hand */}
             <group ref={foreRef} position={[0, -0.24, 0]}>
-              <mesh position={[0, -0.1, 0]} castShadow>
-                <capsuleGeometry args={[0.038, 0.14, 6, 10]} />
+              <mesh position={[0, -0.1, 0]}>
+                <capsuleGeometry args={[0.038, 0.14, 4, 8]} />
                 <meshStandardMaterial color={jacketColor} roughness={0.75} />
               </mesh>
               {/* Hand */}
-              <mesh position={[0, -0.21, 0.01]} castShadow>
-                <sphereGeometry args={[0.036, 10, 10]} />
+              <mesh position={[0, -0.21, 0.01]}>
+                <sphereGeometry args={[0.036, 6, 6]} />
                 <meshStandardMaterial color={appearance.skin} roughness={0.62} />
               </mesh>
             </group>

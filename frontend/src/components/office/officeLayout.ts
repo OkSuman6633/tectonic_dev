@@ -267,80 +267,80 @@ export function layoutOffice(order: string[], agents: Record<string, AgentMeta>,
   // EXTERNAL FUTURISTIC AI INFRASTRUCTURE PLATFORMS (RESTING DIRECTLY ON THE GROUND FLOOR)
   // =========================================================================================
 
-  // 2. DATA & KNOWLEDGE · Memory Core (North / Back-Center — Purple Memory Architecture)
-  const memoryH = 0.0;
+  // 2. SHARED MEMORY INFRASTRUCTURE (North / Back-Center — Unified Industrial STM + Core + LTM Platform)
+  const memoryH = 0.62;
   const memoryZone: CampusZone = {
     id: 'knowledge-zone',
-    label: 'SHORT-TERM & LONG-TERM MEMORY',
-    subtitle: 'DATA & KNOWLEDGE REPOSITORY',
+    label: 'MEMORY INFRASTRUCTURE',
+    subtitle: 'SHORT-TERM & LONG-TERM MEMORY',
     kind: 'memory',
-    center: [0.0, memoryH, -20.2],
-    width: 14.4,
-    depth: 8.8,
+    center: [0.0, memoryH, -21.1],
+    width: 13.8,
+    depth: 10.6,
     height: memoryH,
-    thickness: 0.12,
+    thickness: memoryH,
     accent: '#A855F7',
-    secondaryAccent: '#38BDF8',
-    surfaceTint: '#111633',
+    secondaryAccent: '#00E5FF',
+    surfaceTint: '#101828',
     signPlacement: 'front',
   };
 
-  // 3. OPERATIONS & SAFETY (North-West / Back-Left — Electric Cyan-Blue Security Architecture)
-  const hubH = 0.0;
+  // 3. OPERATIONS & SAFETY (North-West / Back-Left — Enterprise Operations & Safety Center)
+  const hubH = 0.62;
   const hubZone: CampusZone = {
     id: 'operations-zone',
     label: 'OPERATIONS & SAFETY',
     subtitle: 'GUARDRAILS · INTENT DETECTION',
     kind: 'hub',
     center: [-22.5, hubH, -16.2],
-    width: 11.0,
-    depth: 8.6,
+    width: 12.6,
+    depth: 8.8,
     height: hubH,
-    thickness: 0.12,
-    accent: '#00E5FF',
-    secondaryAccent: '#3B82F6',
-    surfaceTint: '#0C1A38',
+    thickness: hubH,
+    accent: '#00B8FF',
+    secondaryAccent: '#F59E0B',
+    surfaceTint: '#0C1628',
     signPlacement: 'front',
   };
 
-  // 4. PROCESSING & GOVERNANCE (North-East / Back-Right — Pink/Magenta Compute Architecture)
-  const processH = 0.0;
+  // 4. PROCESS STUDIO (North-East / Back-Right — Clean Enterprise Workflow Core & Governance Platform)
+  const processH = 0.62;
   const processZone: CampusZone = {
     id: 'process-zone',
     label: 'PROCESS STUDIO',
     subtitle: 'PROCESSING & GOVERNANCE',
     kind: 'process',
     center: [22.5, processH, -16.2],
-    width: 11.0,
-    depth: 8.6,
+    width: 12.2,
+    depth: 8.4,
     height: processH,
-    thickness: 0.12,
-    accent: '#EC4899',
-    secondaryAccent: '#F472B6',
-    surfaceTint: '#1A1130',
+    thickness: processH,
+    accent: '#A855F7',
+    secondaryAccent: '#00E5FF',
+    surfaceTint: '#111827',
     signPlacement: 'front',
   };
 
-  // 5. PROMPTOPS & CREATIVE AI (West / Left-Side — Cyan + Pink Holographic Architecture)
-  const contentH = 0.0;
+  // 5. CONTENT STUDIO - RCP (West / Left-Side — Enterprise Creative AI & Production Platform)
+  const contentH = 0.62;
   const contentZone: CampusZone = {
     id: 'content-zone',
     label: 'CONTENT STUDIO - RCP',
     subtitle: 'PROMPTOPS & CREATIVE AI',
     kind: 'content',
     center: [-22.8, contentH, 1.8],
-    width: 10.2,
+    width: 12.6,
     depth: 8.8,
     height: contentH,
-    thickness: 0.12,
-    accent: '#06B6D4',
-    secondaryAccent: '#EC4899',
-    surfaceTint: '#0E1C36',
+    thickness: contentH,
+    accent: '#00B8FF',
+    secondaryAccent: '#A855F7',
+    surfaceTint: '#0C1628',
     signPlacement: 'front',
   };
 
-  // 6. TOOL ORCHESTRATION (East / Right-Side — Golden Orchestration Architecture)
-  const toolsH = 0.0;
+  // 6. TOOL ORCHESTRATION (East / Right-Side — Sculpted Multi-Tier Golden Orchestration Platform)
+  const toolsH = 0.62;
   const toolsZone: CampusZone = {
     id: 'tooling-zone',
     label: 'TOOL ORCHESTRATION',
@@ -350,10 +350,10 @@ export function layoutOffice(order: string[], agents: Record<string, AgentMeta>,
     width: 10.4,
     depth: 8.8,
     height: toolsH,
-    thickness: 0.12,
+    thickness: 0.62,
     accent: '#F59E0B',
     secondaryAccent: '#FDE047',
-    surfaceTint: '#1B1726',
+    surfaceTint: '#141B29',
     signPlacement: 'front',
   };
 
@@ -369,9 +369,9 @@ export function layoutOffice(order: string[], agents: Record<string, AgentMeta>,
       zoneId: memoryZone.id,
       zoneKind: 'memory',
       from: [0.0, OFFICE_FLOOR_Y, minZ],
-      to: [0.0, OFFICE_FLOOR_Y, memoryZone.center[2] + memoryZone.depth / 2],
+      to: [0.0, memoryH, memoryZone.center[2] + memoryZone.depth / 2],
       officeEntry: [0.0, OFFICE_FLOOR_Y, minZ + 1.1],
-      platformEntry: [0.0, OFFICE_FLOOR_Y, memoryZone.center[2] + memoryZone.depth / 2 - 0.9],
+      platformEntry: [0.0, memoryH, memoryZone.center[2] + memoryZone.depth / 2 - 0.9],
       wallSide: 'north',
       width: 2.35,
       accent: '#A855F7',
@@ -383,13 +383,13 @@ export function layoutOffice(order: string[], agents: Record<string, AgentMeta>,
       zoneId: hubZone.id,
       zoneKind: 'hub',
       from: [-9.2, OFFICE_FLOOR_Y, minZ],
-      to: [hubZone.center[0] + hubZone.width / 2 - 1.2, OFFICE_FLOOR_Y, hubZone.center[2] + hubZone.depth / 2],
+      to: [hubZone.center[0] + hubZone.width / 2 - 1.4, hubH, hubZone.center[2] + hubZone.depth / 2],
       officeEntry: [-9.2, OFFICE_FLOOR_Y, minZ + 1.1],
-      platformEntry: [hubZone.center[0] + hubZone.width / 2 - 1.6, OFFICE_FLOOR_Y, hubZone.center[2] + hubZone.depth / 2 - 0.95],
+      platformEntry: [hubZone.center[0] + hubZone.width / 2 - 1.4, hubH, hubZone.center[2] + hubZone.depth / 2 - 0.95],
       wallSide: 'north',
       width: 2.05,
-      accent: '#00E5FF',
-      secondaryAccent: '#3B82F6',
+      accent: '#00B8FF',
+      secondaryAccent: '#F59E0B',
       hasBeacon: true,
     },
     {
@@ -397,12 +397,12 @@ export function layoutOffice(order: string[], agents: Record<string, AgentMeta>,
       zoneId: processZone.id,
       zoneKind: 'process',
       from: [9.2, OFFICE_FLOOR_Y, minZ],
-      to: [processZone.center[0] - processZone.width / 2 + 1.2, OFFICE_FLOOR_Y, processZone.center[2] + processZone.depth / 2],
+      to: [processZone.center[0] - processZone.width / 2 + 1.4, processH, processZone.center[2] + processZone.depth / 2],
       officeEntry: [9.2, OFFICE_FLOOR_Y, minZ + 1.1],
-      platformEntry: [processZone.center[0] - processZone.width / 2 + 1.6, OFFICE_FLOOR_Y, processZone.center[2] + processZone.depth / 2 - 0.95],
+      platformEntry: [processZone.center[0] - processZone.width / 2 + 1.4, processH, processZone.center[2] + processZone.depth / 2 - 0.95],
       wallSide: 'north',
       width: 2.05,
-      accent: '#EC4899',
+      accent: '#A855F7',
       secondaryAccent: '#00E5FF',
       hasBeacon: true,
     },
@@ -411,13 +411,13 @@ export function layoutOffice(order: string[], agents: Record<string, AgentMeta>,
       zoneId: contentZone.id,
       zoneKind: 'content',
       from: [minX, OFFICE_FLOOR_Y, 1.8],
-      to: [contentZone.center[0] + contentZone.width / 2, OFFICE_FLOOR_Y, 1.8],
+      to: [contentZone.center[0] + contentZone.width / 2, contentH, 1.8],
       officeEntry: [minX + 1.1, OFFICE_FLOOR_Y, 1.8],
-      platformEntry: [contentZone.center[0] + contentZone.width / 2 - 0.9, OFFICE_FLOOR_Y, 1.8],
+      platformEntry: [contentZone.center[0] + contentZone.width / 2 - 0.95, contentH, 1.8],
       wallSide: 'west',
       width: 2.05,
-      accent: '#06B6D4',
-      secondaryAccent: '#EC4899',
+      accent: '#00B8FF',
+      secondaryAccent: '#A855F7',
       hasBeacon: true,
     },
     {
@@ -425,9 +425,9 @@ export function layoutOffice(order: string[], agents: Record<string, AgentMeta>,
       zoneId: toolsZone.id,
       zoneKind: 'tools',
       from: [maxX, OFFICE_FLOOR_Y, 1.8],
-      to: [toolsZone.center[0] - toolsZone.width / 2, OFFICE_FLOOR_Y, 1.8],
+      to: [toolsZone.center[0] - toolsZone.width / 2, toolsH, 1.8],
       officeEntry: [maxX - 1.1, OFFICE_FLOOR_Y, 1.8],
-      platformEntry: [toolsZone.center[0] - toolsZone.width / 2 + 0.9, OFFICE_FLOOR_Y, 1.8],
+      platformEntry: [toolsZone.center[0] - toolsZone.width / 2 + 0.9, toolsH, 1.8],
       wallSide: 'east',
       width: 2.25,
       accent: '#F59E0B',
@@ -477,43 +477,101 @@ export function layoutOffice(order: string[], agents: Record<string, AgentMeta>,
     });
   };
 
-  // DATA & KNOWLEDGE (4 modules: short_term_memory, long_term_memory, agentic_rag, vector_db)
-  placeOnExternalPlatform(grouped.memory, memoryZone, [
-    { ox: -3.7, oz: -1.1, standDx: 0, standDz: 1.55, yaw: Math.PI },
-    { ox: -1.25, oz: -1.4, standDx: 0, standDz: 1.55, yaw: Math.PI },
-    { ox: 1.25, oz: -1.4, standDx: 0, standDz: 1.55, yaw: Math.PI },
-    { ox: 3.7, oz: -1.1, standDx: 0, standDz: 1.55, yaw: Math.PI },
-  ]);
+  // SHARED MEMORY INFRASTRUCTURE (explicitly bind STM -> left cyan section, LTM/VectorDB -> right purple section, RAG -> central neural core)
+  const memorySlotById: Record<string, StationSlot> = {
+    short_term_memory: { ox: -3.05, oz: 1.45, standDx: 1.55, standDz: 0.75, yaw: -Math.PI * 0.48 },
+    long_term_memory: { ox: 3.15, oz: 1.55, standDx: -1.65, standDz: 0.85, yaw: Math.PI * 0.45 },
+    vector_db: { ox: 3.38, oz: -2.95, standDx: -1.45, standDz: 2.15, yaw: Math.PI * 0.25 },
+    agentic_rag: { ox: 0.0, oz: -0.55, standDx: 0.0, standDz: 2.65, yaw: Math.PI },
+  };
+  const fallbackMemorySlots: StationSlot[] = [
+    memorySlotById.short_term_memory,
+    memorySlotById.long_term_memory,
+    memorySlotById.vector_db,
+    memorySlotById.agentic_rag,
+  ];
+  grouped.memory.forEach((m, idx) => {
+    const slot = memorySlotById[m] ?? fallbackMemorySlots[idx % fallbackMemorySlots.length];
+    const sx = memoryZone.center[0] + slot.ox;
+    const sy = memoryZone.height;
+    const sz = memoryZone.center[2] + slot.oz;
+    stations[m] = [sx, sy, sz];
+    stationStandPoints[m] = [sx + slot.standDx, sy, sz + slot.standDz];
+    stationFacings[m] = slot.yaw;
+    stationZoneIds[m] = memoryZone.id;
+  });
 
-  // OPERATIONS & SAFETY (guardrails, intent_detection + any fallback modules)
-  placeOnExternalPlatform(grouped.hub, hubZone, [
-    { ox: -1.9, oz: -0.95, standDx: 0.45, standDz: 1.5, yaw: Math.PI },
-    { ox: 1.5, oz: -1.25, standDx: 0, standDz: 1.5, yaw: Math.PI },
-    { ox: -2.1, oz: 1.3, standDx: 1.45, standDz: 0, yaw: -Math.PI / 2 },
-    { ox: 1.9, oz: 1.15, standDx: -1.35, standDz: 0, yaw: Math.PI / 2 },
-  ]);
+  // OPERATIONS & SAFETY (guardrails -> Right Safety Monitoring Bay, intent_detection -> Central 4-Monitor Command Desk)
+  const hubSlotById: Record<string, StationSlot> = {
+    guardrails: { ox: 4.15, oz: -1.15, standDx: -1.45, standDz: 2.35, yaw: Math.PI * 0.25 },
+    intent_detection: { ox: -0.15, oz: 0.45, standDx: 0.0, standDz: 1.95, yaw: Math.PI },
+  };
+  const fallbackHubSlots: StationSlot[] = [
+    hubSlotById.guardrails,
+    hubSlotById.intent_detection,
+    { ox: -4.25, oz: -1.45, standDx: 1.45, standDz: 2.55, yaw: -Math.PI * 0.25 },
+    { ox: 0.05, oz: -2.45, standDx: 0.0, standDz: 4.5, yaw: Math.PI },
+  ];
+  grouped.hub.forEach((m, idx) => {
+    const slot = hubSlotById[m] ?? fallbackHubSlots[idx % fallbackHubSlots.length];
+    const sx = hubZone.center[0] + slot.ox;
+    const sy = hubZone.height;
+    const sz = hubZone.center[2] + slot.oz;
+    stations[m] = [sx, sy, sz];
+    stationStandPoints[m] = [sx + slot.standDx, sy, sz + slot.standDz];
+    stationFacings[m] = slot.yaw;
+    stationZoneIds[m] = hubZone.id;
+  });
 
-  // PROCESSING & GOVERNANCE (auditability, finops)
-  placeOnExternalPlatform(grouped.process, processZone, [
-    { ox: -1.5, oz: -1.25, standDx: 0, standDz: 1.5, yaw: Math.PI },
-    { ox: 1.9, oz: -0.95, standDx: -0.45, standDz: 1.5, yaw: Math.PI },
-    { ox: 2.0, oz: 1.25, standDx: -1.45, standDz: 0, yaw: Math.PI / 2 },
-    { ox: -1.9, oz: 1.2, standDx: 1.4, standDz: 0, yaw: -Math.PI / 2 },
-  ]);
+  // PROCESS STUDIO (auditability -> Central Workflow Core, finops -> 3-Monitor Operator Workstation)
+  const processSlotById: Record<string, StationSlot> = {
+    auditability: { ox: 0.05, oz: -0.75, standDx: -0.1, standDz: 2.35, yaw: Math.PI },
+    finops: { ox: -2.58, oz: 0.42, standDx: 0.1, standDz: 1.85, yaw: Math.PI },
+  };
+  const fallbackProcessSlots: StationSlot[] = [
+    processSlotById.auditability,
+    processSlotById.finops,
+    { ox: 2.82, oz: -1.88, standDx: -0.8, standDz: 2.6, yaw: Math.PI },
+    { ox: 5.05, oz: -1.35, standDx: -1.5, standDz: 2.1, yaw: Math.PI * 0.75 },
+  ];
+  grouped.process.forEach((m, idx) => {
+    const slot = processSlotById[m] ?? fallbackProcessSlots[idx % fallbackProcessSlots.length];
+    const sx = processZone.center[0] + slot.ox;
+    const sy = processZone.height;
+    const sz = processZone.center[2] + slot.oz;
+    stations[m] = [sx, sy, sz];
+    stationStandPoints[m] = [sx + slot.standDx, sy, sz + slot.standDz];
+    stationFacings[m] = slot.yaw;
+    stationZoneIds[m] = processZone.id;
+  });
 
-  // PROMPTOPS & CREATIVE AI (promptops, image_generation)
-  placeOnExternalPlatform(grouped.content, contentZone, [
-    { ox: -1.2, oz: -1.65, standDx: 1.45, standDz: 0.2, yaw: -Math.PI / 2 },
-    { ox: -1.2, oz: 1.65, standDx: 1.45, standDz: -0.2, yaw: -Math.PI / 2 },
-    { ox: 0.9, oz: -1.8, standDx: 0, standDz: 1.45, yaw: Math.PI },
-  ]);
+  // CONTENT STUDIO - RCP (promptops -> Central 3-Monitor Editing Desk, image_generation -> Main Rear Display Wall)
+  const contentSlotById: Record<string, StationSlot> = {
+    promptops: { ox: -0.2, oz: 0.45, standDx: 0.0, standDz: 1.95, yaw: Math.PI },
+    image_generation: { ox: -0.45, oz: -2.25, standDx: 2.35, standDz: 2.65, yaw: Math.PI * 0.78 },
+  };
+  const fallbackContentSlots: StationSlot[] = [
+    contentSlotById.promptops,
+    contentSlotById.image_generation,
+    { ox: -3.68, oz: -1.85, standDx: 1.55, standDz: 2.1, yaw: -Math.PI * 0.3 },
+  ];
+  grouped.content.forEach((m, idx) => {
+    const slot = contentSlotById[m] ?? fallbackContentSlots[idx % fallbackContentSlots.length];
+    const sx = contentZone.center[0] + slot.ox;
+    const sy = contentZone.height;
+    const sz = contentZone.center[2] + slot.oz;
+    stations[m] = [sx, sy, sz];
+    stationStandPoints[m] = [sx + slot.standDx, sy, sz + slot.standDz];
+    stationFacings[m] = slot.yaw;
+    stationZoneIds[m] = contentZone.id;
+  });
 
-  // TOOL ORCHESTRATION (tool_orchestration, external_connectors)
+  // TOOL ORCHESTRATION (tool_orchestration -> Central Processing Core, connectors -> Operator Console)
   placeOnExternalPlatform(grouped.tools, toolsZone, [
-    { ox: 1.35, oz: -1.75, standDx: -1.5, standDz: 0.2, yaw: Math.PI / 2 },
-    { ox: 1.35, oz: 1.75, standDx: -1.5, standDz: -0.2, yaw: Math.PI / 2 },
-    { ox: -0.8, oz: -2.1, standDx: 0, standDz: 1.45, yaw: Math.PI },
-    { ox: -0.8, oz: 2.1, standDx: 0, standDz: -1.45, yaw: 0 },
+    { ox: -0.15, oz: -0.35, standDx: -2.2, standDz: 0.2, yaw: Math.PI / 2 },
+    { ox: -3.85, oz: 2.0, standDx: 0.95, standDz: -0.3, yaw: -Math.PI / 2 },
+    { ox: -3.35, oz: -1.55, standDx: 0.95, standDz: 0.45, yaw: -Math.PI * 0.72 },
+    { ox: -1.55, oz: 2.25, standDx: -0.75, standDz: -0.95, yaw: Math.PI * 0.22 },
   ]);
 
   // Living office amenity corners inside the central human office
