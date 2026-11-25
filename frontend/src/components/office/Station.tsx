@@ -24,7 +24,7 @@ function isServing(moduleId: string): boolean {
 
 function zoneAccentFor(kind: CampusZoneKind): { primary: string; secondary: string } {
   if (kind === 'tools') return { primary: '#F59E0B', secondary: '#FDE047' };
-  if (kind === 'process') return { primary: '#EC4899', secondary: '#F472B6' };
+  if (kind === 'process') return { primary: '#A855F7', secondary: '#00E5FF' };
   if (kind === 'memory') return { primary: '#A855F7', secondary: '#38BDF8' };
   if (kind === 'content') return { primary: '#06B6D4', secondary: '#EC4899' };
   return { primary: '#00E5FF', secondary: '#3B82F6' };
@@ -183,7 +183,117 @@ function StationImpl({
     setHovered(on);
   };
 
-  const towerHeight = kind === 'memory' ? 2.38 : kind === 'tools' ? 2.28 : 2.22;
+  const towerHeight = kind === 'memory' ? 2.38 : kind === 'tools' ? 2.65 : 2.22;
+
+  // All five external AI infrastructure platforms (Tool Orchestration, Shared Memory Infrastructure,
+  // Process Studio, Operations & Safety Center & Content Studio - RCP) are reconstructed as dedicated
+  // 3D architectural dioramas. Render an integrated interactive hit-volume, luminous section-colored
+  // outline, and telemetry HUD card so clicking, hovering, focus, and live status work seamlessly
+  // without obstructing the hardware.
+  if (kind === 'tools' || kind === 'memory' || kind === 'process' || kind === 'hub' || kind === 'content') {
+    const isMemory = kind === 'memory';
+    const isProcess = kind === 'process';
+    const isHub = kind === 'hub';
+    const isContent = kind === 'content';
+    const isCoreTarget =
+      id === 'tool_orchestration' ||
+      id === 'agentic_rag' ||
+      id === 'auditability' ||
+      id === 'intent_detection' ||
+      id === 'promptops';
+    const isStm = id === 'short_term_memory';
+    const sectionAccent = isMemory
+      ? isStm
+        ? '#00E5FF'
+        : '#A855F7'
+      : isProcess
+        ? id === 'finops'
+          ? '#00E5FF'
+          : '#A855F7'
+        : isHub
+          ? id === 'guardrails'
+            ? '#F59E0B'
+            : '#00B8FF'
+          : isContent
+            ? id === 'image_generation'
+              ? '#A855F7'
+              : '#00B8FF'
+            : accent;
+    const outlineColor = selected ? '#38BDF8' : inAction ? '#34D399' : sectionAccent;
+    const showOutline = selected || inAction || hovered;
+    const half = isCoreTarget ? (isProcess || isHub || isContent ? 1.85 : 1.62) : isMemory || isProcess || isHub || isContent ? 1.15 : 0.92;
+    return (
+      <group position={position} onClick={onClick} onDoubleClick={onClick} onPointerOver={hover(true)} onPointerOut={hover(false)}>
+        {/* Sleek perimeter telemetry outline hugging the hardware section (visible on hover/selection/active) */}
+        <group position={[0, 0.024, 0]} visible={showOutline}>
+          {[
+            { pos: [0, 0, half] as Vec3, size: [half * 2 + 0.08, 0.022, 0.055] as Vec3 },
+            { pos: [0, 0, -half] as Vec3, size: [half * 2 + 0.08, 0.022, 0.055] as Vec3 },
+            { pos: [half, 0, 0] as Vec3, size: [0.055, 0.022, half * 2 + 0.08] as Vec3 },
+            { pos: [-half, 0, 0] as Vec3, size: [0.055, 0.022, half * 2 + 0.08] as Vec3 },
+          ].map((seg, i) => (
+            <mesh key={i} position={seg.pos}>
+              <boxGeometry args={seg.size} />
+              <meshBasicMaterial
+                ref={i === 0 ? ringMat : undefined}
+                color={outlineColor}
+                transparent
+                opacity={0.58}
+                depthWrite={false}
+              />
+            </mesh>
+          ))}
+        </group>
+
+        {/* Transparent interactive click/hover bounding target matching the hardware silhouette */}
+        <mesh position={[0, isCoreTarget ? 1.65 : 1.15, 0]}>
+          <boxGeometry args={isCoreTarget ? (isProcess ? [4.2, 3.4, 1.2] : [2.8, 3.2, 2.8]) : isMemory || isProcess ? [2.2, 2.1, 2.2] : [1.4, 2.2, 1.8]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
+
+        {(showLabel || inAction || hovered || selected) && (
+          <Html position={[0, isCoreTarget ? 4.25 : 2.65, 0]} center distanceFactor={15} zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
+            <div
+              className={`office-tag flex min-w-[152px] max-w-[225px] flex-col rounded-xl border px-2.5 py-1.5 shadow-xl backdrop-blur-md transition-all ${
+                selected
+                  ? isMemory || isProcess
+                    ? isStm || id === 'finops'
+                      ? 'border-cyan-400/95 bg-white/95 dark:bg-slate-950/92 text-slate-900 dark:text-slate-100 shadow-cyan-500/20'
+                      : 'border-purple-400/95 bg-white/95 dark:bg-slate-950/92 text-slate-900 dark:text-slate-100 shadow-purple-500/20'
+                    : 'border-amber-400/95 bg-white/95 dark:bg-slate-950/92 text-slate-900 dark:text-slate-100 shadow-amber-500/20'
+                  : 'border-slate-200/90 dark:border-slate-700/80 bg-white/90 dark:bg-slate-950/86 text-slate-900 dark:text-slate-100'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-1.5">
+                <span className="truncate text-[11.5px] font-semibold text-slate-900 dark:text-white">{mod.label}</span>
+                <span
+                  className="rounded px-1.5 py-0.5 font-mono text-[8.5px] font-bold uppercase tracking-wider text-slate-950"
+                  style={{ backgroundColor: sectionAccent }}
+                >
+                  {mod.category}
+                </span>
+              </div>
+              <div className="mt-0.5 flex items-center justify-between gap-2 text-[10.5px]">
+                <span className="flex items-center gap-1 font-medium text-slate-700 dark:text-slate-200">
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: stateStyle.color }} />
+                  {stateStyle.label}
+                </span>
+                <span className="font-mono text-[9.5px] text-slate-500 dark:text-slate-400">
+                  {mod.totalCalls} calls{mod.activeCalls > 0 ? ` · ${mod.activeCalls} active` : ''}
+                </span>
+              </div>
+              {mod.lastOperation && (
+                <div className="mt-0.5 truncate border-t border-slate-200 dark:border-slate-700/80 pt-0.5 font-mono text-[9.5px] text-blue-600 dark:text-cyan-300">
+                  {mod.lastOperation}
+                  {mod.lastAgent ? ` · ${mod.lastAgent}` : ''}
+                </div>
+              )}
+            </div>
+          </Html>
+        )}
+      </group>
+    );
+  }
 
   // Material tone adaptation based on current theme
   const plinthColor = isDark ? '#0C1B38' : '#E2E8F0';

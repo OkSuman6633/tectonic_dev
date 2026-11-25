@@ -9,7 +9,6 @@ import {
   getEmployeeAppearance,
   resolveEmployeeDirective,
   type EmployeeAppearance,
-  type EmployeePhase,
   type TaskDirective,
 } from './employeeWorkflow';
 import {
@@ -22,6 +21,7 @@ import {
 } from './officePathfinding';
 import { OFFICE_FLOOR_Y, type OfficeLayout, type Vec3 } from './officeLayout';
 import type { CampusActivityRefs } from './ExternalCampus';
+import { getDeskEquipment } from './Desk';
 
 /**
  * Knowledge Worker & Office Boy Courier Architecture:
@@ -139,6 +139,7 @@ const SeatedEmployeeActor = memo(function SeatedEmployeeActor({
   const selectAgent = useTelemetryStore((s) => s.selectAgent);
 
   const appearance = useMemo(() => getEmployeeAppearance(id), [id]);
+  const equipment = useMemo(() => getDeskEquipment(id), [id]);
   const deskPos = layout.desks[id] ?? ([0, OFFICE_FLOOR_Y, 0] as Vec3);
   const deskYaw = layout.deskRotations[id] ?? Math.PI;
   // Exact seated position directly in the ergonomic desk chair
@@ -152,24 +153,24 @@ const SeatedEmployeeActor = memo(function SeatedEmployeeActor({
     taskLabel: string | null;
     completedLabel: string | null;
   }>({
-    statusText: 'Seated at workstation',
+    statusText: equipment === 'laptop' ? 'Laptop workstation' : equipment === 'hybrid' ? 'Multi-screen setup' : 'Monitor workstation',
     taskLabel: null,
     completedLabel: null,
   });
 
   const poseRef = useRef<HumanPoseInput>({
     phase: 'seated_idle',
-    activity: 'coding',
+    activity: equipment === 'laptop' ? 'coding' : 'data_analysis',
     standBlend: 0, // Permanently seated in chair (0 = seated)
     walkSpeed: 0,
     seed: indexSeed * 1.73,
     workingAtDesk: false,
+    workEquipment: equipment,
   });
 
   const lastTagKey = useRef('');
 
-  useFrame((_, rawDelta) => {
-    const dt = Math.min(rawDelta, 0.05);
+  useFrame(() => {
     const store = useTelemetryStore.getState();
     const liveAgent = store.agents[id];
     if (!liveAgent) return;
@@ -186,8 +187,10 @@ const SeatedEmployeeActor = memo(function SeatedEmployeeActor({
       Date.now(),
     );
 
-    // Active working states: thinking, running, tool_execution, waiting, or active directive
+    const isSimulating = store.isSimulating;
+    // Active working states: simulation active, or live agent execution, or active directive
     const isActivelyWorking =
+      isSimulating ||
       liveAgent.state === 'thinking' ||
       liveAgent.state === 'tool_execution' ||
       liveAgent.state === 'running' ||
@@ -199,14 +202,15 @@ const SeatedEmployeeActor = memo(function SeatedEmployeeActor({
     poseRef.current.phase = 'seated_idle';
     poseRef.current.walkSpeed = 0;
     poseRef.current.workingAtDesk = isActivelyWorking;
-    poseRef.current.activity = liveDirective?.activity ?? 'coding';
+    poseRef.current.workEquipment = equipment;
+    poseRef.current.activity = liveDirective?.activity ?? (equipment === 'laptop' ? 'coding' : 'data_analysis');
 
     // Check if Office Boy runner is active for this agent
     const activeMission = runnerMissionsRef.current[id];
     const recentDelivery = recentDeliveriesRef.current[id];
     const hasRecentDelivery = recentDelivery && Date.now() - recentDelivery.time < 5000;
 
-    let statusText = 'Seated at workstation';
+    let statusText = equipment === 'laptop' ? 'Laptop workstation' : equipment === 'hybrid' ? 'Multi-screen setup' : 'Monitor workstation';
     let taskLabel: string | null = null;
     let completedLabel: string | null = null;
 
@@ -217,16 +221,19 @@ const SeatedEmployeeActor = memo(function SeatedEmployeeActor({
       statusText = 'Received external data';
       completedLabel = recentDelivery.label;
     } else if (liveDirective?.targetKind === 'desk') {
-      statusText = 'Working at desk';
+      statusText = equipment === 'laptop' ? 'Coding on laptop' : equipment === 'hybrid' ? 'Multi-screen workflow' : 'Working on monitor';
       taskLabel = liveDirective.label;
+    } else if (isSimulating) {
+      statusText = equipment === 'laptop' ? 'Active simulation (laptop)' : equipment === 'hybrid' ? 'Active simulation (hybrid)' : 'Active simulation (monitor)';
+      taskLabel = 'Simulating agent workflow';
     } else if (liveAgent.state === 'thinking') {
-      statusText = 'Analyzing requirements';
+      statusText = equipment === 'laptop' ? 'Analyzing on laptop' : 'Analyzing requirements';
     } else if (liveAgent.state === 'tool_execution') {
-      statusText = 'Processing tool';
+      statusText = equipment === 'laptop' ? 'Processing on laptop' : 'Processing on monitor';
     } else if (liveAgent.state === 'waiting') {
       statusText = 'Awaiting input';
-    } else if (liveAgent.state === 'ready') {
-      statusText = 'Ready for assignment';
+    } else if (liveAgent.state === 'idle') {
+      statusText = equipment === 'laptop' ? 'Ready (laptop)' : 'Ready for assignment';
     }
 
     const tagKey = `${statusText}|${taskLabel ?? ''}|${completedLabel ?? ''}`;
@@ -237,9 +244,11 @@ const SeatedEmployeeActor = memo(function SeatedEmployeeActor({
   });
 
   if (!agent) return null;
+  const isSimulating = useTelemetryStore((s) => s.isSimulating);
   const style = STATE_STYLES[agent.state];
   const role = agentRole(id);
   const isWorking =
+    isSimulating ||
     agent.state === 'thinking' ||
     agent.state === 'tool_execution' ||
     agent.state === 'running' ||
@@ -272,11 +281,10 @@ const SeatedEmployeeActor = memo(function SeatedEmployeeActor({
       {showTag && (
         <Html position={[0, 2.95, 0]} center distanceFactor={14} zIndexRange={[25, 0]} style={{ pointerEvents: 'none' }}>
           <div
-            className={`office-tag relative flex min-w-[158px] max-w-[245px] flex-col rounded-xl border px-2.5 py-1.5 shadow-xl backdrop-blur-md transition-all ${
-              selected
-                ? 'border-blue-500/90 dark:border-blue-400/90 bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-slate-100 shadow-blue-500/15'
-                : 'border-stone-300/90 dark:border-slate-700/80 bg-white/92 dark:bg-slate-900/90 text-slate-800 dark:text-slate-100'
-            }`}
+            className={`office-tag relative flex min-w-[158px] max-w-[245px] flex-col rounded-xl border px-2.5 py-1.5 shadow-xl backdrop-blur-md transition-all ${selected
+              ? 'border-blue-500/90 dark:border-blue-400/90 bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-slate-100 shadow-blue-500/15'
+              : 'border-stone-300/90 dark:border-slate-700/80 bg-white/92 dark:bg-slate-900/90 text-slate-800 dark:text-slate-100'
+              }`}
           >
             <div className="flex items-center justify-between gap-2">
               <span className="truncate text-[11.5px] font-semibold text-slate-900 dark:text-white">
@@ -297,9 +305,8 @@ const SeatedEmployeeActor = memo(function SeatedEmployeeActor({
             </div>
             {(tagState.taskLabel || tagState.completedLabel) && (
               <div
-                className={`mt-0.5 truncate border-t border-stone-200 dark:border-slate-700/70 pt-0.5 font-mono text-[9.5px] ${
-                  tagState.completedLabel ? 'font-semibold text-emerald-700 dark:text-emerald-400' : 'text-blue-700 dark:text-cyan-400'
-                }`}
+                className={`mt-0.5 truncate border-t border-stone-200 dark:border-slate-700/70 pt-0.5 font-mono text-[9.5px] ${tagState.completedLabel ? 'font-semibold text-emerald-700 dark:text-emerald-400' : 'text-blue-700 dark:text-cyan-400'
+                  }`}
               >
                 {tagState.completedLabel ? `✓ ${tagState.completedLabel}` : `→ ${tagState.taskLabel}`}
               </div>

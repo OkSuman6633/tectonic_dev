@@ -4,7 +4,7 @@ import { OrbitControls } from '@react-three/drei';
 import { ACESFilmicToneMapping, Vector3 } from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { Building2, Eye, EyeOff, Focus, LocateFixed, Play, RotateCcw, Users, Wrench, ZoomIn, ZoomOut } from 'lucide-react';
-import { shallow } from 'zustand/shallow';
+import { useShallow } from 'zustand/react/shallow';
 import { useTelemetryStore } from '../../store/useTelemetryStore';
 import { startSimulation } from '../../services/telemetrySimulator';
 import { AgentTelemetryPanel } from '../command/AgentTelemetryPanel';
@@ -13,7 +13,7 @@ import { STATE_STYLES } from '../command/agentStateStyles';
 import { MODULE_STATE_STYLES } from '../command/ModuleNode';
 import { Desk, DARK_PALETTE, LIGHT_PALETTE } from './Desk';
 import { Station } from './Station';
-import { COURIER_COLORS, Couriers } from './Couriers';
+import { Couriers } from './Couriers';
 import { OfficeEnvironment } from './OfficeEnvironment';
 import { layoutOffice, type OfficeLayout } from './officeLayout';
 import { getOfficeFocusTarget } from './officeCamera';
@@ -82,13 +82,33 @@ function CameraRig({
     };
   }, [zoomDelta]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useFrame(() => {
+  // Cancel any programmatic camera glide immediately when the user grabs OrbitControls
+  useEffect(() => {
+    if (!controls) return;
+    const cancelGoal = () => {
+      goal.current = null;
+    };
+    controls.addEventListener('start', cancelGoal);
+    return () => {
+      controls.removeEventListener('start', cancelGoal);
+    };
+  }, [controls]);
+
+  useFrame((_, rawDelta) => {
     const g = goal.current;
     if (!g) return;
-    camera.position.lerp(g.pos, 0.12);
-    controls?.target.lerp(g.target, 0.12);
+    const dt = Math.min(rawDelta, 0.05);
+    const alpha = 1 - Math.exp(-8.5 * dt);
+    camera.position.lerp(g.pos, alpha);
+    controls?.target.lerp(g.target, alpha);
     controls?.update();
-    if (performance.now() > g.until) goal.current = null;
+    if (
+      performance.now() > g.until ||
+      (camera.position.distanceToSquared(g.pos) < 0.0004 &&
+        (!controls || controls.target.distanceToSquared(g.target) < 0.0004))
+    ) {
+      goal.current = null;
+    }
   });
   return null;
 }
@@ -110,12 +130,11 @@ function Scene({
 }) {
   const palette = isDark ? DARK_PALETTE : LIGHT_PALETTE;
   const topology = useTelemetryStore(
-    (s) => ({
+    useShallow((s) => ({
       order: s.agentOrder,
       parents: s.agentOrder.map((id) => s.agents[id]?.parentId ?? '').join('|'),
       modules: s.moduleOrder,
-    }),
-    shallow,
+    })),
   );
   const layout = useMemo(() => {
     const { agents } = useTelemetryStore.getState();
@@ -125,7 +144,7 @@ function Scene({
   const selectedAgentId = useTelemetryStore((s) => s.selectedAgentId);
   const selectedModuleId = useTelemetryStore((s) => s.selectedModuleId);
   const focusTarget = getOfficeFocusTarget(layout, selectedAgentId, selectedModuleId);
-  const shadowExtent = Math.max(34, layout.radius + 10);
+  const shadowExtent = Math.max(30, layout.radius + 6);
 
   // Shared campus activity refs passed to Couriers (writer) and ExternalCampus (reader)
   const activityRef = useRef<CampusActivityRefs>({
@@ -143,55 +162,47 @@ function Scene({
       <fog attach="fog" args={fogArgs} />
 
       {/* Campus ambient and hemisphere lighting */}
-      <ambientLight intensity={isDark ? 0.68 : 0.88} color={isDark ? '#DCEBFF' : '#FFFBF5'} />
-      <hemisphereLight args={[isDark ? '#1E293B' : '#FFFDF7', isDark ? '#020617' : '#D1C4B2', isDark ? 0.85 : 0.95]} />
+      <ambientLight intensity={isDark ? 0.85 : 0.96} color={isDark ? '#DCEBFF' : '#FFFBF5'} />
+      <hemisphereLight args={[isDark ? '#334155' : '#FFFDF7', isDark ? '#0B1328' : '#D1C4B2', isDark ? 1.05 : 1.0]} />
 
       {/* Main directional light casting crisp architectural shadows */}
       <directionalLight
         position={[layout.center[0] - 16, 28, layout.center[2] - 14]}
-        intensity={isDark ? 1.85 : 2.15}
+        intensity={isDark ? 1.95 : 2.15}
         color={isDark ? '#F8FAFC' : '#FFF7E6'}
         castShadow
-        shadow-mapSize={[2048, 2048]}
-        shadow-camera-near={2}
-        shadow-camera-far={115}
+        shadow-mapSize={[1024, 1024]}
+        shadow-camera-near={4}
+        shadow-camera-far={95}
         shadow-camera-left={-shadowExtent}
         shadow-camera-right={shadowExtent}
         shadow-camera-top={shadowExtent}
         shadow-camera-bottom={-shadowExtent}
-        shadow-bias={-0.0004}
-        shadow-normalBias={0.035}
+        shadow-bias={-0.0005}
+        shadow-normalBias={0.04}
       />
       {/* Cool secondary rim/fill light from opposite campus quadrant */}
       <directionalLight
         position={[layout.center[0] + 20, 16, layout.center[2] + 18]}
-        intensity={isDark ? 0.62 : 0.65}
-        color={isDark ? '#38BDF8' : '#E0EDFF'}
+        intensity={isDark ? 0.78 : 0.72}
+        color={isDark ? '#7DD3FC' : '#E0EDFF'}
       />
 
-      {/* Warm natural interior pendant & lounge lights preserving the cozy human office */}
-      <pointLight position={[-7.2, 3.2, -6.4]} color="#FFE8B8" intensity={isDark ? 1.2 : 0.85} distance={16} decay={2} />
-      <pointLight position={[7.4, 3.2, -6.4]} color="#FFE8B8" intensity={isDark ? 1.2 : 0.85} distance={16} decay={2} />
-      <pointLight position={[-7.5, 2.2, 7.2]} color="#FFDDA1" intensity={isDark ? 1.0 : 0.75} distance={12} decay={2} />
-      <pointLight position={[0.0, 3.4, 0.0]} color="#FFF7ED" intensity={isDark ? 1.1 : 0.9} distance={18} decay={2} />
-
-      {/* Domain-specific glowing point lights illuminating each external facility platform */}
-      {/* 1. DATA & KNOWLEDGE / MEMORY (Purple) */}
-      <pointLight position={[0.0, 4.4, -20.2]} color="#C084FC" intensity={isDark ? 3.4 : 1.95} distance={26} decay={2} />
-      {/* 2. OPERATIONS & SAFETY (Electric Cyan) */}
-      <pointLight position={[-22.5, 4.0, -16.2]} color="#00E5FF" intensity={isDark ? 2.9 : 1.85} distance={24} decay={2} />
-      {/* 3. PROCESSING & GOVERNANCE / PROCESS STUDIO (Magenta / Pink) */}
-      <pointLight position={[22.5, 4.0, -16.2]} color="#F472B6" intensity={isDark ? 3.1 : 1.85} distance={24} decay={2} />
-      {/* 4. PROMPTOPS & CREATIVE AI / CONTENT STUDIO (Cyan / Sky-Blue) */}
-      <pointLight position={[-22.8, 3.8, 1.8]} color="#38BDF8" intensity={isDark ? 2.8 : 1.75} distance={24} decay={2} />
-      {/* 5. TOOL ORCHESTRATION (Golden Amber) */}
-      <pointLight position={[22.8, 3.8, 1.8]} color="#FBBF24" intensity={isDark ? 3.3 : 1.95} distance={24} decay={2} />
+      {/* Consolidated warm interior fill + broad campus accent (brightened for dark-mode office interior; light mode unchanged) */}
+      <pointLight
+        position={[0.0, 4.2, 0.0]}
+        color="#FFECC4"
+        intensity={isDark ? 18.0 : 1.4}
+        distance={isDark ? 32 : 28}
+        decay={isDark ? 1.4 : 1.6}
+      />
+      <pointLight position={[0.0, 6.0, -16.0]} color="#C084FC" intensity={isDark ? 2.6 : 1.3} distance={42} decay={1.5} />
 
       {/* Surrounding Futuristic External AI Infrastructure Campus (adapts to Dark & Light) */}
       <ExternalCampus layout={layout} activityRef={activityRef} isDark={isDark} />
 
       {/* Sunlit modern isometric office shell, glass partitions, lounge, cafe, plants & conference room */}
-      <OfficeEnvironment layout={layout} />
+      <OfficeEnvironment layout={layout} isDark={isDark} />
 
       {/* Interactive Live Resource Workstations (Tectonic Modules) */}
       {Object.entries(layout.stations).map(([id, pos]) => (
@@ -217,7 +228,10 @@ function Scene({
       <OrbitControls
         makeDefault
         enableDamping
-        dampingFactor={0.08}
+        dampingFactor={0.055}
+        rotateSpeed={0.85}
+        zoomSpeed={0.95}
+        panSpeed={0.85}
         minPolarAngle={0.28}
         maxPolarAngle={1.32}
         minDistance={7}
@@ -489,14 +503,14 @@ export function Office3D() {
     <div className="relative h-full w-full overflow-hidden transition-colors duration-500" style={{ background: studioBackdrop }}>
       <Canvas
         shadows
-        dpr={[1, 1.75]}
+        dpr={[1, 1.5]}
         camera={{ fov: 26, position: [28, 22, 28], near: 0.2, far: 350 }}
         gl={{
           antialias: true,
-          alpha: true,
+          alpha: false,
           powerPreference: 'high-performance',
           toneMapping: ACESFilmicToneMapping,
-          toneMappingExposure: isDark ? 1.04 : 1.08,
+          toneMappingExposure: isDark ? 1.06 : 1.08,
         }}
         onPointerMissed={() => {
           const s = useTelemetryStore.getState();
