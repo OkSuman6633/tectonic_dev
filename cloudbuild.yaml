@@ -2,6 +2,7 @@
 substitutions:
   _REGION: 'us-central1'
   _SERVICE_NAME: 'tectonic'
+  _STATE_BUCKET: ''
 
 steps:
   # Step 1: Build the Docker image
@@ -13,36 +14,37 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'gcr.io/$PROJECT_ID/tectonic:latest']
 
-  # Step 3: Deploy to Cloud Run
+  # Step 3: Ensure free-tier GCS state bucket exists and deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
+    entrypoint: bash
     args:
-      - 'run'
-      - 'deploy'
-      - '${_SERVICE_NAME}'
-      - '--image'
-      - 'gcr.io/$PROJECT_ID/tectonic:latest'
-      - '--region'
-      - '${_REGION}'
-      - '--platform'
-      - 'managed'
-      - '--allow-unauthenticated'
-      - '--memory'
-      - '2Gi'
-      - '--cpu'
-      - '2'
-      # One instance: sessions, accounts and agents live in this server's memory/disk, so every user must
-      # reach the same instance. Long timeout: a turn where the AI decides every step runs the whole build.
-      - '--max-instances'
-      - '1'
-      - '--timeout'
-      - '3600'
-      - '--port'
-      - '8080'
-      - '--set-secrets'
-      - 'GOOGLE_API_KEY=google-api-key:latest,GEMINI_API_KEY=google-api-key:latest,TECTONIC_AUTH_SECRET=tectonic-auth-secret:latest'
-      - '--set-env-vars'
-      - 'GEMINI_MODEL=gemini-3.6-flash,ADK_SUPPRESS_GEMINI_LITELLM_WARNINGS=true,BUILDER_MODEL=gemini-3.6-flash,TECTONIC_DATA_DIR=/app/data'
+      - '-c'
+      - |
+        set -euo pipefail
+        STATE_BUCKET="${_STATE_BUCKET}"
+        if [ -z "$$STATE_BUCKET" ]; then
+          STATE_BUCKET="${PROJECT_ID}-tectonic-state"
+        fi
+        if ! gcloud storage buckets describe "gs://$${STATE_BUCKET}" >/dev/null 2>&1; then
+          gcloud storage buckets create "gs://$${STATE_BUCKET}" --location="${_REGION}" --uniform-bucket-level-access --quiet || true
+          PROJECT_NUMBER=$$(gcloud projects describe "$PROJECT_ID" --format="value(projectNumber)" 2>/dev/null || true)
+          if [ -n "$$PROJECT_NUMBER" ]; then
+            SA="$${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+            gcloud storage buckets add-iam-policy-binding "gs://$${STATE_BUCKET}" --member="serviceAccount:$${SA}" --role="roles/storage.objectAdmin" --quiet || true
+          fi
+        fi
+        gcloud run deploy "${_SERVICE_NAME}" \
+          --image "gcr.io/$PROJECT_ID/tectonic:latest" \
+          --region "${_REGION}" \
+          --platform managed \
+          --allow-unauthenticated \
+          --memory 2Gi \
+          --cpu 2 \
+          --max-instances 1 \
+          --timeout 3600 \
+          --port 8080 \
+          --set-secrets "GOOGLE_API_KEY=google-api-key:latest,GEMINI_API_KEY=google-api-key:latest,TECTONIC_AUTH_SECRET=tectonic-auth-secret:latest" \
+          --set-env-vars "GEMINI_MODEL=gemini-3.6-flash,ADK_SUPPRESS_GEMINI_LITELLM_WARNINGS=true,BUILDER_MODEL=gemini-3.6-flash,TECTONIC_DATA_DIR=/app/data,TECTONIC_GCS_BUCKET=$${STATE_BUCKET}"
 
 options:
   logging: CLOUD_LOGGING_ONLY

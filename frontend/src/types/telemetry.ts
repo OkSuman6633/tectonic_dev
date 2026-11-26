@@ -13,6 +13,11 @@ interface EventBase {
 export interface HelloEvent extends EventBase {
   type: 'HELLO';
   server_id: string;
+  latest_seq?: number;
+}
+
+export interface ReplayEndEvent extends EventBase {
+  type: 'REPLAY_END';
 }
 
 export interface AgentCreatedEvent extends EventBase {
@@ -142,6 +147,7 @@ export interface AgentDeletedEvent extends EventBase {
 
 export type TelemetryEvent =
   | HelloEvent
+  | ReplayEndEvent
   | AgentDeletedEvent
   | ModuleRegisteredEvent
   | ModuleStateEvent
@@ -249,3 +255,19 @@ export interface Packet {
 }
 
 export type ConnectionStatus = 'connecting' | 'open' | 'closed';
+
+/** Serializable per-conversation 3D & telemetry snapshot. */
+export interface TelemetrySnapshot {
+  agents: Record<string, AgentMeta>;
+  agentOrder: string[];
+  traces: Record<string, TraceSegment[]>;
+  toolCalls: Record<string, ToolCallRecord[]>;
+  memory: Record<string, JsonObject>;
+  activity: Record<string, number[]>;
+  extraEdges: { id: string; source: string; target: string }[];
+  logs: LogEntry[];
+  modules: Record<string, ModuleMeta>;
+  moduleOrder: string[];
+  moduleCalls: Record<string, ModuleCallRecord[]>;
+  moduleLinks: { id: string; source: string; target: string }[];
+}

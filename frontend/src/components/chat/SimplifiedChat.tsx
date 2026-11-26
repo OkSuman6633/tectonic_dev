@@ -14,11 +14,15 @@ import {
   Plus,
   CornerDownLeft,
   Square,
+  History,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAgentStudioStore } from '../../store/useAgentStudioStore';
 import { MarkdownContent } from './MarkdownContent';
 import { ChatbotAvatar } from './ArchitectChat';
+import { ConversationHistoryPanel } from './ConversationHistoryPanel';
 import { useAttachments, AttachmentChips, AttachButton } from './Attachments';
 import { AgentTargetPicker, MentionSuggestions } from './AgentTargetPicker';
 import { SearchProviderPicker } from './SearchProviderPicker';
@@ -34,11 +38,20 @@ import { WebSearchResultsCard } from './WebSearchResultsCard';
 import type { ChatMessage } from '../../types/agent';
 
 const AUTOPILOT_KEY = 'tectonic-autopilot';
+const HISTORY_OPEN_KEY = 'tectonic-history-open';
 const ATTACHED_ONLY = 'Please look at the attached file(s).';
 
 const readAutopilot = (): boolean => {
   try {
     return localStorage.getItem(AUTOPILOT_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+};
+
+const readHistoryOpen = (): boolean => {
+  try {
+    return localStorage.getItem(HISTORY_OPEN_KEY) !== 'closed';
   } catch {
     return true;
   }
@@ -111,13 +124,36 @@ export const SimplifiedChat: React.FC = () => {
     setActiveTab,
     continueAfterConnect,
     startNewBuilderSession,
+    conversations,
+    activeConversationId,
   } = useAgentStudioStore();
 
   const [inputVal, setInputVal] = useState('');
   const [autopilot, setAutopilot] = useState(readAutopilot);
+  const [historyOpen, setHistoryOpen] = useState(readHistoryOpen);
+  const [isWide, setIsWide] = useState(true);
+  const rootRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const attach = useAttachments();
+
+  const toggleHistory = () => {
+    setHistoryOpen((open) => {
+      const next = !open;
+      try { localStorage.setItem(HISTORY_OPEN_KEY, next ? 'open' : 'closed'); } catch {}
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([entry]) => {
+      setIsWide(entry.contentRect.width >= 580);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Load agent directory once
   useEffect(() => {
@@ -210,9 +246,13 @@ export const SimplifiedChat: React.FC = () => {
   };
 
   const mentionQuery = inputVal.match(/^@([\w./-]*)$/)?.[1];
+  const activeConversation = conversations.find((c) => c.id === activeConversationId);
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden bg-gradient-to-br from-[#eaf2ff] via-[#f4edff] to-[#dff3ff] dark:from-[#060913] dark:via-[#0b1121] dark:to-[#070b17] text-slate-900 dark:text-[var(--studio-text)] transition-colors">
+    <div
+      ref={rootRef}
+      className="relative flex h-full flex-col overflow-hidden bg-gradient-to-br from-[#eaf2ff] via-[#f4edff] to-[#dff3ff] dark:from-[#060913] dark:via-[#0b1121] dark:to-[#070b17] text-slate-900 dark:text-[var(--studio-text)] transition-colors"
+    >
       {/* Ambient iOS-style refractive glow layer */}
       <div
         aria-hidden="true"
@@ -227,11 +267,68 @@ export const SimplifiedChat: React.FC = () => {
         className="pointer-events-none absolute -bottom-24 left-1/4 h-72 w-72 rounded-full bg-cyan-200/50 dark:bg-cyan-500/10 blur-3xl"
       />
 
-      {/* Main Conversation Stream */}
-      <div
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto px-4 py-6 md:px-8 no-scrollbar scroll-smooth"
-      >
+      {/* Top Conversation Bar */}
+      <div className="relative z-20 flex h-10 shrink-0 items-center justify-between gap-2 border-b border-white/80 dark:border-white/10 bg-white/55 dark:bg-slate-900/50 px-3 backdrop-blur-xl">
+        <div className="flex items-center gap-2 min-w-0">
+          <button
+            type="button"
+            onClick={toggleHistory}
+            className={`flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-[11.5px] font-medium transition-all shrink-0 ${
+              historyOpen
+                ? 'border-sky-500/40 bg-sky-500/15 text-sky-800 dark:text-sky-200'
+                : 'border-slate-900/10 dark:border-white/15 bg-white/75 dark:bg-white/[0.06] text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-white/10'
+            }`}
+            title={historyOpen ? 'Hide conversation history' : 'Show conversation history'}
+          >
+            {historyOpen ? <PanelLeftClose className="h-3.5 w-3.5" /> : <PanelLeftOpen className="h-3.5 w-3.5" />}
+            <History className="h-3.5 w-3.5 hidden sm:inline" />
+            <span>History</span>
+            {conversations.length > 0 && (
+              <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-slate-900/10 dark:bg-white/15 px-1 font-mono text-[10px]">
+                {conversations.length}
+              </span>
+            )}
+          </button>
+
+          <span className="truncate text-[12px] font-medium text-slate-700 dark:text-slate-300" title={activeConversation?.title}>
+            {activeConversation?.title ?? 'New Conversation'}
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => void startNewBuilderSession()}
+          className="flex h-7 shrink-0 items-center gap-1 rounded-full border border-sky-500/35 bg-sky-500/15 hover:bg-sky-500/25 px-2.5 text-[11.5px] font-semibold text-sky-800 dark:text-sky-200 transition-all"
+          title="Start a new conversation (empties 3D view)"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          <span>New Chat</span>
+        </button>
+      </div>
+
+      {/* Main Split: Collapsible Conversation History + Chat Stream */}
+      <div className="relative flex flex-1 min-h-0 overflow-hidden">
+        {historyOpen && isWide && (
+          <ConversationHistoryPanel onClose={toggleHistory} />
+        )}
+
+        {historyOpen && !isWide && (
+          <div className="absolute inset-0 z-30 flex">
+            <ConversationHistoryPanel isOverlay onClose={toggleHistory} />
+            <div
+              className="flex-1 bg-slate-950/35 backdrop-blur-xs"
+              onClick={toggleHistory}
+              aria-hidden="true"
+            />
+          </div>
+        )}
+
+        <div className="relative flex flex-1 flex-col min-w-0 overflow-hidden">
+          {/* Main Conversation Stream */}
+          <div
+            ref={scrollRef}
+            className="flex-1 overflow-y-auto px-4 py-6 md:px-8 no-scrollbar scroll-smooth"
+          >
         <div className="mx-auto max-w-3xl space-y-6 pb-36">
           <AnimatePresence mode="popLayout">
             {isWelcome ? (
@@ -581,6 +678,8 @@ export const SimplifiedChat: React.FC = () => {
           <div className="mt-2 text-center text-[10px] text-slate-600 dark:text-slate-400">
             <span>Tectonic Architect · Autopilot AI Engine · Real-time 3D Sync</span>
           </div>
+        </div>
+      </div>
         </div>
       </div>
     </div>

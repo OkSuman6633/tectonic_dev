@@ -43,9 +43,10 @@ function CameraRig({
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls) as OrbitControlsImpl | null;
   const aspect = useThree((s) => s.size.width / Math.max(1, s.size.height));
+  const conversationEpoch = useTelemetryStore((s) => s.conversationEpoch);
   const goal = useRef<{ pos: Vector3; target: Vector3; until: number } | null>(null);
 
-  const fitKey = `${Math.round(layout.radius)}:${layout.center.map((n) => Math.round(n)).join(',')}:${aspect.toFixed(1)}:${fitNonce}:${resetNonce}`;
+  const fitKey = `${Math.round(layout.radius)}:${layout.center.map((n) => Math.round(n)).join(',')}:${aspect.toFixed(1)}:${fitNonce}:${resetNonce}:${conversationEpoch}`;
   const focusKey = `${focusTarget?.join(',') ?? ''}:${focusNonce}`;
 
   useEffect(() => {

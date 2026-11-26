@@ -4,7 +4,8 @@
 param(
     [string]$ProjectId = "",
     [string]$Region = "us-central1",
-    [string]$ServiceName = "tectonic"
+    [string]$ServiceName = "tectonic",
+    [string]$StateBucket = ""
 )
 
 Write-Host "========================================" -ForegroundColor Cyan
@@ -40,7 +41,8 @@ $apis = @(
     "run.googleapis.com", 
     "secretmanager.googleapis.com",
     "containerregistry.googleapis.com",
-    "artifactregistry.googleapis.com"
+    "artifactregistry.googleapis.com",
+    "storage.googleapis.com"
 )
 
 foreach ($api in $apis) {
@@ -94,6 +96,26 @@ foreach ($secret in @("google-api-key", "tectonic-auth-secret")) {
 }
 
 # Grant Cloud Build permission to deploy to Cloud Run
+if ([string]::IsNullOrEmpty($StateBucket)) {
+    $StateBucket = "$ProjectId-tectonic-state"
+}
+Write-Host "  Checking persistent state bucket (gs://$StateBucket)..."
+gcloud storage buckets describe "gs://$StateBucket" 2>$null | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "  Creating free-tier GCS state bucket in $Region..."
+    gcloud storage buckets create "gs://$StateBucket" --location=$Region --uniform-bucket-level-access --quiet
+}
+
+gcloud storage buckets add-iam-policy-binding "gs://$StateBucket" `
+    --member="serviceAccount:$serviceAccount" `
+    --role="roles/storage.objectAdmin" `
+    --quiet 2>$null
+
+gcloud storage buckets add-iam-policy-binding "gs://$StateBucket" `
+    --member="serviceAccount:$cloudBuildSa" `
+    --role="roles/storage.admin" `
+    --quiet 2>$null
+
 gcloud projects add-iam-policy-binding $ProjectId `
     --member="serviceAccount:$cloudBuildSa" `
     --role="roles/run.admin" `
@@ -110,7 +132,7 @@ Write-Host ""
 # Step 4: Build and deploy
 Write-Host "[4/5] Building and deploying (this takes 5-15 minutes)..." -ForegroundColor Yellow
 Write-Host "  Submitting build to Cloud Build..."
-gcloud builds submit --config=cloudbuild.yaml "--substitutions=_REGION=$Region,_SERVICE_NAME=$ServiceName"
+gcloud builds submit --config=cloudbuild.yaml "--substitutions=_REGION=$Region,_SERVICE_NAME=$ServiceName,_STATE_BUCKET=$StateBucket"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Build failed. Check logs above." -ForegroundColor Red

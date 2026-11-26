@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getToken } from '../services/auth';
+import { getToken } from '../services/auth.ts';
 import type {
   AgentMeta,
   ConnectionStatus,
@@ -9,9 +9,10 @@ import type {
   ModuleMeta,
   Packet,
   TelemetryEvent,
+  TelemetrySnapshot,
   ToolCallRecord,
   TraceSegment,
-} from '../types/telemetry';
+} from '../types/telemetry.ts';
 
 const ACTIVITY_BUCKETS = 24;
 const BUCKET_MS = 1500;
@@ -58,6 +59,11 @@ interface TelemetryState extends TelemetryData {
   /** Which view the current selection came from; that view hosts the detail drawer. */
   selectionOrigin: SelectionOrigin;
   isSimulating: boolean;
+  /** Bumped when switching/clearing conversations so 3D scene refs reset cleanly. */
+  conversationEpoch: number;
+  /** Known metadata for agents & modules seen from the server, used to hydrate new conversations cleanly. */
+  agentCatalog: Record<string, AgentMeta>;
+  moduleCatalog: Record<string, ModuleMeta>;
 
   connect: () => void;
   disconnect: () => void;
@@ -67,10 +73,18 @@ interface TelemetryState extends TelemetryData {
   selectAgent: (id: string | null, origin?: SelectionOrigin) => void;
   selectModule: (id: string | null, origin?: SelectionOrigin) => void;
   reset: () => void;
+  /** Empty the entire 3D office / topology for a brand-new conversation. */
+  clearForConversation: () => void;
+  /** Export a serializable snapshot of the current 3D / telemetry view for persistence. */
+  exportSnapshot: () => TelemetrySnapshot;
+  /** Restore a previously saved conversation's 3D / telemetry view. */
+  restoreSnapshot: (snapshot?: Partial<TelemetrySnapshot> | null) => void;
+  /** Allow replay events at or after `ms` during recovery of an interrupted turn. */
+  setRecoverySince: (ms: number | null) => void;
   setSimulating: (val: boolean) => void;
 }
 
-const emptyData = (): TelemetryData => ({
+export const emptyTelemetrySnapshot = (): TelemetrySnapshot => ({
   agents: {},
   agentOrder: [],
   traces: {},
@@ -78,14 +92,20 @@ const emptyData = (): TelemetryData => ({
   memory: {},
   activity: {},
   extraEdges: [],
-  packets: [],
   logs: [],
-  activeRuns: 0,
   modules: {},
   moduleOrder: [],
   moduleCalls: {},
   moduleLinks: [],
 });
+
+const emptyData = (): TelemetryData => ({
+  ...emptyTelemetrySnapshot(),
+  packets: [],
+  activeRuns: 0,
+});
+
+const cloneJson = <T>(val: T): T => JSON.parse(JSON.stringify(val)) as T;
 
 /** Module node ids are namespaced: a module and an agent may share a name (e.g. intent_detection). */
 export const moduleNodeId = (module: string): string => `mod:${module}`;
@@ -119,8 +139,18 @@ const compact = (value: unknown, limit = 140): string => {
 
 let nextLogId = 1;
 
+interface Catalogs {
+  agentCatalog: Record<string, AgentMeta>;
+  moduleCatalog: Record<string, ModuleMeta>;
+}
+
 /** Pure reducer: folds a batch of events into a new data snapshot, copying only touched maps. */
-function reduce(prev: TelemetryData, events: TelemetryEvent[], now: number): TelemetryData {
+function reduce(
+  prev: TelemetryData,
+  events: TelemetryEvent[],
+  now: number,
+  catalogs?: Catalogs,
+): TelemetryData {
   const d: TelemetryData = { ...prev };
   const touched = new Set<keyof TelemetryData>();
   const own = <K extends keyof TelemetryData>(key: K): TelemetryData[K] => {
@@ -161,27 +191,52 @@ function reduce(prev: TelemetryData, events: TelemetryEvent[], now: number): Tel
   };
   const ensureAgent = (id: string, ts: number) => {
     if (d.agents[id]) return;
-    // Events for an agent we never saw spawn (e.g. client joined mid-run): create a stub node.
-    own('agents')[id] = {
-      id, role: id, parentId: null, systemPrompt: '', description: '', model: '',
-      state: 'idle', createdAt: ts, lastActiveAt: now / 1000,
-      tokens: { prompt: 0, completion: 0, total: 0 }, toolCallCount: 0, stub: true,
-    };
+    const known = catalogs?.agentCatalog[id];
+    if (known) {
+      own('agents')[id] = {
+        ...known,
+        state: 'idle',
+        createdAt: ts,
+        lastActiveAt: now / 1000,
+        tokens: { prompt: 0, completion: 0, total: 0 },
+        toolCallCount: 0,
+        stub: false,
+      };
+    } else {
+      // Events for an agent we never saw spawn (e.g. client joined mid-run): create a stub node.
+      own('agents')[id] = {
+        id, role: id, parentId: null, systemPrompt: '', description: '', model: '',
+        state: 'idle', createdAt: ts, lastActiveAt: now / 1000,
+        tokens: { prompt: 0, completion: 0, total: 0 }, toolCallCount: 0, stub: true,
+      };
+    }
     own('agentOrder').push(id);
   };
 
   const ensureModule = (id: string) => {
     if (d.modules[id]) return;
-    own('modules')[id] = {
-      id, label: id.replace(/_/g, ' '), description: '', category: 'core', operations: [],
-      state: 'offline', activeCalls: 0, totalCalls: 0, errorCount: 0,
-    };
+    const known = catalogs?.moduleCatalog[id];
+    own('modules')[id] = known
+      ? {
+          ...known,
+          state: 'offline',
+          activeCalls: 0,
+          totalCalls: 0,
+          errorCount: 0,
+          lastAgent: undefined,
+          lastOperation: undefined,
+        }
+      : {
+          id, label: id.replace(/_/g, ' '), description: '', category: 'core', operations: [],
+          state: 'offline', activeCalls: 0, totalCalls: 0, errorCount: 0,
+        };
     own('moduleOrder').push(id);
   };
 
   for (const e of events) {
     switch (e.type) {
       case 'HELLO':
+      case 'REPLAY_END':
         break;
 
       case 'AGENT_CREATED': {
@@ -199,6 +254,7 @@ function reduce(prev: TelemetryData, events: TelemetryEvent[], now: number): Tel
           tokens: existing?.tokens ?? { prompt: 0, completion: 0, total: 0 },
           toolCallCount: existing?.toolCallCount ?? 0,
         };
+        if (catalogs) catalogs.agentCatalog[e.id] = { ...meta, state: 'idle', tokens: { prompt: 0, completion: 0, total: 0 }, toolCallCount: 0 };
         own('agents')[e.id] = meta;
         if (!existing) own('agentOrder').push(e.id);
         if (!existing || existing.stub) {
@@ -328,11 +384,18 @@ function reduce(prev: TelemetryData, events: TelemetryEvent[], now: number): Tel
 
       case 'MODULE_REGISTERED': {
         const existing = d.modules[e.module];
-        own('modules')[e.module] = {
+        const modMeta: ModuleMeta = {
           id: e.module, label: e.label, description: e.description, category: e.category, operations: e.operations,
           state: existing?.state ?? 'offline', activeCalls: existing?.activeCalls ?? 0, totalCalls: existing?.totalCalls ?? 0,
           errorCount: existing?.errorCount ?? 0, lastAgent: existing?.lastAgent, lastOperation: existing?.lastOperation,
         };
+        if (catalogs) {
+          catalogs.moduleCatalog[e.module] = {
+            id: e.module, label: e.label, description: e.description, category: e.category, operations: e.operations,
+            state: 'offline', activeCalls: 0, totalCalls: 0, errorCount: 0,
+          };
+        }
+        own('modules')[e.module] = modMeta;
         if (!existing) own('moduleOrder').push(e.module);
         break;
       }
@@ -415,9 +478,13 @@ let socket: WebSocket | null = null;
 let retry = 0;
 let retryTimer: ReturnType<typeof setTimeout> | null = null;
 let tickTimer: ReturnType<typeof setInterval> | null = null;
+let replayTimer: ReturnType<typeof setTimeout> | null = null;
 let pending: TelemetryEvent[] = [];
 let frame: number | null = null;
 let wanted = false;
+let replaying = false;
+let acceptReplay = false;
+let recoverySinceMs: number | null = null;
 
 // The server replays the latest of these on every (re)connect; they must always be applied.
 const STICKY_TYPES = new Set<TelemetryEvent['type']>(['AGENT_CREATED', 'MODULE_REGISTERED', 'MODULE_STATE']);
@@ -472,19 +539,95 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => {
         return;
       }
       if (event.type === 'HELLO') {
-        // A different server id means the backend restarted: its history is a new universe.
-        if (get().serverId !== event.server_id) {
+        if (replayTimer) clearTimeout(replayTimer);
+        replaying = true;
+        // Fallback: if an older server omits REPLAY_END, exit replay mode shortly after HELLO.
+        replayTimer = setTimeout(() => {
+          replaying = false;
+          acceptReplay = false;
+          replayTimer = null;
+        }, 350);
+        if (acceptReplay) {
           pending = [];
           set({ ...emptyData(), serverId: event.server_id, lastSeq: 0, selectedAgentId: null, selectedModuleId: null });
+        } else {
+          const prevServer = get().serverId;
+          set({
+            serverId: event.server_id,
+            ...(prevServer !== event.server_id ? { lastSeq: 0 } : {}),
+          });
         }
         return;
       }
+      if (event.type === 'REPLAY_END') {
+        if (replayTimer) {
+          clearTimeout(replayTimer);
+          replayTimer = null;
+        }
+        replaying = false;
+        acceptReplay = false;
+        return;
+      }
       // Reconnects replay a snapshot; skip what we already applied.
-      if (!STICKY_TYPES.has(event.type) && event.seq <= get().lastSeq) return;
+      if (!STICKY_TYPES.has(event.type) && event.seq > 0 && event.seq <= get().lastSeq) return;
+
+      if (replaying && !acceptReplay) {
+        // Capture catalog metadata for future turns without polluting the active conversation's 3D scene.
+        if (event.type === 'AGENT_CREATED') {
+          set((s) => ({
+            agentCatalog: {
+              ...s.agentCatalog,
+              [event.id]: {
+                id: event.id,
+                role: event.role || event.id,
+                parentId: event.parent_id && event.parent_id !== event.id ? event.parent_id : null,
+                systemPrompt: event.system_prompt ?? '',
+                description: event.description ?? '',
+                model: event.model ?? '',
+                state: 'idle',
+                createdAt: event.timestamp,
+                lastActiveAt: event.timestamp,
+                tokens: { prompt: 0, completion: 0, total: 0 },
+                toolCallCount: 0,
+              },
+            },
+          }));
+        } else if (event.type === 'MODULE_REGISTERED') {
+          set((s) => ({
+            moduleCatalog: {
+              ...s.moduleCatalog,
+              [event.module]: {
+                id: event.module,
+                label: event.label,
+                description: event.description,
+                category: event.category,
+                operations: event.operations,
+                state: 'offline',
+                activeCalls: 0,
+                totalCalls: 0,
+                errorCount: 0,
+              },
+            },
+          }));
+        }
+        // Only apply non-catalog replay events if recovering an interrupted turn on this conversation.
+        if (recoverySinceMs !== null && event.timestamp * 1000 >= recoverySinceMs - 2000) {
+          schedule(event);
+        } else if (event.seq > get().lastSeq) {
+          set({ lastSeq: event.seq });
+        }
+        return;
+      }
+
       schedule(event);
     };
     ws.onclose = () => {
       if (socket === ws) socket = null;
+      if (replayTimer) {
+        clearTimeout(replayTimer);
+        replayTimer = null;
+      }
+      replaying = false;
       set({ status: 'closed' });
       if (!wanted) return;
       const delay = Math.min(15_000, 500 * 2 ** retry++);
@@ -502,6 +645,9 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => {
     selectedModuleId: null,
     selectionOrigin: 'graph',
     isSimulating: false,
+    conversationEpoch: 0,
+    agentCatalog: {},
+    moduleCatalog: {},
 
     connect: () => {
       if (wanted) return;
@@ -513,8 +659,11 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => {
     disconnect: () => {
       wanted = false;
       if (retryTimer) clearTimeout(retryTimer);
+      if (replayTimer) clearTimeout(replayTimer);
       if (tickTimer) clearInterval(tickTimer);
       tickTimer = null;
+      replayTimer = null;
+      replaying = false;
       socket?.close();
       socket = null;
     },
@@ -530,6 +679,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => {
         old.close();
       }
       pending = [];
+      acceptReplay = true;
       // serverId null: the HELLO of the new socket is treated as a fresh server and its replay applied in full.
       set({ ...emptyData(), serverId: null, lastSeq: 0, selectedAgentId: null, selectedModuleId: null, status: 'closed' });
       wanted = true;
@@ -542,9 +692,13 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => {
       if (events.length === 0) return;
       startTicker();
       const state = get();
-      const next = reduce(state, events, Date.now());
+      const catalogs: Catalogs = {
+        agentCatalog: { ...state.agentCatalog },
+        moduleCatalog: { ...state.moduleCatalog },
+      };
+      const next = reduce(state, events, Date.now(), catalogs);
       const lastSeq = events.reduce((m, e) => (!STICKY_TYPES.has(e.type) && e.seq > m ? e.seq : m), state.lastSeq);
-      set({ ...next, lastSeq });
+      set({ ...next, ...catalogs, lastSeq });
     },
 
     selectAgent: (id, origin = 'graph') => set({ selectedAgentId: id, ...(id ? { selectedModuleId: null, selectionOrigin: origin } : {}) }),
@@ -558,7 +712,85 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => {
       modules: Object.fromEntries(Object.entries(s.modules).map(([k, m]) => [k, { ...m, totalCalls: 0, errorCount: 0, lastAgent: undefined, lastOperation: undefined }])),
       selectedAgentId: null,
       selectedModuleId: null,
+      conversationEpoch: s.conversationEpoch + 1,
     })),
+
+    clearForConversation: () => {
+      pending = [];
+      if (frame !== null && typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(frame);
+        frame = null;
+      }
+      set((s) => ({
+        ...emptyData(),
+        selectedAgentId: null,
+        selectedModuleId: null,
+        isSimulating: false,
+        conversationEpoch: s.conversationEpoch + 1,
+      }));
+    },
+
+    exportSnapshot: (): TelemetrySnapshot => {
+      const s = get();
+      return cloneJson({
+        agents: s.agents,
+        agentOrder: s.agentOrder,
+        traces: s.traces,
+        toolCalls: s.toolCalls,
+        memory: s.memory,
+        activity: s.activity,
+        extraEdges: s.extraEdges,
+        logs: s.logs,
+        modules: s.modules,
+        moduleOrder: s.moduleOrder,
+        moduleCalls: s.moduleCalls,
+        moduleLinks: s.moduleLinks,
+      });
+    },
+
+    restoreSnapshot: (snapshot) => {
+      pending = [];
+      if (frame !== null && typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(frame);
+        frame = null;
+      }
+      const base = emptyTelemetrySnapshot();
+      const src = snapshot ? cloneJson(snapshot) : {};
+      const rawAgents = (src.agents ?? {}) as Record<string, AgentMeta>;
+      const agents: Record<string, AgentMeta> = {};
+      for (const [id, meta] of Object.entries(rawAgents)) {
+        const resting = meta.state === 'thinking' || meta.state === 'tool_execution' || meta.state === 'running';
+        agents[id] = { ...meta, state: resting ? 'idle' : meta.state };
+      }
+      const rawModules = (src.modules ?? {}) as Record<string, ModuleMeta>;
+      const modules: Record<string, ModuleMeta> = {};
+      for (const [id, meta] of Object.entries(rawModules)) {
+        const resting = meta.state === 'busy' || meta.state === 'booting';
+        modules[id] = { ...meta, state: resting ? 'idle' : meta.state, activeCalls: 0 };
+      }
+      set((s) => ({
+        ...emptyData(),
+        ...base,
+        ...src,
+        agents,
+        modules,
+        agentOrder: Array.isArray(src.agentOrder) ? src.agentOrder : [],
+        moduleOrder: Array.isArray(src.moduleOrder) ? src.moduleOrder : [],
+        extraEdges: Array.isArray(src.extraEdges) ? src.extraEdges : [],
+        moduleLinks: Array.isArray(src.moduleLinks) ? src.moduleLinks : [],
+        logs: Array.isArray(src.logs) ? src.logs : [],
+        packets: [],
+        activeRuns: 0,
+        selectedAgentId: null,
+        selectedModuleId: null,
+        isSimulating: false,
+        conversationEpoch: s.conversationEpoch + 1,
+      }));
+    },
+
+    setRecoverySince: (ms) => {
+      recoverySinceMs = ms;
+    },
 
     setSimulating: (val) => set({ isSimulating: val }),
   };

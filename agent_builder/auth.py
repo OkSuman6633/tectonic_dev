@@ -244,6 +244,7 @@ def issue_token(user: dict) -> str:
                 "u": user["id"],
                 "sub": user["id"],
                 "username": user["username"],
+                "email": user.get("email", ""),
                 "admin": is_admin(user),
                 "exp": int(time.time()) + TOKEN_TTL_SECONDS,
                 "iat": int(time.time()),
@@ -254,8 +255,8 @@ def issue_token(user: dict) -> str:
     return f"{body}.{sig}"
 
 
-def verify_token(token: str | None) -> str | None:
-    """The user id a token was issued to, or None if it is missing, forged or expired."""
+def verify_token_claims(token: str | None) -> dict[str, Any] | None:
+    """Verified claims dict for a valid non-expired token, else None."""
     if not token or not isinstance(token, str):
         return None
 
@@ -272,7 +273,7 @@ def verify_token(token: str | None) -> str | None:
                 return None
             user_id = claims.get("u") or claims.get("sub")
             if user_id and is_user_id(user_id):
-                return user_id
+                return claims
         except Exception:
             return None
 
@@ -283,11 +284,47 @@ def verify_token(token: str | None) -> str | None:
             claims = jwt.decode(token, _secret().decode("utf-8", errors="ignore"), algorithms=["HS256"])
             user_id = claims.get("u") or claims.get("sub")
             if user_id and is_user_id(user_id):
-                return user_id
+                return claims
         except Exception:
             return None
 
     return None
+
+
+def verify_token(token: str | None) -> str | None:
+    """The user id a token was issued to, or None if it is missing, forged or expired."""
+    claims = verify_token_claims(token)
+    if not claims:
+        return None
+    return claims.get("u") or claims.get("sub")
+
+
+def _hydrate_user_from_claims(claims: dict[str, Any]) -> dict | None:
+    """Rebuild the user row in SQLite from a verified HMAC token after an ephemeral cold start."""
+    if os.getenv("TECTONIC_AUTH_HYDRATE", "on").strip().lower() in ("off", "0", "false", "no"):
+        return None
+    user_id = claims.get("u") or claims.get("sub")
+    if not user_id or not is_user_id(user_id):
+        return None
+    username = str(claims.get("username") or user_id).strip() or user_id
+    email = str(claims.get("email") or "").strip() or f"{user_id}@tectonic.local"
+    admin_flag = bool(claims.get("admin")) or is_admin_username(username)
+    with _lock:
+        existing = get_user(user_id)
+        if existing is not None:
+            return existing
+        try:
+            user = UserRepository.create(
+                user_id=user_id,
+                username=username,
+                email=email,
+                password_hash="",
+                is_admin=admin_flag,
+            )
+            SubscriptionRepository.create_starter(user_id)
+            return _public(user)
+        except Exception:
+            return get_user(user_id)
 
 
 # --- request gate ---------------------------------------------------------------------------------
@@ -375,8 +412,12 @@ class AuthMiddleware:
         if scope["type"] == "http" and scope.get("method") == "OPTIONS":
             return await self.app(scope, receive, send)
 
-        user_id = verify_token(_token_from(scope))
-        if user_id is None or get_user(user_id) is None:
+        claims = verify_token_claims(_token_from(scope))
+        user_id = (claims.get("u") or claims.get("sub")) if claims else None
+        user_rec = get_user(user_id) if user_id else None
+        if user_rec is None and claims is not None:
+            user_rec = _hydrate_user_from_claims(claims)
+        if user_id is None or user_rec is None:
             if scope["type"] == "websocket":
                 await receive()
                 return await send({"type": "websocket.close", "code": 4401})

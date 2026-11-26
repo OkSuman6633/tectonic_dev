@@ -172,11 +172,16 @@ class TelemetryHub:
     def subscribe(self, owner: Optional[str] = None) -> asyncio.Queue:
         self._loop = asyncio.get_running_loop()
         queue: asyncio.Queue = asyncio.Queue(maxsize=5_000)
-        queue.put_nowait({"type": "HELLO", "seq": 0, "timestamp": time.time(), "server_id": self.server_id})
+        snapshot = [
+            event for event in sorted([*self._sticky.values(), *self._recent], key=lambda e: e["seq"])
+            if self._visible(event, owner)
+        ]
+        latest_seq = max((int(e.get("seq", 0)) for e in snapshot), default=0)
+        queue.put_nowait({"type": "HELLO", "seq": 0, "timestamp": time.time(), "server_id": self.server_id, "latest_seq": latest_seq})
         # Snapshot first: every known agent, then recent activity, in original order.
-        for event in sorted([*self._sticky.values(), *self._recent], key=lambda e: e["seq"]):
-            if self._visible(event, owner):
-                queue.put_nowait(event)
+        for event in snapshot:
+            queue.put_nowait(event)
+        queue.put_nowait({"type": "REPLAY_END", "seq": 0, "timestamp": time.time()})
         self._subscribers[queue] = owner
         return queue
 

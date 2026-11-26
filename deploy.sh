@@ -7,6 +7,7 @@ set -euo pipefail
 PROJECT_ID="${1:-$(gcloud config get-value project 2>/dev/null || echo "")}"
 REGION="${2:-us-central1}"
 SERVICE_NAME="${3:-tectonic}"
+STATE_BUCKET="${4:-${PROJECT_ID}-tectonic-state}"
 
 echo "========================================"
 echo "   Tectonic GCP Deployment Script"
@@ -36,6 +37,7 @@ APIS=(
     "secretmanager.googleapis.com"
     "containerregistry.googleapis.com"
     "artifactregistry.googleapis.com"
+    "storage.googleapis.com"
 )
 for api in "${APIS[@]}"; do
     echo "  Enabling $api..."
@@ -83,6 +85,21 @@ for secret in "google-api-key" "tectonic-auth-secret"; do
         --quiet &>/dev/null || true
 done
 
+if ! gcloud storage buckets describe "gs://${STATE_BUCKET}" --project="$PROJECT_ID" &>/dev/null; then
+    echo "  Creating free-tier GCS state bucket gs://${STATE_BUCKET} in ${REGION}..."
+    gcloud storage buckets create "gs://${STATE_BUCKET}" --location="$REGION" --uniform-bucket-level-access --project="$PROJECT_ID" --quiet
+fi
+
+gcloud storage buckets add-iam-policy-binding "gs://${STATE_BUCKET}" \
+    --member="serviceAccount:$SERVICE_ACCOUNT" \
+    --role="roles/storage.objectAdmin" \
+    --quiet &>/dev/null || true
+
+gcloud storage buckets add-iam-policy-binding "gs://${STATE_BUCKET}" \
+    --member="serviceAccount:$CLOUDBUILD_SA" \
+    --role="roles/storage.admin" \
+    --quiet &>/dev/null || true
+
 gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     --member="serviceAccount:$CLOUDBUILD_SA" \
     --role="roles/run.admin" \
@@ -99,7 +116,7 @@ echo ""
 
 # Step 4: Build and deploy
 echo "[4/5] Building and deploying via Cloud Build..."
-gcloud builds submit --config=cloudbuild.yaml --substitutions=_REGION="$REGION",_SERVICE_NAME="$SERVICE_NAME" --project="$PROJECT_ID"
+gcloud builds submit --config=cloudbuild.yaml --substitutions=_REGION="$REGION",_SERVICE_NAME="$SERVICE_NAME",_STATE_BUCKET="$STATE_BUCKET" --project="$PROJECT_ID"
 echo "  Done!"
 echo ""
 

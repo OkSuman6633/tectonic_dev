@@ -887,11 +887,22 @@ function EmployeeWorkforceImpl({
   const sharedPositions = useRef<Record<string, Point2D>>({});
   const activitySlots = useRef<Record<string, AgentActivitySlot>>({});
   const agentIds = useMemo(() => Object.keys(layout.desks), [layout.desks]);
+  const hasStations = useMemo(() => Object.keys(layout.stations).length > 0, [layout.stations]);
+  const conversationEpoch = useTelemetryStore((s) => s.conversationEpoch);
 
   // Shared dispatches queue and status registers
   const dispatchesRef = useRef<Record<string, RunnerDispatch>>({});
   const runnerMissionsRef = useRef<Record<string, { runnerName: string; label: string; phase: string } | null>>({});
   const recentDeliveriesRef = useRef<Record<string, { label: string; time: number }>>({});
+
+  useEffect(() => {
+    dispatchesRef.current = {};
+    runnerMissionsRef.current = {};
+    recentDeliveriesRef.current = {};
+    sharedPositions.current = {};
+    activitySlots.current = {};
+    syncCampusActivity(activitySlots.current, activityRef);
+  }, [conversationEpoch, activityRef]);
 
   // Dynamic dispatch detection: Seated employees dispatch tasks to Office Boy runners
   useFrame(() => {
@@ -965,37 +976,40 @@ function EmployeeWorkforceImpl({
         />
       ))}
 
-      {/* 2. Primary Office Runner "Leo" (Tech Courier) */}
-      <OfficeRunnerActor
-        runnerId="runner-1"
-        appearance={RUNNER_APPEARANCES[0]}
-        standbyPos={runner1Standby}
-        layout={layout}
-        navGrid={navGrid}
-        sharedPositions={sharedPositions}
-        activitySlots={activitySlots}
-        activityRef={activityRef}
-        dispatchesRef={dispatchesRef}
-        runnerMissionsRef={runnerMissionsRef}
-        recentDeliveriesRef={recentDeliveriesRef}
-        laneOffset={0.18}
-      />
+      {/* 2. Primary Office Runner "Leo" & Secondary Runner "Sam" (only shown once the team/stations are online) */}
+      {(agentIds.length > 0 || hasStations) && (
+        <>
+          <OfficeRunnerActor
+            runnerId="runner-1"
+            appearance={RUNNER_APPEARANCES[0]}
+            standbyPos={runner1Standby}
+            layout={layout}
+            navGrid={navGrid}
+            sharedPositions={sharedPositions}
+            activitySlots={activitySlots}
+            activityRef={activityRef}
+            dispatchesRef={dispatchesRef}
+            runnerMissionsRef={runnerMissionsRef}
+            recentDeliveriesRef={recentDeliveriesRef}
+            laneOffset={0.18}
+          />
 
-      {/* 3. Secondary Office Runner "Sam" (Tech Courier) */}
-      <OfficeRunnerActor
-        runnerId="runner-2"
-        appearance={RUNNER_APPEARANCES[1]}
-        standbyPos={runner2Standby}
-        layout={layout}
-        navGrid={navGrid}
-        sharedPositions={sharedPositions}
-        activitySlots={activitySlots}
-        activityRef={activityRef}
-        dispatchesRef={dispatchesRef}
-        runnerMissionsRef={runnerMissionsRef}
-        recentDeliveriesRef={recentDeliveriesRef}
-        laneOffset={-0.18}
-      />
+          <OfficeRunnerActor
+            runnerId="runner-2"
+            appearance={RUNNER_APPEARANCES[1]}
+            standbyPos={runner2Standby}
+            layout={layout}
+            navGrid={navGrid}
+            sharedPositions={sharedPositions}
+            activitySlots={activitySlots}
+            activityRef={activityRef}
+            dispatchesRef={dispatchesRef}
+            runnerMissionsRef={runnerMissionsRef}
+            recentDeliveriesRef={recentDeliveriesRef}
+            laneOffset={-0.18}
+          />
+        </>
+      )}
     </group>
   );
 }

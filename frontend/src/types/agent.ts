@@ -437,3 +437,25 @@ export interface StudioSettings {
   can_edit_keys?: boolean;
   default_model?: string;
 }
+
+export interface ConversationSummary {
+  id: string;
+  title: string;
+  builderSessionId: string | null;
+  chatTarget: string | null;
+  messageCount: number;
+  userMessageCount: number;
+  agentCount: number;
+  moduleCount: number;
+  preview: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ConversationRecord extends ConversationSummary {
+  messages: ChatMessage[];
+  spec: ExtractedAgentSpec;
+  journey: BuilderJourney | null;
+  decisionGroup: DecisionGroup | null;
+  telemetry: import('./telemetry').TelemetrySnapshot;
+}

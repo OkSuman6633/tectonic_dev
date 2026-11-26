@@ -34,6 +34,14 @@ GENERATED_AGENTS_DIR = PROJECT_ROOT / os.getenv("AGENT_BUILDER_OUTPUT_DIR", "gen
 GENERATED_AGENTS_DIR.mkdir(parents=True, exist_ok=True)
 (PROJECT_ROOT / "logs").mkdir(parents=True, exist_ok=True)
 
+# Restore SQLite DB, user configs, generated agents, and platform stores from GCS (no-op locally).
+try:
+    from agent_builder import cloud_storage as _cloud_storage
+    _cloud_storage.restore_state()
+except Exception as _exc:
+    _cloud_storage = None
+    print(f"[STARTUP] Cloud Storage restore skipped: {_exc}")
+
 origins = ["*"] if os.getenv("K_SERVICE") else os.getenv("ALLOWED_ORIGINS", "*").split(",")
 print(f"[STARTUP] root={PROJECT_ROOT}  frontend={FRONTEND_DIR.exists()}")
 
@@ -99,6 +107,18 @@ from agent_builder.studio_api import current_user_info as _me
 from agent_builder.workspace import current_user
 
 studio_api.install(app)
+
+if _cloud_storage is not None and _cloud_storage.is_enabled():
+    @app.middleware("http")
+    async def _gcs_mutation_sync(request: Request, call_next):
+        response = await call_next(request)
+        if request.method in ("POST", "PUT", "PATCH", "DELETE") and response.status_code < 500:
+            _cloud_storage.schedule_files_sync()
+        return response
+
+    @app.on_event("shutdown")
+    async def _flush_cloud_storage() -> None:
+        _cloud_storage.flush()
 
 
 # ── 2. Telemetry hub ───────────────────────────────────────────────────────────
@@ -201,6 +221,9 @@ async def websocket_telemetry(websocket: WebSocket):
             await websocket.send_text(msg)
 
     if hub is None:
+        await websocket.send_text(json.dumps({
+            "type": "REPLAY_END", "seq": 0, "timestamp": _time.time(),
+        }))
         try:
             while True:
                 await websocket.receive_text()
