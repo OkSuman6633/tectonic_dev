@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
-import { ACESFilmicToneMapping, Vector3 } from 'three';
+import { ACESFilmicToneMapping, Vector3, type Material, type Mesh, type Texture } from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { Building2, Eye, EyeOff, Focus, LocateFixed, Play, RotateCcw, Users, Wrench, ZoomIn, ZoomOut } from 'lucide-react';
 import { shallow } from 'zustand/shallow';
@@ -126,6 +126,37 @@ function Scene({
   const selectedModuleId = useTelemetryStore((s) => s.selectedModuleId);
   const focusTarget = getOfficeFocusTarget(layout, selectedAgentId, selectedModuleId);
   const shadowExtent = Math.max(34, layout.radius + 10);
+  const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
+
+  // Boost anisotropic filtering across all canvas/screen/sign textures so angled views remain ultra-sharp
+  useEffect(() => {
+    const maxAniso = Math.min(8, gl.capabilities.getMaxAnisotropy());
+    if (maxAniso <= 1) return;
+    const seen = new Set<Texture>();
+    const bump = (tex: Texture | null | undefined) => {
+      if (!tex || seen.has(tex)) return;
+      seen.add(tex);
+      if (tex.anisotropy < maxAniso) {
+        tex.anisotropy = maxAniso;
+        tex.needsUpdate = true;
+      }
+    };
+    scene.traverse((obj) => {
+      const mat = (obj as Mesh).material as (Material & { map?: Texture | null; emissiveMap?: Texture | null }) | Material[] | undefined;
+      if (!mat) return;
+      if (Array.isArray(mat)) {
+        for (const m of mat) {
+          const typed = m as Material & { map?: Texture | null; emissiveMap?: Texture | null };
+          bump(typed.map);
+          bump(typed.emissiveMap);
+        }
+      } else {
+        bump(mat.map);
+        bump(mat.emissiveMap);
+      }
+    });
+  }, [gl, scene, layout, isDark]);
 
   // Shared campus activity refs passed to Couriers (writer) and ExternalCampus (reader)
   const activityRef = useRef<CampusActivityRefs>({
@@ -159,8 +190,8 @@ function Scene({
         shadow-camera-right={shadowExtent}
         shadow-camera-top={shadowExtent}
         shadow-camera-bottom={-shadowExtent}
-        shadow-bias={-0.0004}
-        shadow-normalBias={0.035}
+        shadow-bias={-0.00025}
+        shadow-normalBias={0.02}
       />
       {/* Cool secondary rim/fill light from opposite campus quadrant */}
       <directionalLight
@@ -269,8 +300,8 @@ function Hud({
   const modules = useTelemetryStore((s) => s.moduleOrder.length);
 
   const pillSurface = isDark
-    ? 'rounded-xl border border-white/10 bg-slate-950/80 shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-md text-slate-100'
-    : 'rounded-xl border border-stone-300/80 bg-white/92 shadow-[0_6px_24px_rgba(30,24,18,0.12)] backdrop-blur-md text-slate-800';
+    ? 'rounded-xl border border-slate-700/90 bg-slate-950/96 shadow-[0_10px_28px_rgba(0,0,0,0.65)] ring-1 ring-white/5 text-slate-50'
+    : 'rounded-xl border border-slate-300 bg-white/98 shadow-[0_8px_24px_rgba(15,23,42,0.14)] ring-1 ring-slate-900/5 text-slate-900';
 
   const pillBtn = isDark
     ? 'flex h-8 items-center gap-1.5 px-3 text-[12.5px] font-medium text-slate-200 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40'
@@ -486,7 +517,7 @@ export function Office3D() {
     <div className="relative h-full w-full overflow-hidden transition-colors duration-500" style={{ background: studioBackdrop }}>
       <Canvas
         shadows
-        dpr={[1, 1.75]}
+        dpr={[1, 2]}
         camera={{ fov: 26, position: [28, 22, 28], near: 0.2, far: 350 }}
         gl={{
           antialias: true,

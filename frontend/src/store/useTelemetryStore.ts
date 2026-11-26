@@ -361,8 +361,10 @@ function reduce(prev: TelemetryData, events: TelemetryEvent[], now: number): Tel
         const calls = own('moduleCalls');
         calls[e.module] = [
           ...(calls[e.module] ?? []),
-          { callId: e.call_id, module: e.module, operation: e.operation, agentId: e.agent_id, payload: e.payload,
-            status: 'running' as const, startedAt: e.timestamp },
+          {
+            callId: e.call_id, module: e.module, operation: e.operation, agentId: e.agent_id, payload: e.payload,
+            status: 'running' as const, startedAt: e.timestamp
+          },
         ].slice(-MAX_MODULE_CALLS);
         own('modules')[e.module] = { ...d.modules[e.module], lastAgent: e.agent_id, lastOperation: e.operation };
         bump(moduleNodeId(e.module), 4);

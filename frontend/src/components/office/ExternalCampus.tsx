@@ -1006,12 +1006,12 @@ const ExternalPlatform = memo(function ExternalPlatform({
   const signPos: Vec3 = isMemory
     ? [0, 2.7, zone.depth / 2 - 0.22]
     : zone.kind === 'tools'
-    ? [-2.35, 0.52, zone.depth / 2 - 0.22]
-    : zone.kind === 'process'
-    ? [1.4, 0.52, zone.depth / 2 - 0.22]
-    : zone.kind === 'hub'
-    ? [-1.4, 0.52, zone.depth / 2 - 0.22]
-    : [0, 0.52, zone.depth / 2 - 0.22];
+      ? [-2.35, 0.52, zone.depth / 2 - 0.22]
+      : zone.kind === 'process'
+        ? [1.4, 0.52, zone.depth / 2 - 0.22]
+        : zone.kind === 'hub'
+          ? [-1.4, 0.52, zone.depth / 2 - 0.22]
+          : [0, 0.52, zone.depth / 2 - 0.22];
 
   const signRot: [number, number, number] = isMemory
     ? [0, 0, 0]
