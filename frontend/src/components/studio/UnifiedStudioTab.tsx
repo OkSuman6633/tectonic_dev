@@ -11,24 +11,37 @@ import {
 import { SimplifiedChat } from '../chat/SimplifiedChat';
 import { Office3D } from '../office/Office3D';
 import { useTelemetryStore } from '../../store/useTelemetryStore';
+import {
+  computePanelDimensions,
+  presetFromRatio,
+  selectStudioPreset,
+  toggleStudioMaximize,
+  type StudioLayoutState,
+  type StudioPreset,
+} from './studioLayout';
 
 interface UnifiedStudioTabProps {
   onSelectAgent?: (id: string) => void;
 }
 
 export const UnifiedStudioTab: React.FC<UnifiedStudioTabProps> = ({ onSelectAgent: _onSelectAgent }) => {
-  // Split ratio: percentage width of the left panel (Chat)
-  const [splitRatio, setSplitRatio] = useState<number>(() => {
+  // Layout state: preset ('chat' | 'split' | 'office'), splitRatio (left panel %), and maximize state
+  const [layoutState, setLayoutState] = useState<StudioLayoutState>(() => {
     try {
       const saved = localStorage.getItem('tectonic.studio.split');
-      return saved ? parseFloat(saved) : 48;
+      const parsed = saved ? parseFloat(saved) : 50;
+      const validRatio = Number.isFinite(parsed) ? Math.max(25, Math.min(75, parsed)) : 50;
+      return {
+        preset: presetFromRatio(validRatio),
+        splitRatio: validRatio,
+        isMaximized: false,
+      };
     } catch {
-      return 48;
+      return selectStudioPreset('split');
     }
   });
 
   const [isDragging, setIsDragging] = useState(false);
-  const [fullscreenMode, setFullscreenMode] = useState<'chat' | 'office' | null>(null);
   const [mobileTab, setMobileTab] = useState<'chat' | 'office'>('chat');
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -51,7 +64,11 @@ export const UnifiedStudioTab: React.FC<UnifiedStudioTabProps> = ({ onSelectAgen
       const rect = containerRef.current.getBoundingClientRect();
       const rawPercent = ((e.clientX - rect.left) / rect.width) * 100;
       const clamped = Math.max(25, Math.min(75, rawPercent));
-      setSplitRatio(clamped);
+      setLayoutState({
+        preset: presetFromRatio(clamped),
+        splitRatio: clamped,
+        isMaximized: false,
+      });
       try {
         localStorage.setItem('tectonic.studio.split', clamped.toFixed(1));
       } catch {}
@@ -81,13 +98,33 @@ export const UnifiedStudioTab: React.FC<UnifiedStudioTabProps> = ({ onSelectAgen
     };
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
-  const resetSplit = () => {
-    setSplitRatio(48);
-    setFullscreenMode(null);
+  const handleSelectPreset = (preset: StudioPreset) => {
+    const next = selectStudioPreset(preset);
+    setLayoutState(next);
     try {
-      localStorage.setItem('tectonic.studio.split', '48');
+      localStorage.setItem('tectonic.studio.split', String(next.splitRatio));
     } catch {}
   };
+
+  const handleToggleMaximize = () => {
+    setLayoutState((prev) => toggleStudioMaximize(prev));
+  };
+
+  const resetSplit = () => {
+    handleSelectPreset('split');
+  };
+
+  const dims = computePanelDimensions(layoutState);
+  const maxBtnTitle =
+    layoutState.preset === 'split'
+      ? 'Balanced Split always stays 50% / 50%'
+      : layoutState.preset === 'chat'
+        ? layoutState.isMaximized
+          ? 'Restore Chat split (65% / 35%)'
+          : 'Maximize Chat view'
+        : layoutState.isMaximized
+          ? 'Restore 3D Office split (35% / 65%)'
+          : 'Maximize 3D Office view';
 
   return (
     <div
@@ -147,13 +184,10 @@ export const UnifiedStudioTab: React.FC<UnifiedStudioTabProps> = ({ onSelectAgen
           {/* Desktop Split Presets */}
           <div className="hidden md:flex items-center gap-1 rounded-lg bg-slate-100/80 dark:bg-white/[0.05] p-1 border border-slate-200/80 dark:border-white/[0.06]">
             <button
-              onClick={() => {
-                setFullscreenMode(null);
-                setSplitRatio(65);
-              }}
+              onClick={() => handleSelectPreset('chat')}
               title="Expand Chat (65% / 35%)"
               className={`flex h-6 items-center gap-1 rounded px-2 text-[11px] font-medium transition-all ${
-                splitRatio > 55 && !fullscreenMode
+                layoutState.preset === 'chat'
                   ? 'bg-white dark:bg-white/15 text-slate-900 dark:text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/[0.06]'
               }`}
@@ -163,13 +197,10 @@ export const UnifiedStudioTab: React.FC<UnifiedStudioTabProps> = ({ onSelectAgen
             </button>
 
             <button
-              onClick={() => {
-                setFullscreenMode(null);
-                setSplitRatio(48);
-              }}
+              onClick={() => handleSelectPreset('split')}
               title="Balanced Split (50% / 50%)"
               className={`flex h-6 items-center gap-1 rounded px-2 text-[11px] font-medium transition-all ${
-                Math.abs(splitRatio - 48) <= 5 && !fullscreenMode
+                layoutState.preset === 'split'
                   ? 'bg-white dark:bg-white/15 text-slate-900 dark:text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/[0.06]'
               }`}
@@ -179,13 +210,10 @@ export const UnifiedStudioTab: React.FC<UnifiedStudioTabProps> = ({ onSelectAgen
             </button>
 
             <button
-              onClick={() => {
-                setFullscreenMode(null);
-                setSplitRatio(35);
-              }}
+              onClick={() => handleSelectPreset('office')}
               title="Expand 3D Office (35% / 65%)"
               className={`flex h-6 items-center gap-1 rounded px-2 text-[11px] font-medium transition-all ${
-                splitRatio < 40 && !fullscreenMode
+                layoutState.preset === 'office'
                   ? 'bg-white dark:bg-white/15 text-slate-900 dark:text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/[0.06]'
               }`}
@@ -195,22 +223,25 @@ export const UnifiedStudioTab: React.FC<UnifiedStudioTabProps> = ({ onSelectAgen
             </button>
           </div>
 
-          {/* Fullscreen Toggle Buttons */}
+          {/* Context-aware Maximize / Minimize Toggle Button */}
           <div className="hidden md:flex items-center gap-1">
             <button
-              onClick={() => setFullscreenMode(fullscreenMode === 'chat' ? null : 'chat')}
+              onClick={handleToggleMaximize}
               className={`flex h-7 w-7 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-200/60 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/[0.08] dark:hover:text-white transition-colors ${
-                fullscreenMode === 'chat' ? 'bg-sky-500/20 text-sky-700 dark:text-sky-300 border border-sky-500/40' : ''
+                layoutState.isMaximized
+                  ? 'bg-sky-500/20 text-sky-700 dark:text-sky-300 border border-sky-500/40'
+                  : ''
               }`}
-              title={fullscreenMode === 'chat' ? 'Restore split layout' : 'Maximize Chat view'}
+              title={maxBtnTitle}
+              aria-label={maxBtnTitle}
             >
-              {fullscreenMode === 'chat' ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+              {layoutState.isMaximized ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
             </button>
 
             <button
               onClick={resetSplit}
               className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-200/60 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/[0.08] dark:hover:text-white transition-colors"
-              title="Reset layout to 50:50 default"
+              title="Reset layout to 50% / 50% default"
             >
               <RotateCcw className="h-3.5 w-3.5" />
             </button>
@@ -223,8 +254,8 @@ export const UnifiedStudioTab: React.FC<UnifiedStudioTabProps> = ({ onSelectAgen
         {/* Left Side: Simplified Architect Chat (Gemini Style) */}
         <div
           style={{
-            width: fullscreenMode === 'chat' ? '100%' : fullscreenMode === 'office' ? '0%' : `${splitRatio}%`,
-            display: fullscreenMode === 'office' ? 'none' : 'flex',
+            width: dims.chatWidth,
+            display: dims.showChat ? 'flex' : 'none',
           }}
           className={`relative h-full flex-col overflow-hidden border-r border-slate-200/80 dark:border-white/[0.08] transition-all duration-75 ${
             mobileTab === 'office' ? 'hidden md:flex' : 'flex w-full md:w-auto'
@@ -234,7 +265,7 @@ export const UnifiedStudioTab: React.FC<UnifiedStudioTabProps> = ({ onSelectAgen
         </div>
 
         {/* Draggable Resizer Handle (Desktop only) */}
-        {!fullscreenMode && (
+        {dims.showDivider && (
           <div
             onMouseDown={handleMouseDown}
             onDoubleClick={resetSplit}
@@ -251,16 +282,16 @@ export const UnifiedStudioTab: React.FC<UnifiedStudioTabProps> = ({ onSelectAgen
         {/* Right Side: Blueprint 3D Office Campus */}
         <div
           style={{
-            width: fullscreenMode === 'office' ? '100%' : fullscreenMode === 'chat' ? '0%' : `${100 - splitRatio}%`,
-            display: fullscreenMode === 'chat' ? 'none' : 'flex',
+            width: dims.officeWidth,
+            display: dims.showOffice ? 'flex' : 'none',
           }}
           className={`relative h-full flex-1 flex-col overflow-hidden bg-slate-900 dark:bg-slate-950 transition-all duration-75 ${
             mobileTab === 'chat' ? 'hidden md:flex' : 'flex w-full md:w-auto'
           }`}
         >
-          {/* Simulation indicator positioned cleanly at top-center so it never overlaps Office3D's top-left HUD pill */}
+          {/* Simulation indicator positioned at bottom-right so it never collides with the responsive top HUD */}
           {isSimulating && (
-            <div className="pointer-events-none absolute left-1/2 top-3.5 z-10 -translate-x-1/2 flex items-center gap-1.5 rounded-xl border border-cyan-400/40 bg-[#040E26]/85 px-3 py-1 text-[11px] font-mono text-cyan-300 shadow-[0_0_18px_rgba(0,180,255,0.22)] backdrop-blur-xl">
+            <div className="pointer-events-none absolute right-3 bottom-3 z-10 flex items-center gap-1.5 rounded-xl border border-cyan-400/50 bg-[#040E26]/95 px-3 py-1 text-[11px] font-mono text-cyan-300 shadow-[0_0_18px_rgba(0,180,255,0.22)]">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-400" />
               <span>Simulation Active</span>
             </div>

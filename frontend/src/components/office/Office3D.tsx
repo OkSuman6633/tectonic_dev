@@ -304,131 +304,136 @@ function Hud({
     : 'rounded-xl border border-slate-300 bg-white/98 shadow-[0_8px_24px_rgba(15,23,42,0.14)] ring-1 ring-slate-900/5 text-slate-900';
 
   const pillBtn = isDark
-    ? 'flex h-8 items-center gap-1.5 px-3 text-[12.5px] font-medium text-slate-200 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40'
-    : 'flex h-8 items-center gap-1.5 px-3 text-[12.5px] font-medium text-slate-700 transition-colors hover:bg-stone-100 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-40';
+    ? 'flex h-7 items-center gap-1.5 px-2.5 text-[12px] font-medium text-slate-200 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40'
+    : 'flex h-7 items-center gap-1.5 px-2.5 text-[12px] font-medium text-slate-700 transition-colors hover:bg-stone-100 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-40';
 
   const iconBtn = isDark
-    ? 'flex h-8 w-7 items-center justify-center rounded-lg text-slate-300 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-35'
-    : 'flex h-8 w-7 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-stone-100 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-35';
+    ? 'flex h-7 w-7 items-center justify-center rounded-lg text-slate-300 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-35'
+    : 'flex h-7 w-7 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-stone-100 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-35';
 
   return (
     <>
-      {/* Top-Left Live Office Stats Pill */}
-      <div className={`pointer-events-none absolute left-3.5 top-3.5 z-10 flex items-center gap-3.5 px-3.5 py-2 ${pillSurface}`}>
-        <span className="flex items-center gap-2">
-          <Users className={`h-4 w-4 ${isDark ? 'text-cyan-400' : 'text-blue-600'}`} />
-          <Stat value={working} of={staff} label="agents working" color={STATE_STYLES.running.color} isDark={isDark} />
-        </span>
-        <span className={`h-4 w-px ${isDark ? 'bg-white/10' : 'bg-stone-300'}`} />
-        <span className="flex items-center gap-2">
-          <Wrench className={`h-4 w-4 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
-          <Stat value={serving} of={modules} label="modules serving" color={MODULE_STATE_STYLES.busy.color} isDark={isDark} />
-        </span>
-      </div>
-
-      {/* Top-Right Camera & Simulation Controls */}
-      <div className="absolute right-3.5 top-3.5 z-10 flex items-center gap-2">
-        <div className={`flex items-center gap-0.5 px-1 ${pillSurface}`}>
-          <button
-            type="button"
-            className={`flex h-8 items-center gap-1 rounded-lg px-2 text-[12px] font-medium transition-colors ${isDark
-              ? 'text-cyan-400 hover:bg-white/10 hover:text-cyan-200'
-              : 'text-blue-700 hover:bg-blue-50 hover:text-blue-900'
-              }`}
-            onClick={() => void startSimulation()}
-            title="Simulate an employee workflow across the office"
-          >
-            <Play className="h-3.5 w-3.5 fill-current" />
-            <span>Simulate</span>
-          </button>
-          <button
-            type="button"
-            className={iconBtn}
-            onClick={onZoomIn}
-            title="Zoom in (+)"
-            aria-label="Zoom in"
-          >
-            <ZoomIn className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            className={iconBtn}
-            onClick={onZoomOut}
-            title="Zoom out (-)"
-            aria-label="Zoom out"
-          >
-            <ZoomOut className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            className={iconBtn}
-            onClick={onFocus}
-            disabled={!hasFocus}
-            title={hasFocus ? 'Focus camera on selected employee or workstation' : 'Select an employee or workstation to focus'}
-            aria-label="Focus on selection"
-          >
-            <LocateFixed className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            className={iconBtn}
-            onClick={onReset}
-            title="Reset camera and clear selection"
-            aria-label="Reset camera"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-          </button>
+      {/* Responsive Top HUD Bar: auto-adapts & wraps cleanly to any Office3D panel width without overlap */}
+      <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex flex-wrap items-start justify-between gap-2">
+        {/* Live Office Stats Pill */}
+        <div className={`pointer-events-auto flex max-w-full flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1.5 ${pillSurface}`}>
+          <span className="flex items-center gap-1.5">
+            <Users className={`h-3.5 w-3.5 shrink-0 ${isDark ? 'text-cyan-400' : 'text-blue-600'}`} />
+            <Stat value={working} of={staff} label="agents working" color={STATE_STYLES.running.color} isDark={isDark} />
+          </span>
+          <span className={`h-3.5 w-px ${isDark ? 'bg-white/15' : 'bg-stone-300'}`} />
+          <span className="flex items-center gap-1.5">
+            <Wrench className={`h-3.5 w-3.5 shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
+            <Stat value={serving} of={modules} label="modules serving" color={MODULE_STATE_STYLES.busy.color} isDark={isDark} />
+          </span>
         </div>
 
-        <button
-          type="button"
-          className={`${pillSurface} ${pillBtn}`}
-          onClick={onFit}
-          title="Frame the entire 3D office and external campus"
-        >
-          <Focus className={`h-3.5 w-3.5 ${isDark ? 'text-cyan-400' : 'text-blue-600'}`} />
-          <span>Fit</span>
-        </button>
+        {/* Camera & Simulation Controls */}
+        <div className="pointer-events-auto ml-auto flex max-w-full flex-wrap items-center justify-end gap-1.5">
+          <div className={`flex flex-wrap items-center gap-0.5 p-0.5 ${pillSurface}`}>
+            <button
+              type="button"
+              className={`flex h-7 items-center gap-1 rounded-lg px-2 text-[12px] font-medium transition-colors ${isDark
+                ? 'text-cyan-400 hover:bg-white/10 hover:text-cyan-200'
+                : 'text-blue-700 hover:bg-blue-50 hover:text-blue-900'
+                }`}
+              onClick={() => void startSimulation()}
+              title="Simulate an employee workflow across the office"
+            >
+              <Play className="h-3.5 w-3.5 fill-current" />
+              <span>Simulate</span>
+            </button>
+            <button
+              type="button"
+              className={iconBtn}
+              onClick={onZoomIn}
+              title="Zoom in (+)"
+              aria-label="Zoom in"
+            >
+              <ZoomIn className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              className={iconBtn}
+              onClick={onZoomOut}
+              title="Zoom out (-)"
+              aria-label="Zoom out"
+            >
+              <ZoomOut className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              className={iconBtn}
+              onClick={onFocus}
+              disabled={!hasFocus}
+              title={hasFocus ? 'Focus camera on selected employee or workstation' : 'Select an employee or workstation to focus'}
+              aria-label="Focus on selection"
+            >
+              <LocateFixed className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              className={iconBtn}
+              onClick={onReset}
+              title="Reset camera and clear selection"
+              aria-label="Reset camera"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+            </button>
+          </div>
 
-        <button
-          type="button"
-          className={`${pillSurface} ${pillBtn}`}
-          onClick={toggleLabels}
-          title={showLabels ? 'Show name tags only on hover or active tasks' : 'Always show every employee and workstation tag'}
-        >
-          {showLabels ? (
-            <Eye className={`h-3.5 w-3.5 ${isDark ? 'text-cyan-400' : 'text-blue-600'}`} />
-          ) : (
-            <EyeOff className={`h-3.5 w-3.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
-          )}
-          <span>Labels: {showLabels ? 'always' : 'on hover'}</span>
-        </button>
+          <button
+            type="button"
+            className={`${pillSurface} ${pillBtn} h-8`}
+            onClick={onFit}
+            title="Frame the entire 3D office and external campus"
+          >
+            <Focus className={`h-3.5 w-3.5 shrink-0 ${isDark ? 'text-cyan-400' : 'text-blue-600'}`} />
+            <span>Fit</span>
+          </button>
+
+          <button
+            type="button"
+            className={`${pillSurface} ${pillBtn} h-8`}
+            onClick={toggleLabels}
+            title={showLabels ? 'Show name tags only on hover or active tasks' : 'Always show every employee and workstation tag'}
+          >
+            {showLabels ? (
+              <Eye className={`h-3.5 w-3.5 shrink-0 ${isDark ? 'text-cyan-400' : 'text-blue-600'}`} />
+            ) : (
+              <EyeOff className={`h-3.5 w-3.5 shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
+            )}
+            <span className="whitespace-nowrap">Labels: {showLabels ? 'always' : 'on hover'}</span>
+          </button>
+        </div>
       </div>
 
-      {/* Bottom-Left Human Workflow Status Legend (adapts to Dark & Light themes) */}
-      <div
-        className={`pointer-events-none absolute bottom-3.5 left-3.5 z-10 flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 text-[12px] ${isDark ? 'text-slate-200' : 'text-slate-700'
-          } ${pillSurface}`}
-      >
-        {[
-          { label: 'Thinking', color: '#EAB308' },
-          { label: 'Calling tool', color: '#2563EB' },
-          { label: 'Ready', color: '#10B981' },
-          { label: 'Error', color: '#EF4444' },
-        ].map(({ label, color }) => (
-          <span key={label} className="flex items-center gap-1.5 font-medium">
-            <span className="h-2.5 w-2.5 rounded-full" style={{ background: color }} />
-            {label}
+      {/* Bottom Human Workflow Status Legend (auto-wraps cleanly inside container width) */}
+      <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10 flex items-end justify-start">
+        <div
+          className={`flex max-w-full flex-wrap items-center gap-x-3.5 gap-y-1 px-3.5 py-1.5 text-[11.5px] ${isDark ? 'text-slate-200' : 'text-slate-700'
+            } ${pillSurface}`}
+        >
+          {[
+            { label: 'Thinking', color: '#EAB308' },
+            { label: 'Calling tool', color: '#2563EB' },
+            { label: 'Ready', color: '#10B981' },
+            { label: 'Error', color: '#EF4444' },
+          ].map(({ label, color }) => (
+            <span key={label} className="flex items-center gap-1.5 whitespace-nowrap font-medium">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: color }} />
+              {label}
+            </span>
+          ))}
+          <span className="flex items-center gap-1.5 whitespace-nowrap font-medium">
+            <span className="h-2.5 w-2.5 rounded-sm" style={{ background: '#38BDF8' }} />
+            Courier - delegation
           </span>
-        ))}
-        <span className="flex items-center gap-1.5 font-medium">
-          <span className="h-2.5 w-2.5 rounded-sm" style={{ background: '#38BDF8' }} />
-          Courier - delegation
-        </span>
-        <span className="flex items-center gap-1.5 font-medium">
-          <span className="h-2.5 w-2.5 rounded-sm" style={{ background: '#A855F7' }} />
-          Courier - module call
-        </span>
+          <span className="flex items-center gap-1.5 whitespace-nowrap font-medium">
+            <span className="h-2.5 w-2.5 rounded-sm" style={{ background: '#A855F7' }} />
+            Courier - module call
+          </span>
+        </div>
       </div>
     </>
   );
