@@ -474,19 +474,19 @@ const FuturisticBridge = memo(function FuturisticBridge({
         <group rotation={[geom.pitch, 0, 0]}>
           {/* Sleek low-profile structural under-deck trim */}
           <mesh position={[0, -0.025, 0]} receiveShadow>
-            <boxGeometry args={[bw + 0.16, 0.05, geom.fullLen + 0.24]} />
+            <boxGeometry args={[bw + 0.16, 0.05, geom.fullLen + 0.04]} />
             <meshStandardMaterial color={underGirderColor} roughness={0.42} metalness={0.65} />
           </mesh>
 
           {/* Textured anti-slip walking surface */}
           <mesh position={[0, 0.002, 0]} receiveShadow>
-            <boxGeometry args={[bw - 0.12, 0.02, geom.fullLen + 0.22]} />
+            <boxGeometry args={[bw - 0.12, 0.02, geom.fullLen + 0.04]} />
             <meshStandardMaterial color={walkwayColor} roughness={0.55} metalness={0.4} />
           </mesh>
 
           {/* Center illuminated cyan/accent walking pathway strip */}
           <mesh position={[0, 0.014, 0]}>
-            <boxGeometry args={[bw * 0.36, 0.014, geom.fullLen + 0.2]} />
+            <boxGeometry args={[bw * 0.36, 0.014, geom.fullLen + 0.04]} />
             <meshStandardMaterial
               ref={stripMatRef}
               color={bridge.secondaryAccent ?? '#00E5FF'}
@@ -501,12 +501,12 @@ const FuturisticBridge = memo(function FuturisticBridge({
             <group key={idx} position={[sx, 0, 0]}>
               {/* Neon edge runner */}
               <mesh position={[0, 0.035, 0]}>
-                <boxGeometry args={[0.08, 0.06, geom.fullLen + 0.22]} />
+                <boxGeometry args={[0.08, 0.06, geom.fullLen + 0.04]} />
                 <meshStandardMaterial color={bridge.accent} emissive={bridge.accent} emissiveIntensity={1.75} />
               </mesh>
               {/* Translucent energy glass railing */}
               <mesh position={[0, 0.44, 0]}>
-                <boxGeometry args={[0.04, 0.78, geom.fullLen + 0.08]} />
+                <boxGeometry args={[0.04, 0.78, geom.fullLen - 0.04]} />
                 <meshStandardMaterial
                   color="#67E8F9"
                   transparent
@@ -518,7 +518,7 @@ const FuturisticBridge = memo(function FuturisticBridge({
               </mesh>
               {/* Top sleek handrail */}
               <mesh position={[0, 0.84, 0]}>
-                <boxGeometry args={[0.08, 0.06, geom.fullLen + 0.16]} />
+                <boxGeometry args={[0.08, 0.06, geom.fullLen - 0.04]} />
                 <meshStandardMaterial color={handrailColor} metalness={0.72} roughness={0.28} />
               </mesh>
               {/* Stanchion posts */}
@@ -1006,12 +1006,12 @@ const ExternalPlatform = memo(function ExternalPlatform({
   const signPos: Vec3 = isMemory
     ? [0, 2.7, zone.depth / 2 - 0.22]
     : zone.kind === 'tools'
-    ? [-2.35, 0.52, zone.depth / 2 - 0.22]
-    : zone.kind === 'process'
-    ? [1.4, 0.52, zone.depth / 2 - 0.22]
-    : zone.kind === 'hub'
-    ? [-1.4, 0.52, zone.depth / 2 - 0.22]
-    : [0, 0.52, zone.depth / 2 - 0.22];
+      ? [-2.35, 0.52, zone.depth / 2 - 0.22]
+      : zone.kind === 'process'
+        ? [1.4, 0.52, zone.depth / 2 - 0.22]
+        : zone.kind === 'hub'
+          ? [-1.4, 0.52, zone.depth / 2 - 0.22]
+          : [0, 0.52, zone.depth / 2 - 0.22];
 
   const signRot: [number, number, number] = isMemory
     ? [0, 0, 0]

@@ -162,7 +162,7 @@ export const OperationsPlatformChassis = memo(function OperationsPlatformChassis
   });
 
   // `bridge-operations` docks at front-right of +Z edge: local x ≈ +4.9 (spanning x ∈ [+3.8, +6.0])
-  const dockCenterX = 4.9;
+  const dockCenterX = 5.1;
 
   return (
     <group>
