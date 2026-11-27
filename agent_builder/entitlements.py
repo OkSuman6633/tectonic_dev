@@ -616,6 +616,15 @@ def allow_byok(plan_id: str) -> bool:
     return bool(plan_definition(plan_id)["allow_byok"])
 
 
+def _builtin_agent_names() -> set[str]:
+    try:
+        from .builtin_agents import builtin_names
+
+        return set(builtin_names())
+    except Exception:
+        return set()
+
+
 def agent_creation_allowed(user_id: str | None, project_name: str | None = None) -> tuple[bool, str]:
     """May this account create another agent project? (0 = unlimited → always True)."""
     plan = plan_definition(effective_plan_id(user_id))
@@ -624,7 +633,8 @@ def agent_creation_allowed(user_id: str | None, project_name: str | None = None)
         return True, ""
     from .directory import projects  # lazy
 
-    existing = [p for p in projects() if p != project_name]
+    builtin = _builtin_agent_names()
+    existing = [p for p in projects() if p != project_name and p not in builtin]
     if len(existing) >= max_agents:
         return False, (f"AGENT_LIMIT_EXCEEDED — your plan allows up to {max_agents} agent(s). "
                        f"Delete one or upgrade to build another.")
@@ -706,7 +716,8 @@ def plan_status(user_id: str | None) -> dict[str, Any]:
 
     plan_id = effective_plan_id(user_id)
     p = plan_definition(plan_id)
-    agent_count = len(projects())  # projects() handles the no-sign-in case via the shared output dir
+    builtin = _builtin_agent_names()
+    agent_count = len([name for name in projects() if name not in builtin])  # built-in starters don't consume quota
     max_agents = int(p["max_agents"])
 
     sub = None

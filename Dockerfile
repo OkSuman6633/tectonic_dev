@@ -32,6 +32,8 @@ RUN pip install --no-cache-dir -r requirements.txt && \
 
 # Copy the full application code
 COPY agent_builder/ ./agent_builder/
+# Bundled default agents automatically provisioned for every user workspace.
+COPY builtin_agents/ ./builtin_agents/
 # Per-plan lock/unlock JSON files — the source of truth for module/tool availability by tier.
 COPY plans/ ./plans/
 COPY server_full.py ./server.py
@@ -44,7 +46,7 @@ COPY modules/ ./modules/
 
 # Fail the build (not production) if the platform modules cannot load: a syntax error or a missing
 # dependency here used to make every generated agent silently run without them.
-RUN python -m compileall -q agent_builder tectonic_runtime modules server.py && \
+RUN python -m compileall -q agent_builder builtin_agents tectonic_runtime modules server.py && \
     TECTONIC_OFFLINE=1 python -c "import tectonic_runtime.adk_tools as t, tectonic_runtime._paths as p; \
 missing = [m for m in p.MODULE_PACKAGES if not (p.MODULES_DIR / m / 'src').is_dir()]; \
 assert not missing, f'modules missing from image: {missing}'; \

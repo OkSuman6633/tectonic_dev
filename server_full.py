@@ -58,7 +58,7 @@ def _clean_env_key(name: str) -> None:
     if cleaned:
         os.environ[name] = cleaned
 
-for _k in ("GOOGLE_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY"):
+for _k in ("GOOGLE_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY", "APIFY_TOKEN"):
     _clean_env_key(_k)
 
 # Ensure GOOGLE_API_KEY and GEMINI_API_KEY stay in sync
@@ -387,7 +387,11 @@ async def server_stop_run(body: dict = Body(default_factory=dict)):
 @app.get("/directory/agents")
 async def directory_agents():
     try:
-        from agent_builder import directory
+        from agent_builder import builtin_agents, directory, studio_api
+
+        uid = current_user() if studio_api.auth_enabled() else None
+        if not studio_api.auth_enabled() or uid:
+            builtin_agents.ensure_default_agents(uid)
         return {"agents": directory.list_entries()}
     except Exception as exc:
         print(f"[ERROR] directory_agents: {exc}")

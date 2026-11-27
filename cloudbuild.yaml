@@ -3,6 +3,7 @@ substitutions:
   _REGION: 'us-central1'
   _SERVICE_NAME: 'tectonic'
   _STATE_BUCKET: ''
+  _APIFY_SECRET: ''
 
 steps:
   # Step 1: Build the Docker image
@@ -33,6 +34,12 @@ steps:
             gcloud storage buckets add-iam-policy-binding "gs://$${STATE_BUCKET}" --member="serviceAccount:$${SA}" --role="roles/storage.objectAdmin" --quiet || true
           fi
         fi
+        SECRETS="GOOGLE_API_KEY=google-api-key:latest,GEMINI_API_KEY=google-api-key:latest,TECTONIC_AUTH_SECRET=tectonic-auth-secret:latest"
+        if [ -n "${_APIFY_SECRET}" ]; then
+          SECRETS="$${SECRETS},${_APIFY_SECRET}"
+        elif gcloud secrets describe apify-token >/dev/null 2>&1; then
+          SECRETS="$${SECRETS},APIFY_TOKEN=apify-token:latest"
+        fi
         gcloud run deploy "${_SERVICE_NAME}" \
           --image "gcr.io/$PROJECT_ID/tectonic:latest" \
           --region "${_REGION}" \
@@ -43,7 +50,7 @@ steps:
           --max-instances 1 \
           --timeout 3600 \
           --port 8080 \
-          --set-secrets "GOOGLE_API_KEY=google-api-key:latest,GEMINI_API_KEY=google-api-key:latest,TECTONIC_AUTH_SECRET=tectonic-auth-secret:latest" \
+          --set-secrets "$${SECRETS}" \
           --set-env-vars "GEMINI_MODEL=gemini-3.6-flash,ADK_SUPPRESS_GEMINI_LITELLM_WARNINGS=true,BUILDER_MODEL=gemini-3.6-flash,TECTONIC_DATA_DIR=/app/data,TECTONIC_GCS_BUCKET=$${STATE_BUCKET}"
 
 options:

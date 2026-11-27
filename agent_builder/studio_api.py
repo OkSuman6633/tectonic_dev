@@ -55,8 +55,21 @@ def current_user_info() -> dict:
     return user
 
 
+def _ensure_default_agents() -> None:
+    """Seed built-in starter agents into the active workspace if not yet provisioned."""
+    try:
+        from . import builtin_agents
+
+        uid = current_user() if auth_enabled() else None
+        if not auth_enabled() or uid:
+            builtin_agents.ensure_default_agents(uid)
+    except Exception:
+        pass
+
+
 def own_projects() -> list[Path]:
     """The signed-in user's generated projects, newest first."""
+    _ensure_default_agents()
     root = output_dir()
     if not root.exists():
         return []
@@ -124,6 +137,7 @@ async def auth_login(body: dict = Body(...)):
 @router.get("/auth/me")
 async def auth_me():
     user = current_user_info()
+    _ensure_default_agents()
     plan_id = entitlements.get_plan_id(current_user())
     sub = None
     if current_user():

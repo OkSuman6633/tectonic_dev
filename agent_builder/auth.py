@@ -159,6 +159,13 @@ def register(username: str, password: str, email: str | None = None) -> dict:
 
         _sync_legacy_users_json(user)
 
+    try:
+        from . import builtin_agents
+
+        builtin_agents.ensure_default_agents(user_id)
+    except Exception:
+        pass
+
     return _public(user)
 
 
@@ -201,6 +208,12 @@ def login(identifier: str, password: str) -> dict:
         raise AuthError("Wrong username or password.")
 
     _failures.pop(key, None)
+    try:
+        from . import builtin_agents
+
+        builtin_agents.ensure_default_agents(user["id"])
+    except Exception:
+        pass
     return _public(user)
 
 
@@ -322,6 +335,12 @@ def _hydrate_user_from_claims(claims: dict[str, Any]) -> dict | None:
                 is_admin=admin_flag,
             )
             SubscriptionRepository.create_starter(user_id)
+            try:
+                from . import builtin_agents
+
+                builtin_agents.ensure_default_agents(user_id)
+            except Exception:
+                pass
             return _public(user)
         except Exception:
             return get_user(user_id)

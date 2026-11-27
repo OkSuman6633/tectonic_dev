@@ -69,6 +69,16 @@ if ! gcloud secrets describe tectonic-auth-secret --project="$PROJECT_ID" &>/dev
 else
     echo "  Secret 'tectonic-auth-secret' exists."
 fi
+
+HAS_APIFY=0
+if gcloud secrets describe apify-token --project="$PROJECT_ID" &>/dev/null; then
+    echo "  Secret 'apify-token' exists."
+    HAS_APIFY=1
+elif [ -n "${APIFY_TOKEN:-}" ]; then
+    printf "%s" "$APIFY_TOKEN" | gcloud secrets create apify-token --data-file=- --project="$PROJECT_ID"
+    echo "  Secret 'apify-token' created from environment!"
+    HAS_APIFY=1
+fi
 echo ""
 
 # Step 3: Setting up IAM permissions
@@ -77,7 +87,16 @@ PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format="value(projectN
 SERVICE_ACCOUNT="$PROJECT_NUMBER-compute@developer.gserviceaccount.com"
 CLOUDBUILD_SA="$PROJECT_NUMBER@cloudbuild.gserviceaccount.com"
 
-for secret in "google-api-key" "tectonic-auth-secret"; do
+SECRETS_LIST=("google-api-key" "tectonic-auth-secret")
+if [ "$HAS_APIFY" -eq 1 ]; then
+    SECRETS_LIST+=("apify-token")
+    gcloud secrets add-iam-policy-binding "apify-token" \
+        --member="serviceAccount:$CLOUDBUILD_SA" \
+        --role="roles/secretmanager.viewer" \
+        --project="$PROJECT_ID" \
+        --quiet &>/dev/null || true
+fi
+for secret in "${SECRETS_LIST[@]}"; do
     gcloud secrets add-iam-policy-binding "$secret" \
         --member="serviceAccount:$SERVICE_ACCOUNT" \
         --role="roles/secretmanager.secretAccessor" \
@@ -116,7 +135,11 @@ echo ""
 
 # Step 4: Build and deploy
 echo "[4/5] Building and deploying via Cloud Build..."
-gcloud builds submit --config=cloudbuild.yaml --substitutions=_REGION="$REGION",_SERVICE_NAME="$SERVICE_NAME",_STATE_BUCKET="$STATE_BUCKET" --project="$PROJECT_ID"
+APIFY_SECRET=""
+if [ "$HAS_APIFY" -eq 1 ]; then
+    APIFY_SECRET="APIFY_TOKEN=apify-token:latest"
+fi
+gcloud builds submit --config=cloudbuild.yaml --substitutions=_REGION="$REGION",_SERVICE_NAME="$SERVICE_NAME",_STATE_BUCKET="$STATE_BUCKET",_APIFY_SECRET="$APIFY_SECRET" --project="$PROJECT_ID"
 echo "  Done!"
 echo ""
 

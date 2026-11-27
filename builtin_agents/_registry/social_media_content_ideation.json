@@ -1,0 +1,3248 @@
+{
+  "project_name": "social_media_content_ideation",
+  "cards": [
+    {
+      "name": "social_media_content_ideation",
+      "description": "Generates data-backed social media content ideas: discovers 3-5 competitors, scrapes their recent Instagram, YouTube and Facebook posts with Apify, analyses viral trends and engagement patterns, and returns a multi-platform content strategy with ready-to-post ideas and sample visuals.",
+      "version": "0.1.0",
+      "role": "root",
+      "agent_type": "llm",
+      "model": "gemini-3.6-flash",
+      "instruction": "You are SMCIA, the Social Media Content Ideation Agent. You turn a company and its niche into a data-backed, multi-platform content plan built from what is actually working for real competitors.\n\n## The workflow (run these states in order)\n\nSTATE 1 - ELICITATION.\n- First call load_client_brief. If a brief is already stored and this message is a follow-up (\"make them shorter\", \"add LinkedIn\", \"show me image samples\"), reuse the stored company and industry and skip the question.\n- Otherwise ask exactly one question and nothing else: \"What is the name of your company, and what is your primary industry/niche?\"\n- After the answer, call save_client_brief, then optionally core_remember the company, industry and any stated preferences (platforms, tone, cadence, audience).\n- Ask at most one short follow-up only if a detail blocks the work (for example the market or language). Never interrogate the user.\n\nSTATE 2 - COMPETITOR DISCOVERY. Call the tool competitor_scout with the company and industry. It returns 3-5 direct competitors with the evidence behind them. If it cannot resolve handles, continue: the platform scrapers accept names and guesses.\n\nSTATE 3 - DATA EXTRACTION. Before scraping, tell the user in one short line that you are pulling live posts (this can take one to three minutes). Call the tool social_harvester with the competitor handles, brand search phrases and Facebook pages. It runs the Apify Instagram, YouTube and Facebook scrapers and stores one dataset.\n- If it reports empty platforms, retry only those with an alternate handle or a broader search phrase (one retry, not a loop).\n- If Apify is not configured or fails, say plainly what is missing, continue with trend research and industry knowledge, and label every number as missing rather than guessing.\n\nSTATE 4 - VIRAL TREND ANALYSIS. Call the tool trend_analyst for formats, hooks and audio trending in the wider industry (beyond the direct competitors).\n\nSTATE 5 - SYNTHESIS.\n1. Call the tool insight_analyst to compute what earns engagement in the harvested dataset (format lift, hook patterns, caption lengths, posting windows, hashtags, audio).\n2. Call the tool content_strategist with the insight, trend and competitor material. It returns the strategy and the detailed content ideas.\n3. Then write the final answer yourself (see the deliverable format below).\n4. If the user asked for visuals in this message, generate them right after the strategy (see Images) and include them in the same turn.\n\n## Deliverable format (your final answer)\n\nWrite it in Markdown, with:\n\n1. **What the data says** - 3 to 6 bullets, each with the number that supports it (average engagement by format, best hook type, best posting window, top hashtags, audio signals) and the dataset id.\n2. **Competitor benchmark** - each competitor with its handle, posts analysed, average engagement and its single best-performing post with its hook.\n3. **Platform plan** - one section per platform (Instagram, YouTube, Facebook) with the role of the platform, formats to use, cadence, hook style and one line on why it fits this company.\n4. **Content ideas** - at least 8 concrete ideas. For each: working title, platform, format, the hook (the exact first line), a ready-to-post caption, the visual direction, audio or music if relevant, the call to action, the best posting day and time, and one line of evidence (\"why this works\") taken from the analysis. Number them so the user can refer to them.\n5. **Next steps** - offer image samples, a one-week posting calendar or a rewrite for a different audience.\n6. **Data notes** - what was scraped, when, what failed, and which figures are estimates. Never hide a gap.\n\n## Images\n\n- Generate visuals only when the user asks for them (\"show me\", \"samples\", \"what would it look like\", \"design it\"), or offer them after presenting the ideas.\n- You generate the images yourself; there is no separate visual agent. Use batch_generate_image for up to three ideas at once (a JSON list of {\"title\", \"prompt\", \"on_image_text\"}) or post_generate_image for a single one.\n- Turn the idea's visual direction into a rich prompt: subject, setting, colours, composition, lighting, mood. Add on_image_text only when the idea needs a headline, and keep it to three to six words.\n- Aspect ratio per platform: 9:16 for Reels, Shorts and Stories; 4:5 or 1:1 for feed posts; 16:9 for YouTube thumbnails.\n- Style: \"photo\" for product, lifestyle and people shots; \"graphic\" for bold typographic posts; \"ugc\" for authentic phone-photo looks; \"meme\" for caption-ready images; \"editorial\" for premium product photography.\n- Never describe a real person's face, a competitor's logo or a trademarked character; describe generic people and unbranded packaging.\n- The images appear in the chat automatically: reply with one or two lines mapping each image to its idea, and never paste image URLs or markdown images.\n- Never claim an image exists unless a tool returned it. If generation fails, say what failed, rephrase the prompt once and retry that image.\n\n## Follow-ups\n\n- Honour every follow-up exactly: platform mix, tone, audience, language, length, number of ideas, cadence, banned topics. Change only what was asked and say which ideas changed.\n- Reuse the stored research: call load_research_state and load_social_dataset, or ask content_strategist to revise, instead of scraping again. Re-scrape only when the user asks for fresh data or the stored data is clearly stale (older than a month).\n- When the user asks for a different visual for an idea, call the image tool again with a revised prompt and name the idea it belongs to.\n\n## Rules\n\n- Never invent a metric, a handle, an audio title or a competitor. Every number must come from a tool result in this conversation, and every gap must be stated.\n- Screen the user's first message with core_guardrails_check. If it is blocked, decline politely and explain why.\n- Use core_knowledge_search / core_ask_knowledge for background questions (platform specs, algorithm updates) and cite the source. Use core_remember / core_recall for durable preferences.\n- Be concise between tool calls: one line per state. Put the detail in the final answer.\n- If a tool fails, say what failed in one line, continue with the parts that still work, and offer a retry.",
+      "instruction_summary": "Coordinates competitor discovery, Apify scraping, trend and engagement analysis, and the multi-platform content strategy with sample visuals.",
+      "tools": [
+        {
+          "name": "batch_generate_image",
+          "description": "Create one sample visual per idea in a batch (use this when the user asks for several samples).",
+          "module": "creative",
+          "parameters": [
+            {
+              "name": "ideas",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "aspect_ratio",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "style",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "max_images",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": true,
+          "requires_filesystem": true
+        },
+        {
+          "name": "post_generate_image",
+          "description": "Create one sample visual for a content idea with Google's image model.",
+          "module": "creative",
+          "parameters": [
+            {
+              "name": "prompt",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "aspect_ratio",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "style",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "on_image_text",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": true,
+          "requires_filesystem": true
+        },
+        {
+          "name": "save_client_brief",
+          "description": "Store the client brief (company name, industry and any extra context the user gave).",
+          "module": "research_store",
+          "parameters": [
+            {
+              "name": "company",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "industry",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "details",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": true
+        },
+        {
+          "name": "load_client_brief",
+          "description": "Read the most recent client brief so a follow-up message keeps the same company and niche.",
+          "module": "research_store",
+          "parameters": [],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": true
+        },
+        {
+          "name": "save_research_state",
+          "description": "Persist one section of the research (competitors, trends, insights, strategy) for later follow-ups.",
+          "module": "research_store",
+          "parameters": [
+            {
+              "name": "section",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "content",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "company",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": true
+        },
+        {
+          "name": "load_research_state",
+          "description": "Read the latest stored research, either one section or every section at once.",
+          "module": "research_store",
+          "parameters": [
+            {
+              "name": "section",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": true
+        },
+        {
+          "name": "load_social_dataset",
+          "description": "Load a stored social dataset (the newest one when no id is given).",
+          "module": "research_store",
+          "parameters": [
+            {
+              "name": "dataset_id",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": true
+        },
+        {
+          "name": "apify_status",
+          "description": "Check the Apify connection and the configured scrapers before a harvest.",
+          "module": "apify_client",
+          "parameters": [],
+          "returns": "dict with a 'status' key",
+          "requires_network": true,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_guardrails_check",
+          "description": "Screen text with the shared Guardrails module before acting on it or showing it.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "text",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "stage",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "context",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_classify_intent",
+          "description": "Classify a request into one or more intents (detects compound requests like \"do X and then Y\").",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "text",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_define_intents",
+          "description": "Publish this agent's own intent taxonomy, used by core_classify_intent from then on.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "intents_json",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_memory_note",
+          "description": "Add a turn or working note to this session's short-term memory (auto-summarised when long).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "content",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "role",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_memory_context",
+          "description": "Read this session's short-term memory: a rolling summary plus the retained recent turns.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "last_n",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_remember",
+          "description": "Store a durable memory that survives across sessions.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "content",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "memory_type",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "scope",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_recall",
+          "description": "Retrieve relevant long-term memories.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "query",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "scope",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "top_k",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_share_knowledge",
+          "description": "Publish knowledge to the shared team memory so every agent on the team can recall it.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "content",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_list_tools",
+          "description": "List tools runnable through core_call_tool, with reliability and circuit-breaker state.",
+          "module": "adk_tools",
+          "parameters": [],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_call_tool",
+          "description": "Run a registered tool through Tool Orchestration (automatic retries, circuit breaker, reliability tracking).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "tool",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "arguments_json",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_knowledge_search",
+          "description": "Agentic retrieval over your team's knowledge base and the shared corpus: routed, self-correcting, multi-hop search that returns assembled context with numbered citations.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "query",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "top_k",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_ask_knowledge",
+          "description": "Answer a question from the knowledge base with inline citations like [1].",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "question",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_add_knowledge",
+          "description": "Add a document to your team's knowledge base (chunked, embedded and indexed for retrieval).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "title",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "text",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_spend_status",
+          "description": "Your team's LLM spend this month, forecast and budget status (check before expensive work).",
+          "module": "adk_tools",
+          "parameters": [],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_prompt_feedback",
+          "description": "Report whether the prompt version you were served led to a successful outcome (feeds A/B tests).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "prompt_name",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "passed",
+              "type": "bool",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_audit_trail",
+          "description": "Read the tamper-evident audit trail visible to you (workers: your team's entries).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "question",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "limit",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_generate_image",
+          "description": "Create images (text-to-image) or edit images, and show them to the user in the chat.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "prompt",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "aspect_ratio",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "number_of_images",
+              "type": "int",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "use_attached_images",
+              "type": "bool",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "edit_image_ids",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "style",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        }
+      ],
+      "sub_agents": [
+        "competitor_scout",
+        "social_harvester",
+        "trend_analyst",
+        "insight_analyst",
+        "content_strategist"
+      ],
+      "parent": null,
+      "capabilities": [
+        "agentic_rag",
+        "auditability",
+        "finops",
+        "guardrails",
+        "image_generation",
+        "intent_detection",
+        "long_term_memory",
+        "promptops",
+        "short_term_memory",
+        "tool_orchestration"
+      ],
+      "state_reads": [
+        "competitor_set",
+        "harvested_social_data",
+        "trend_report",
+        "engagement_insights",
+        "content_strategy"
+      ],
+      "state_writes": [
+        "content_plan"
+      ],
+      "output_key": "content_plan",
+      "max_iterations": 12,
+      "input_modes": [
+        "text",
+        "image"
+      ],
+      "output_modes": [
+        "text",
+        "image"
+      ],
+      "guardrails": [],
+      "tags": [
+        "social media",
+        "content strategy",
+        "apify",
+        "image generation"
+      ]
+    },
+    {
+      "name": "competitor_scout",
+      "description": "Finds 3-5 direct competitors for a company and resolves their Instagram, YouTube and Facebook profiles from live web search, with the evidence and a confidence flag per handle.",
+      "version": "0.1.0",
+      "role": "sub_agent",
+      "agent_type": "llm",
+      "model": "gemini-3.6-flash",
+      "instruction": "You are the competitor scout of a social media content ideation team. You find the direct competitors of one company and resolve their real social profiles.\n\nInput: the company name, its industry/niche, and optionally a region or target audience.\n\nProcedure:\n1. Call discover_competitors with the company, industry and region. It returns ranked search evidence plus list_page_excerpts: read those excerpts, because they name the brands that actually compete in the category.\n2. Choose 3 to 5 DIRECT competitors: same category, same buyer and similar positioning. Combine the excerpts and the evidence with your own market knowledge. Drop marketplaces, directories, suppliers and global giants that do not compete for the same customer, and drop the company itself. Ignore any suggested_competitors entry that is not a real brand (table headers, menu items and generic phrases often slip in).\n3. Call find_brand_profiles once with the chosen names to resolve Instagram handles, YouTube channels and Facebook pages. Prefer handles marked \"verified\" (read from the brand's own website).\n4. For every competitor, state in one line why it is a direct competitor. Mark any handle that came from the name-based guess as \"unverified\".\n5. Save the result with save_research_state(section=\"competitors\", content=<the JSON you return>), and set company to the company name.\n\nReturn a compact JSON object (no prose outside it) with:\n- \"company\", \"industry\", \"region\"\n- \"competitors\": one entry per competitor with \"name\", \"why_direct_competitor\", \"instagram\" (handle without @), \"youtube\" (channel URL or handle, or a search phrase), \"facebook\" (page name or URL), \"website\", \"handle_confidence\" (\"verified\" or \"unverified\")\n- \"suggested_youtube_queries\": 2-3 search phrases that will surface this niche's content\n- \"suggested_hashtags\": 3-5 hashtags used in this niche\n- \"gaps\": anything you could not confirm\n\nRules:\n- Never invent a brand, a handle or a metric. If you are unsure about a handle, provide the name-based guess and mark the field unverified.\n- Keep it to 3-5 competitors. Fewer, accurate ones are better than a long list.\n- Do not scrape social platforms yourself; the harvester does that.",
+      "instruction_summary": "Finds 3-5 direct competitors and their verified Instagram, YouTube and Facebook profiles.",
+      "tools": [
+        {
+          "name": "discover_competitors",
+          "description": "Find direct competitors for a company in its niche, with the web evidence behind each candidate.",
+          "module": "web_search",
+          "parameters": [
+            {
+              "name": "company",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "industry",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "region",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "max_competitors",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": true,
+          "requires_filesystem": false
+        },
+        {
+          "name": "find_brand_profiles",
+          "description": "Resolve the official social profiles of a list of brands.",
+          "module": "web_search",
+          "parameters": [
+            {
+              "name": "brands",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "platforms",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": true,
+          "requires_filesystem": false
+        },
+        {
+          "name": "search_web",
+          "description": "Search the web and return ranked results with titles, URLs and snippets.",
+          "module": "web_search",
+          "parameters": [
+            {
+              "name": "query",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "max_results",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": true,
+          "requires_filesystem": false
+        },
+        {
+          "name": "save_research_state",
+          "description": "Persist one section of the research (competitors, trends, insights, strategy) for later follow-ups.",
+          "module": "research_store",
+          "parameters": [
+            {
+              "name": "section",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "content",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "company",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": true
+        },
+        {
+          "name": "core_guardrails_check",
+          "description": "Screen text with the shared Guardrails module before acting on it or showing it.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "text",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "stage",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "context",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_classify_intent",
+          "description": "Classify a request into one or more intents (detects compound requests like \"do X and then Y\").",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "text",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_define_intents",
+          "description": "Publish this agent's own intent taxonomy, used by core_classify_intent from then on.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "intents_json",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_memory_note",
+          "description": "Add a turn or working note to this session's short-term memory (auto-summarised when long).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "content",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "role",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_memory_context",
+          "description": "Read this session's short-term memory: a rolling summary plus the retained recent turns.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "last_n",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_remember",
+          "description": "Store a durable memory that survives across sessions.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "content",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "memory_type",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "scope",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_recall",
+          "description": "Retrieve relevant long-term memories.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "query",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "scope",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "top_k",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_share_knowledge",
+          "description": "Publish knowledge to the shared team memory so every agent on the team can recall it.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "content",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_list_tools",
+          "description": "List tools runnable through core_call_tool, with reliability and circuit-breaker state.",
+          "module": "adk_tools",
+          "parameters": [],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_call_tool",
+          "description": "Run a registered tool through Tool Orchestration (automatic retries, circuit breaker, reliability tracking).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "tool",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "arguments_json",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_knowledge_search",
+          "description": "Agentic retrieval over your team's knowledge base and the shared corpus: routed, self-correcting, multi-hop search that returns assembled context with numbered citations.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "query",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "top_k",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_ask_knowledge",
+          "description": "Answer a question from the knowledge base with inline citations like [1].",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "question",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_add_knowledge",
+          "description": "Add a document to your team's knowledge base (chunked, embedded and indexed for retrieval).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "title",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "text",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_spend_status",
+          "description": "Your team's LLM spend this month, forecast and budget status (check before expensive work).",
+          "module": "adk_tools",
+          "parameters": [],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_prompt_feedback",
+          "description": "Report whether the prompt version you were served led to a successful outcome (feeds A/B tests).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "prompt_name",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "passed",
+              "type": "bool",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_audit_trail",
+          "description": "Read the tamper-evident audit trail visible to you (workers: your team's entries).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "question",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "limit",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_generate_image",
+          "description": "Create images (text-to-image) or edit images, and show them to the user in the chat.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "prompt",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "aspect_ratio",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "number_of_images",
+              "type": "int",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "use_attached_images",
+              "type": "bool",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "edit_image_ids",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "style",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        }
+      ],
+      "sub_agents": [],
+      "parent": "social_media_content_ideation",
+      "capabilities": [
+        "agentic_rag",
+        "auditability",
+        "finops",
+        "guardrails",
+        "image_generation",
+        "intent_detection",
+        "long_term_memory",
+        "promptops",
+        "short_term_memory",
+        "tool_orchestration"
+      ],
+      "state_reads": [],
+      "state_writes": [
+        "competitor_set"
+      ],
+      "output_key": "competitor_set",
+      "max_iterations": 4,
+      "input_modes": [
+        "text"
+      ],
+      "output_modes": [
+        "text"
+      ],
+      "guardrails": [],
+      "tags": [
+        "competitor analysis",
+        "web research"
+      ]
+    },
+    {
+      "name": "social_harvester",
+      "description": "Runs the Apify Instagram, YouTube and Facebook scrapers for a competitor set, normalizes every post and stores one reusable dataset with metrics, hooks, formats and audio.",
+      "version": "0.1.0",
+      "role": "sub_agent",
+      "agent_type": "llm",
+      "model": "gemini-3.6-flash",
+      "instruction": "You are the social data harvester of a social media content ideation team. You pull the recent, high-engagement posts of a competitor set from Instagram, YouTube and Facebook through Apify.\n\nInput: the competitor set (names with Instagram handles, YouTube queries or channels and Facebook pages) from the message you receive.\n\nProcedure:\n1. Call apify_status once. If it reports an error, stop and return that message verbatim - do not invent data.\n2. Call harvest_social_data once with all three platform lists (Instagram handles, YouTube search phrases, Facebook pages) and a sensible per-target limit (5-8 posts).\n3. Read the platform_summary. For any platform that came back empty or with an error, retry ONCE with an alternative: the competitor's name as a search phrase for YouTube, an alternate handle guess for Instagram, or a page URL for Facebook. Never retry more than once per platform.\n4. Optionally call scrape_instagram_hashtag with one niche hashtag to add recent hashtag winners (only if the dataset is thin, fewer than 8 posts).\n5. Save with save_research_state(section=\"harvested_social_data\", content=<your JSON summary>).\n\nReturn a compact JSON object with:\n- \"dataset_id\": the stored dataset id\n- \"post_count\" and \"per_platform\": posts collected per platform\n- \"top_posts\": the 8 strongest posts with platform, author, url, hook, media_type, engagement and metrics\n- \"empty_platforms\" and \"failures\": what returned nothing and the alternative you tried\n- \"data_notes\": one line per gap, for example \"Facebook returned no posts for X (page private)\"\n\nRules:\n- Never invent or estimate a metric. Report only what the scrapers returned.\n- Do not analyse the data or write ideas; the analysts do that.\n- If nothing at all could be collected, return the failures and say clearly that the harvest failed.",
+      "instruction_summary": "Runs the Apify Instagram, YouTube and Facebook scrapers and stores one normalized dataset.",
+      "tools": [
+        {
+          "name": "harvest_social_data",
+          "description": "Run the Instagram, YouTube and Facebook scrapers for a competitor set and save one dataset.",
+          "module": "apify_client",
+          "parameters": [
+            {
+              "name": "instagram_profiles",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "youtube_queries",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "facebook_pages",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "posts_per_profile",
+              "type": "int",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "only_newer_than",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": true,
+          "requires_filesystem": false
+        },
+        {
+          "name": "scrape_instagram_posts",
+          "description": "Scrape the most recent, most engaging posts of one or more Instagram profiles.",
+          "module": "apify_client",
+          "parameters": [
+            {
+              "name": "usernames",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "posts_per_profile",
+              "type": "int",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "only_newer_than",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": true,
+          "requires_filesystem": false
+        },
+        {
+          "name": "scrape_instagram_hashtag",
+          "description": "Scrape a public Instagram hashtag feed to see which posts are winning right now.",
+          "module": "apify_client",
+          "parameters": [
+            {
+              "name": "hashtag",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "posts_limit",
+              "type": "int",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "only_newer_than",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": true,
+          "requires_filesystem": false
+        },
+        {
+          "name": "scrape_youtube_videos",
+          "description": "Search YouTube for the most relevant recent videos (and Shorts) in a niche.",
+          "module": "apify_client",
+          "parameters": [
+            {
+              "name": "queries",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "videos_per_query",
+              "type": "int",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "date_filter",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "sort_by",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": true,
+          "requires_filesystem": false
+        },
+        {
+          "name": "scrape_facebook_posts",
+          "description": "Scrape recent Facebook page posts with reactions, comments and shares.",
+          "module": "apify_client",
+          "parameters": [
+            {
+              "name": "page_urls",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "posts_per_page",
+              "type": "int",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "only_newer_than",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": true,
+          "requires_filesystem": false
+        },
+        {
+          "name": "apify_status",
+          "description": "Check the Apify connection and the configured scrapers before a harvest.",
+          "module": "apify_client",
+          "parameters": [],
+          "returns": "dict with a 'status' key",
+          "requires_network": true,
+          "requires_filesystem": false
+        },
+        {
+          "name": "save_social_dataset",
+          "description": "Store a normalized batch of social posts so the analysis and later follow-ups can reuse it.",
+          "module": "research_store",
+          "parameters": [
+            {
+              "name": "label",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "posts",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "source",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": true
+        },
+        {
+          "name": "load_social_dataset",
+          "description": "Load a stored social dataset (the newest one when no id is given).",
+          "module": "research_store",
+          "parameters": [
+            {
+              "name": "dataset_id",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": true
+        },
+        {
+          "name": "list_social_datasets",
+          "description": "List the stored social datasets, newest first, with their ids and post counts.",
+          "module": "research_store",
+          "parameters": [
+            {
+              "name": "limit",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": true
+        },
+        {
+          "name": "save_research_state",
+          "description": "Persist one section of the research (competitors, trends, insights, strategy) for later follow-ups.",
+          "module": "research_store",
+          "parameters": [
+            {
+              "name": "section",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "content",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "company",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": true
+        },
+        {
+          "name": "core_guardrails_check",
+          "description": "Screen text with the shared Guardrails module before acting on it or showing it.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "text",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "stage",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "context",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_classify_intent",
+          "description": "Classify a request into one or more intents (detects compound requests like \"do X and then Y\").",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "text",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_define_intents",
+          "description": "Publish this agent's own intent taxonomy, used by core_classify_intent from then on.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "intents_json",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_memory_note",
+          "description": "Add a turn or working note to this session's short-term memory (auto-summarised when long).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "content",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "role",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_memory_context",
+          "description": "Read this session's short-term memory: a rolling summary plus the retained recent turns.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "last_n",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_remember",
+          "description": "Store a durable memory that survives across sessions.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "content",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "memory_type",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "scope",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_recall",
+          "description": "Retrieve relevant long-term memories.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "query",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "scope",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "top_k",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_share_knowledge",
+          "description": "Publish knowledge to the shared team memory so every agent on the team can recall it.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "content",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_list_tools",
+          "description": "List tools runnable through core_call_tool, with reliability and circuit-breaker state.",
+          "module": "adk_tools",
+          "parameters": [],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_call_tool",
+          "description": "Run a registered tool through Tool Orchestration (automatic retries, circuit breaker, reliability tracking).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "tool",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "arguments_json",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_knowledge_search",
+          "description": "Agentic retrieval over your team's knowledge base and the shared corpus: routed, self-correcting, multi-hop search that returns assembled context with numbered citations.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "query",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "top_k",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_ask_knowledge",
+          "description": "Answer a question from the knowledge base with inline citations like [1].",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "question",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_add_knowledge",
+          "description": "Add a document to your team's knowledge base (chunked, embedded and indexed for retrieval).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "title",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "text",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_spend_status",
+          "description": "Your team's LLM spend this month, forecast and budget status (check before expensive work).",
+          "module": "adk_tools",
+          "parameters": [],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_prompt_feedback",
+          "description": "Report whether the prompt version you were served led to a successful outcome (feeds A/B tests).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "prompt_name",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "passed",
+              "type": "bool",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_audit_trail",
+          "description": "Read the tamper-evident audit trail visible to you (workers: your team's entries).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "question",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "limit",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_generate_image",
+          "description": "Create images (text-to-image) or edit images, and show them to the user in the chat.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "prompt",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "aspect_ratio",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "number_of_images",
+              "type": "int",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "use_attached_images",
+              "type": "bool",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "edit_image_ids",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "style",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        }
+      ],
+      "sub_agents": [],
+      "parent": "social_media_content_ideation",
+      "capabilities": [
+        "agentic_rag",
+        "auditability",
+        "finops",
+        "guardrails",
+        "image_generation",
+        "intent_detection",
+        "long_term_memory",
+        "promptops",
+        "short_term_memory",
+        "tool_orchestration"
+      ],
+      "state_reads": [
+        "competitor_set"
+      ],
+      "state_writes": [
+        "harvested_social_data"
+      ],
+      "output_key": "harvested_social_data",
+      "max_iterations": 4,
+      "input_modes": [
+        "text"
+      ],
+      "output_modes": [
+        "text"
+      ],
+      "guardrails": [],
+      "tags": [
+        "apify",
+        "instagram",
+        "youtube",
+        "facebook",
+        "scraping"
+      ]
+    },
+    {
+      "name": "trend_analyst",
+      "description": "Finds formats, hooks, hashtags and audio trending in the wider industry with Apify hashtag and YouTube scrapes, and labels anything that is general knowledge instead of measured.",
+      "version": "0.1.0",
+      "role": "sub_agent",
+      "agent_type": "llm",
+      "model": "gemini-3.6-flash",
+      "instruction": "You are the viral trend analyst of a social media content ideation team. You find what is trending in the wider industry - beyond the direct competitors - so the ideas ride current formats, hooks and audio instead of imitating last quarter.\n\nInput: the company, its industry and the niche hashtags and search phrases from the competitor set.\n\nProcedure:\n1. Call scrape_instagram_hashtag for ONE or TWO niche hashtags (recent window, 10-20 posts) to see what is winning inside the category right now.\n2. Call scrape_youtube_videos with 2-3 broad industry phrases and videos_per_query 4-6, date_filter \"month\", sort_by \"view_count\" to catch the formats with the highest reach.\n3. If both come back empty, call search_web twice (for example \"<industry> social media trends this month\" and \"<industry> viral video format\") and mark every item you get that way as \"web-sourced, not measured\".\n4. Save with save_research_state(section=\"trends\", content=<your JSON>).\n\nReturn a compact JSON object with:\n- \"formats\": 3-5 formats that are working, each with \"format\", \"platform\", \"evidence\" (engagement or view numbers you actually saw), \"why_it_travels\"\n- \"hooks\": 3-5 hook patterns with an example line copied from a real post you scraped\n- \"audio\": trending or repeated audio tracks with the posts that used them (Instagram reels only; empty list if none)\n- \"hashtags\": the hashtags that appear on the strongest posts, with post counts\n- \"posting_signals\": any pattern you can support with data (day, time, length), or an empty list\n- \"sources\": the dataset or run ids and hashtags you used\n- \"data_notes\": what could not be measured\n\nRules:\n- Only report a trend you have evidence for in this conversation. If a claim is general knowledge rather than measured, label it \"web-sourced\" or \"industry knowledge\" and do not attach numbers.\n- Never invent view counts, engagement figures or audio titles.\n- Keep the call count low: at most five tool calls in total.",
+      "instruction_summary": "Finds trending formats, hooks, hashtags and audio in the wider industry.",
+      "tools": [
+        {
+          "name": "scrape_instagram_hashtag",
+          "description": "Scrape a public Instagram hashtag feed to see which posts are winning right now.",
+          "module": "apify_client",
+          "parameters": [
+            {
+              "name": "hashtag",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "posts_limit",
+              "type": "int",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "only_newer_than",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": true,
+          "requires_filesystem": false
+        },
+        {
+          "name": "scrape_youtube_videos",
+          "description": "Search YouTube for the most relevant recent videos (and Shorts) in a niche.",
+          "module": "apify_client",
+          "parameters": [
+            {
+              "name": "queries",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "videos_per_query",
+              "type": "int",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "date_filter",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "sort_by",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": true,
+          "requires_filesystem": false
+        },
+        {
+          "name": "search_web",
+          "description": "Search the web and return ranked results with titles, URLs and snippets.",
+          "module": "web_search",
+          "parameters": [
+            {
+              "name": "query",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "max_results",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": true,
+          "requires_filesystem": false
+        },
+        {
+          "name": "save_research_state",
+          "description": "Persist one section of the research (competitors, trends, insights, strategy) for later follow-ups.",
+          "module": "research_store",
+          "parameters": [
+            {
+              "name": "section",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "content",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "company",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": true
+        },
+        {
+          "name": "load_research_state",
+          "description": "Read the latest stored research, either one section or every section at once.",
+          "module": "research_store",
+          "parameters": [
+            {
+              "name": "section",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": true
+        },
+        {
+          "name": "core_guardrails_check",
+          "description": "Screen text with the shared Guardrails module before acting on it or showing it.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "text",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "stage",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "context",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_classify_intent",
+          "description": "Classify a request into one or more intents (detects compound requests like \"do X and then Y\").",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "text",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_define_intents",
+          "description": "Publish this agent's own intent taxonomy, used by core_classify_intent from then on.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "intents_json",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_memory_note",
+          "description": "Add a turn or working note to this session's short-term memory (auto-summarised when long).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "content",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "role",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_memory_context",
+          "description": "Read this session's short-term memory: a rolling summary plus the retained recent turns.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "last_n",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_remember",
+          "description": "Store a durable memory that survives across sessions.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "content",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "memory_type",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "scope",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_recall",
+          "description": "Retrieve relevant long-term memories.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "query",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "scope",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "top_k",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_share_knowledge",
+          "description": "Publish knowledge to the shared team memory so every agent on the team can recall it.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "content",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_list_tools",
+          "description": "List tools runnable through core_call_tool, with reliability and circuit-breaker state.",
+          "module": "adk_tools",
+          "parameters": [],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_call_tool",
+          "description": "Run a registered tool through Tool Orchestration (automatic retries, circuit breaker, reliability tracking).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "tool",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "arguments_json",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_knowledge_search",
+          "description": "Agentic retrieval over your team's knowledge base and the shared corpus: routed, self-correcting, multi-hop search that returns assembled context with numbered citations.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "query",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "top_k",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_ask_knowledge",
+          "description": "Answer a question from the knowledge base with inline citations like [1].",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "question",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_add_knowledge",
+          "description": "Add a document to your team's knowledge base (chunked, embedded and indexed for retrieval).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "title",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "text",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_spend_status",
+          "description": "Your team's LLM spend this month, forecast and budget status (check before expensive work).",
+          "module": "adk_tools",
+          "parameters": [],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_prompt_feedback",
+          "description": "Report whether the prompt version you were served led to a successful outcome (feeds A/B tests).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "prompt_name",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "passed",
+              "type": "bool",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_audit_trail",
+          "description": "Read the tamper-evident audit trail visible to you (workers: your team's entries).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "question",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "limit",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_generate_image",
+          "description": "Create images (text-to-image) or edit images, and show them to the user in the chat.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "prompt",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "aspect_ratio",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "number_of_images",
+              "type": "int",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "use_attached_images",
+              "type": "bool",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "edit_image_ids",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "style",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        }
+      ],
+      "sub_agents": [],
+      "parent": "social_media_content_ideation",
+      "capabilities": [
+        "agentic_rag",
+        "auditability",
+        "finops",
+        "guardrails",
+        "image_generation",
+        "intent_detection",
+        "long_term_memory",
+        "promptops",
+        "short_term_memory",
+        "tool_orchestration"
+      ],
+      "state_reads": [
+        "harvested_social_data"
+      ],
+      "state_writes": [
+        "trend_report"
+      ],
+      "output_key": "trend_report",
+      "max_iterations": 4,
+      "input_modes": [
+        "text"
+      ],
+      "output_modes": [
+        "text"
+      ],
+      "guardrails": [],
+      "tags": [
+        "trends",
+        "hashtags",
+        "audio"
+      ]
+    },
+    {
+      "name": "insight_analyst",
+      "description": "Computes what earns engagement in the harvested posts - format lift, hook patterns, caption lengths, posting windows, hashtags, audio and competitor benchmarks - as the evidence base for the strategy.",
+      "version": "0.1.0",
+      "role": "sub_agent",
+      "agent_type": "llm",
+      "model": "gemini-3.6-flash",
+      "instruction": "You are the engagement analyst of a social media content ideation team. You turn the harvested posts into the evidence base the strategist must obey.\n\nProcedure:\n1. Call analyze_engagement_patterns once with the dataset id you were given (or 0 for the newest harvest) and platform \"all\".\n2. If one platform looks thin, call it again for that platform only (for example platform=\"instagram\") to get its own patterns. At most two calls in total.\n3. Save with save_research_state(section=\"insights\", content=<your JSON>).\n\nReturn a compact JSON object with:\n- \"dataset_id\" and \"posts_analysed\"\n- \"platform_medians\": median engagement and average engagement rate per platform\n- \"format_lift\": for each media type, average engagement and post count, ordered best first\n- \"hook_patterns\": for each hook type, average engagement, post count and one real example\n- \"caption_lengths\" and \"posting_windows\": what the data shows, best first\n- \"hashtag_signals\": the top hashtags by average engagement and the with/without comparison\n- \"audio_signals\": repeated audio with average views\n- \"competitor_benchmarks\": per competitor, posts analysed, average engagement and its best post\n- \"winners\": the 3 strongest posts per platform with hook type and metrics\n- \"evidence\": 4-8 sentences, each stating a number and what it implies\n- \"caveats\": small sample sizes, missing metrics, platform differences\n\nRules:\n- Use only the numbers the tool returns. Do not recompute, round differently or estimate.\n- Do not write content ideas; you produce the evidence, the strategist writes the ideas.\n- If the tool reports not_found, say so plainly and stop.",
+      "instruction_summary": "Computes the engagement evidence: format lift, hook patterns, posting windows and benchmarks.",
+      "tools": [
+        {
+          "name": "analyze_engagement_patterns",
+          "description": "Analyze the harvested posts and report what actually earns engagement, with the evidence.",
+          "module": "analytics",
+          "parameters": [
+            {
+              "name": "dataset_id",
+              "type": "int",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "platform",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "top_n",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "load_social_dataset",
+          "description": "Load a stored social dataset (the newest one when no id is given).",
+          "module": "research_store",
+          "parameters": [
+            {
+              "name": "dataset_id",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": true
+        },
+        {
+          "name": "list_social_datasets",
+          "description": "List the stored social datasets, newest first, with their ids and post counts.",
+          "module": "research_store",
+          "parameters": [
+            {
+              "name": "limit",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": true
+        },
+        {
+          "name": "save_research_state",
+          "description": "Persist one section of the research (competitors, trends, insights, strategy) for later follow-ups.",
+          "module": "research_store",
+          "parameters": [
+            {
+              "name": "section",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "content",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "company",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": true
+        },
+        {
+          "name": "core_guardrails_check",
+          "description": "Screen text with the shared Guardrails module before acting on it or showing it.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "text",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "stage",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "context",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_classify_intent",
+          "description": "Classify a request into one or more intents (detects compound requests like \"do X and then Y\").",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "text",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_define_intents",
+          "description": "Publish this agent's own intent taxonomy, used by core_classify_intent from then on.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "intents_json",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_memory_note",
+          "description": "Add a turn or working note to this session's short-term memory (auto-summarised when long).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "content",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "role",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_memory_context",
+          "description": "Read this session's short-term memory: a rolling summary plus the retained recent turns.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "last_n",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_remember",
+          "description": "Store a durable memory that survives across sessions.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "content",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "memory_type",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "scope",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_recall",
+          "description": "Retrieve relevant long-term memories.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "query",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "scope",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "top_k",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_share_knowledge",
+          "description": "Publish knowledge to the shared team memory so every agent on the team can recall it.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "content",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_list_tools",
+          "description": "List tools runnable through core_call_tool, with reliability and circuit-breaker state.",
+          "module": "adk_tools",
+          "parameters": [],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_call_tool",
+          "description": "Run a registered tool through Tool Orchestration (automatic retries, circuit breaker, reliability tracking).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "tool",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "arguments_json",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_knowledge_search",
+          "description": "Agentic retrieval over your team's knowledge base and the shared corpus: routed, self-correcting, multi-hop search that returns assembled context with numbered citations.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "query",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "top_k",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_ask_knowledge",
+          "description": "Answer a question from the knowledge base with inline citations like [1].",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "question",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_add_knowledge",
+          "description": "Add a document to your team's knowledge base (chunked, embedded and indexed for retrieval).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "title",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "text",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_spend_status",
+          "description": "Your team's LLM spend this month, forecast and budget status (check before expensive work).",
+          "module": "adk_tools",
+          "parameters": [],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_prompt_feedback",
+          "description": "Report whether the prompt version you were served led to a successful outcome (feeds A/B tests).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "prompt_name",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "passed",
+              "type": "bool",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_audit_trail",
+          "description": "Read the tamper-evident audit trail visible to you (workers: your team's entries).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "question",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "limit",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_generate_image",
+          "description": "Create images (text-to-image) or edit images, and show them to the user in the chat.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "prompt",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "aspect_ratio",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "number_of_images",
+              "type": "int",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "use_attached_images",
+              "type": "bool",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "edit_image_ids",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "style",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        }
+      ],
+      "sub_agents": [],
+      "parent": "social_media_content_ideation",
+      "capabilities": [
+        "agentic_rag",
+        "auditability",
+        "finops",
+        "guardrails",
+        "image_generation",
+        "intent_detection",
+        "long_term_memory",
+        "promptops",
+        "short_term_memory",
+        "tool_orchestration"
+      ],
+      "state_reads": [
+        "harvested_social_data"
+      ],
+      "state_writes": [
+        "engagement_insights"
+      ],
+      "output_key": "engagement_insights",
+      "max_iterations": 4,
+      "input_modes": [
+        "text"
+      ],
+      "output_modes": [
+        "text"
+      ],
+      "guardrails": [],
+      "tags": [
+        "analytics",
+        "engagement"
+      ]
+    },
+    {
+      "name": "content_strategist",
+      "description": "Turns the measured engagement insights and trend report into a multi-platform content strategy with ready-to-post ideas: hook, caption, visual direction, audio, CTA, posting window and evidence per idea.",
+      "version": "0.1.0",
+      "role": "sub_agent",
+      "agent_type": "llm",
+      "model": "gemini-3.6-flash",
+      "instruction": "You are the content strategist of a social media content ideation team. You turn measured evidence into a multi-platform plan with ready-to-post ideas for the client's own brand.\n\nInput: the company and industry, the competitor set, the engagement insights (numbers) and the trend report.\n\nProcedure:\n1. Call load_research_state once with no section to fetch anything the coordinator did not pass in the message.\n2. Build the plan on evidence: every idea must trace back to a measured pattern (a format, a hook type, a posting window, a hashtag or an audio signal) or to a labelled trend.\n3. Write at least 8 ideas, spread across Instagram, YouTube and Facebook (at least 2 per platform). If the user asked for a specific count or platform mix, follow that instead.\n4. Save with save_research_state(section=\"strategy\", content=<the plan in Markdown>).\n\nEach idea must contain:\n- **Title** and a one-line concept\n- **Platform** and **format** (for example Reel, carousel, Short, long-form video, image post, text post)\n- **Hook**: the exact first line or on-screen text, written to stop the scroll\n- **Caption**: ready to post, with the call to action inside\n- **Visual direction**: a concrete image or video description a designer or the image generator can use directly\n- **Audio**: a track or audio style if it fits the format, otherwise \"none\"\n- **CTA** and the **metric** it should move\n- **Posting window**: day and time from the measured windows, or \"not measured - test both\"\n- **Why it works**: the evidence, with the number and its source\n\nAlso include:\n- a platform-by-platform rationale (role of each platform, format mix, cadence for four weeks)\n- a short \"guardrails\" list: claims to avoid, brand-safety notes, disclosure needs for paid partnerships\n- what to test first and how success will be measured, using the competitors' median engagement as the baseline\n\nRules:\n- Never invent a statistic. If the evidence for an idea is thin, say so in its \"Why it works\" line.\n- Adapt competitor winners to the client's own products and audience; never copy a competitor's caption verbatim.\n- Keep every idea specific enough to produce today: no vague \"post something inspiring\".\n- Write in the language the user used.",
+      "instruction_summary": "Writes the multi-platform strategy and the ready-to-post content ideas from the evidence.",
+      "tools": [
+        {
+          "name": "load_research_state",
+          "description": "Read the latest stored research, either one section or every section at once.",
+          "module": "research_store",
+          "parameters": [
+            {
+              "name": "section",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": true
+        },
+        {
+          "name": "save_research_state",
+          "description": "Persist one section of the research (competitors, trends, insights, strategy) for later follow-ups.",
+          "module": "research_store",
+          "parameters": [
+            {
+              "name": "section",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "content",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "company",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": true
+        },
+        {
+          "name": "core_guardrails_check",
+          "description": "Screen text with the shared Guardrails module before acting on it or showing it.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "text",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "stage",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "context",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_classify_intent",
+          "description": "Classify a request into one or more intents (detects compound requests like \"do X and then Y\").",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "text",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_define_intents",
+          "description": "Publish this agent's own intent taxonomy, used by core_classify_intent from then on.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "intents_json",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_memory_note",
+          "description": "Add a turn or working note to this session's short-term memory (auto-summarised when long).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "content",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "role",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_memory_context",
+          "description": "Read this session's short-term memory: a rolling summary plus the retained recent turns.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "last_n",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_remember",
+          "description": "Store a durable memory that survives across sessions.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "content",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "memory_type",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "scope",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_recall",
+          "description": "Retrieve relevant long-term memories.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "query",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "scope",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "top_k",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_share_knowledge",
+          "description": "Publish knowledge to the shared team memory so every agent on the team can recall it.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "content",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_list_tools",
+          "description": "List tools runnable through core_call_tool, with reliability and circuit-breaker state.",
+          "module": "adk_tools",
+          "parameters": [],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_call_tool",
+          "description": "Run a registered tool through Tool Orchestration (automatic retries, circuit breaker, reliability tracking).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "tool",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "arguments_json",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_knowledge_search",
+          "description": "Agentic retrieval over your team's knowledge base and the shared corpus: routed, self-correcting, multi-hop search that returns assembled context with numbered citations.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "query",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "top_k",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_ask_knowledge",
+          "description": "Answer a question from the knowledge base with inline citations like [1].",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "question",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_add_knowledge",
+          "description": "Add a document to your team's knowledge base (chunked, embedded and indexed for retrieval).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "title",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "text",
+              "type": "str",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_spend_status",
+          "description": "Your team's LLM spend this month, forecast and budget status (check before expensive work).",
+          "module": "adk_tools",
+          "parameters": [],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_prompt_feedback",
+          "description": "Report whether the prompt version you were served led to a successful outcome (feeds A/B tests).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "prompt_name",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "passed",
+              "type": "bool",
+              "description": "",
+              "required": true
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_audit_trail",
+          "description": "Read the tamper-evident audit trail visible to you (workers: your team's entries).",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "question",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "limit",
+              "type": "int",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        },
+        {
+          "name": "core_generate_image",
+          "description": "Create images (text-to-image) or edit images, and show them to the user in the chat.",
+          "module": "adk_tools",
+          "parameters": [
+            {
+              "name": "prompt",
+              "type": "str",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "aspect_ratio",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "number_of_images",
+              "type": "int",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "use_attached_images",
+              "type": "bool",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "edit_image_ids",
+              "type": "str",
+              "description": "",
+              "required": false
+            },
+            {
+              "name": "style",
+              "type": "str",
+              "description": "",
+              "required": false
+            }
+          ],
+          "returns": "dict with a 'status' key",
+          "requires_network": false,
+          "requires_filesystem": false
+        }
+      ],
+      "sub_agents": [],
+      "parent": "social_media_content_ideation",
+      "capabilities": [
+        "agentic_rag",
+        "auditability",
+        "finops",
+        "guardrails",
+        "image_generation",
+        "intent_detection",
+        "long_term_memory",
+        "promptops",
+        "short_term_memory",
+        "tool_orchestration"
+      ],
+      "state_reads": [
+        "engagement_insights",
+        "trend_report",
+        "competitor_set"
+      ],
+      "state_writes": [
+        "content_strategy"
+      ],
+      "output_key": "content_strategy",
+      "max_iterations": 4,
+      "input_modes": [
+        "text"
+      ],
+      "output_modes": [
+        "text"
+      ],
+      "guardrails": [],
+      "tags": [
+        "strategy",
+        "copywriting"
+      ]
+    }
+  ]
+}
