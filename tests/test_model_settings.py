@@ -210,9 +210,13 @@ def overrides(settings, tmp_path, monkeypatch):
     monkeypatch.delenv("K_SERVICE", raising=False)
     monkeypatch.setattr(auth, "_secret_cache", None)
     monkeypatch.setattr(model_settings, "_fernet_cache", None)
-    # Custom models are a Pro feature: put both test accounts on Pro so the plan gate passes.
-    from agent_builder import entitlements
+    # Custom models are a Pro feature: put both admin test accounts on Pro so the plan gate passes.
+    from agent_builder import db, entitlements
 
+    db.close_connections()
+    db.init_db()
+    for uid, uname in ((ALICE, "admin_alice"), (BOB, "admin_bob")):
+        db.UserRepository.create(user_id=uid, username=uname, email=f"{uname}@tectonic.local", password_hash="", is_admin=True)
     entitlements.set_plan_id(ALICE, "pro")
     entitlements.set_plan_id(BOB, "pro")
     gemini_checked: list = []
@@ -405,7 +409,7 @@ def test_settings_routes_toggle_per_signed_in_user(overrides):
     app = FastAPI()
     studio_api.install(app)
     client = TestClient(app)
-    alice, bob = auth.register("alice", "correct-horse-1"), auth.register("bobby", "correct-horse-2")
+    alice, bob = auth.register("admin_http_alice", "correct-horse-1"), auth.register("admin_http_bobby", "correct-horse-2")
     # Custom models are a Pro feature.
     from agent_builder import entitlements
 

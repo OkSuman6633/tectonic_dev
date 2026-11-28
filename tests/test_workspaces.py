@@ -43,8 +43,10 @@ def test_register_login_and_tokens(accounts, monkeypatch):
     assert auth.verify_token(f"{body}.{sig[:-2]}AA") is None  # forged
     assert auth.verify_token("garbage") is None
 
+    carol = auth.register("carol_member", "another long pw")
+    assert not auth.get_user(carol["id"])["admin"]
     monkeypatch.setenv("TECTONIC_ADMINS", "bob")
-    assert auth.get_user(bob["id"])["admin"] and not auth.get_user(alice["id"])["admin"]
+    assert auth.get_user(bob["id"])["admin"] and auth.get_user(alice["id"])["admin"] and not auth.get_user(carol["id"])["admin"]
 
 
 def test_repeated_wrong_passwords_lock_the_account(accounts):
@@ -166,8 +168,8 @@ async def test_telemetry_reaches_only_its_owner():
     def drain(q: asyncio.Queue) -> list[str]:
         return [q.get_nowait()["type"] for _ in range(q.qsize())]
 
-    assert drain(alice_q) == ["HELLO", "AGENT_CREATED", "MODULE_STATE"]
-    assert drain(bob_q) == ["HELLO", "AGENT_STATE_CHANGE", "MODULE_STATE"]
+    assert drain(alice_q) == ["HELLO", "AGENT_CREATED", "REPLAY_END", "MODULE_STATE"]
+    assert drain(bob_q) == ["HELLO", "REPLAY_END", "AGENT_STATE_CHANGE", "MODULE_STATE"]
 
 
 async def test_each_user_picks_their_own_builder_model_and_sees_the_key_in_use(accounts, monkeypatch):
@@ -181,8 +183,11 @@ async def test_each_user_picks_their_own_builder_model_and_sees_the_key_in_use(a
     default = MODEL.model
     alice, bob = "u_aaaaaaaaaaaa", "u_bbbbbbbbbbbb"
 
-    from agent_builder import entitlements
+    from agent_builder import db, entitlements
 
+    db.close_connections()
+    db.init_db()
+    db.UserRepository.create(user_id=alice, username="admin_alice", email="admin_alice@tectonic.local", password_hash="", is_admin=True)
     entitlements.set_plan_id(alice, "pro")  # custom models are a Pro feature
     with as_user(alice):
         out = await model_settings.save_custom("gemini-2.5-pro", admin=False)  # any user may switch their own model

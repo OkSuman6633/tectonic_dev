@@ -37,13 +37,22 @@ PLAN_WHEN_AUTH_OFF = "pro"
 TIER_ORDER: tuple[str, ...] = ("economy", "balanced", "reasoning", "flagship", "preview")
 
 _MODEL_TIER: dict[str, str] = {
+    # Active Studio catalogue (agent_builder/model_settings.py)
+    "gemini-3.5-flash-lite": "economy",
+    "gemini-3.8-flash": "economy",
+    "gemini-4-hydrogen": "balanced",
+    "gemini-4-neon": "balanced",
+    "gemini-4-argon": "reasoning",
+    "gemini-4-carbon": "flagship",
+    "claude-haiku-5-5": "economy",
+    "claude-sonnet-5-5": "balanced",
+    "claude-opus-5-5": "flagship",
+    "claude-fable-5-2": "flagship",
+    # Legacy aliases kept for backwards compatibility
     "gemini-3.6-flash": "economy",
     "gemini-2.5-flash": "economy",
     "gemini-2.5-flash-lite": "economy",
-    "claude-haiku-5-5": "economy",
-    "claude-sonnet-5-5": "balanced",
     "gemini-2.5-pro": "reasoning",
-    "claude-opus-5-5": "flagship",
     "claude-fable-5-1": "flagship",
 }
 # A model id we don't know is premium by default: it must be explicitly allowed, never silently free.

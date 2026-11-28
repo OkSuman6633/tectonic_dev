@@ -109,7 +109,7 @@ def test_admin_usernames_and_plan_access(clean_env):
             assert p["available"] is True
         else:
             assert p["available"] is False
-            assert "admin" in p["unavailable_reason"].lower()
+            assert "owner" in p["unavailable_reason"].lower()
 
     # Attempting to upgrade bob to Pro must be rejected
     with pytest.raises(ValueError, match="admin"):

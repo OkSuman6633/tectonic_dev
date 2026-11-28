@@ -456,7 +456,7 @@ def api(rt, tmp_path, monkeypatch):
     monkeypatch.delenv("TECTONIC_AUTH_SECRET", raising=False)
     monkeypatch.setattr(auth, "_secret_cache", None)
     monkeypatch.setattr(auth, "_failures", {})
-    users = {name: auth.register(name, "password123") for name in ("alice", "bob")}
+    users = {name: auth.register(f"admin_{name}", "password123") for name in ("alice", "bob")}
     # Connectors are a Pro feature: put both accounts on Pro so the catalog shows them.
     from agent_builder import entitlements
 

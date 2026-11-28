@@ -13,8 +13,20 @@ USER = "u_" + "a" * 12
 @pytest.fixture(autouse=True)
 def isolated_plans(tmp_path, monkeypatch):
     """Plans and usage live under the test's own data dir (never the real one)."""
+    from agent_builder import db
+
     monkeypatch.setenv("TECTONIC_DATA_DIR", str(tmp_path))
+    db.close_connections()
+    db.init_db()
+    db.UserRepository.create(
+        user_id=USER,
+        username="admin_entitlements",
+        email="admin_entitlements@tectonic.local",
+        password_hash="",
+        is_admin=True,
+    )
     yield
+    db.close_connections()
 
 
 # --- plan definitions -------------------------------------------------------------------------
@@ -46,7 +58,7 @@ def test_pro_allows_flagship():
 
 def test_allowed_models_matches_catalogue_tiers():
     starter = set(entitlements.allowed_models("starter"))
-    assert starter == {"gemini-3.6-flash", "gemini-2.5-flash", "claude-haiku-5-5"}
+    assert starter == {"gemini-3.8-flash", "gemini-3.5-flash-lite", "claude-haiku-5-5"}
     assert "claude-opus-5-5" in entitlements.allowed_models("pro")
 
 
@@ -55,8 +67,10 @@ def test_set_and_get_plan():
     assert entitlements.get_plan_id(USER) is None
     entitlements.set_plan_id(USER, "business")
     assert entitlements.get_plan_id(USER) == "business"
-    entitlements.set_plan_id(USER, "starter")  # switching is free and immediate
-    assert entitlements.get_plan_id(USER) == "starter"
+    entitlements.set_plan_id(USER, "pro")  # admin accounts can switch between paid tiers
+    assert entitlements.get_plan_id(USER) == "pro"
+    with pytest.raises(ValueError, match="Starter plan"):
+        entitlements.set_plan_id(USER, "starter")  # Starter trial cannot be re-claimed on an existing account
 
 
 def test_effective_plan_defaults_to_starter_before_choice():
@@ -322,6 +336,8 @@ def test_web_search_provider_choice(monkeypatch):
     from agent_builder.tools import web_search as ws
 
     monkeypatch.delenv("TAVILY_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.setenv("APIFY_TOKEN", "apify-demo")
     assert ws.get_provider(USER) == "auto"
     ws.set_provider(USER, "apify")
@@ -381,7 +397,7 @@ def test_catalogue_filtered_by_plan():
     from agent_builder import model_settings
 
     ids = set(m["id"] for m in model_settings._catalogue_for(USER))  # no plan yet → starter
-    assert ids == {"gemini-3.6-flash", "gemini-2.5-flash", "claude-haiku-5-5"}
+    assert ids == {"gemini-3.8-flash", "gemini-3.5-flash-lite", "claude-haiku-5-5"}
 
     entitlements.set_plan_id(USER, "pro")
     ids = set(m["id"] for m in model_settings._catalogue_for(USER))
