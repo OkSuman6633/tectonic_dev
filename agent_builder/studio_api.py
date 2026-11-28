@@ -55,8 +55,21 @@ def current_user_info() -> dict:
     return user
 
 
+def _ensure_default_agents() -> None:
+    """Seed built-in starter agents into the active workspace if not yet provisioned."""
+    try:
+        from . import builtin_agents
+
+        uid = current_user() if auth_enabled() else None
+        if not auth_enabled() or uid:
+            builtin_agents.ensure_default_agents(uid)
+    except Exception:
+        pass
+
+
 def own_projects() -> list[Path]:
     """The signed-in user's generated projects, newest first."""
+    _ensure_default_agents()
     root = output_dir()
     if not root.exists():
         return []
@@ -124,6 +137,7 @@ async def auth_login(body: dict = Body(...)):
 @router.get("/auth/me")
 async def auth_me():
     user = current_user_info()
+    _ensure_default_agents()
     plan_id = entitlements.get_plan_id(current_user())
     sub = None
     if current_user():
@@ -358,3 +372,66 @@ async def save_agent_env(name: str, body: dict = Body(...)):
         raise HTTPException(400, "apiKey required")
     (d / ".env").write_text(f"GOOGLE_API_KEY={key}\nGEMINI_API_KEY={key}\nGEMINI_MODEL={model}\n", encoding="utf-8")
     return {"success": True, "message": f"Saved .env for {name}", "envPath": f"generated_agents/{name}/.env"}
+
+
+# --- conversation history & per-conversation 3D telemetry snapshots -----------------------------
+def _conversation_owner() -> str:
+    if not auth_enabled():
+        return current_user() or "local"
+    uid = current_user()
+    if not uid:
+        raise HTTPException(401, "Sign in required")
+    return uid
+
+
+@router.get("/api/conversations")
+async def list_conversations():
+    from .db import ConversationRepository
+
+    return {"conversations": ConversationRepository.list_by_user(_conversation_owner())}
+
+
+@router.get("/api/conversations/{conv_id}")
+async def get_conversation(conv_id: str):
+    from .db import ConversationRepository
+
+    rec = ConversationRepository.get(_conversation_owner(), conv_id)
+    if rec is None:
+        raise HTTPException(404, "Conversation not found")
+    return rec
+
+
+@router.put("/api/conversations/{conv_id}")
+async def save_conversation(conv_id: str, body: dict = Body(...)):
+    from .db import ConversationRepository
+
+    if not conv_id or len(conv_id) > 128:
+        raise HTTPException(400, "Invalid conversation id")
+    try:
+        summary = ConversationRepository.upsert(_conversation_owner(), conv_id, body)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    return summary
+
+
+@router.patch("/api/conversations/{conv_id}")
+async def rename_conversation(conv_id: str, body: dict = Body(...)):
+    from .db import ConversationRepository
+
+    try:
+        summary = ConversationRepository.rename(_conversation_owner(), conv_id, str(body.get("title", "")))
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    if summary is None:
+        raise HTTPException(404, "Conversation not found")
+    return summary
+
+
+@router.delete("/api/conversations/{conv_id}")
+async def delete_conversation(conv_id: str):
+    from .db import ConversationRepository
+
+    deleted = ConversationRepository.delete(_conversation_owner(), conv_id)
+    if not deleted:
+        raise HTTPException(404, "Conversation not found")
+    return {"deleted": True, "id": conv_id}

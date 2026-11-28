@@ -18,7 +18,9 @@ import type {
   DesignIdeas,
   DesignReview,
   AutopilotRun,
-  GeneratedImage
+  GeneratedImage,
+  ConversationSummary,
+  ConversationRecord
 } from '../types/agent';
 
 /** The ADK session a request was sent to no longer exists (server data reset, stale id): open a new one. */
@@ -1217,6 +1219,76 @@ class ApiService {
       throw new Error(err.error || `Failed to configure .env for ${agentName}`);
     }
     return await res.json();
+  }
+
+  // --- Conversation History & Per-Conversation 3D Telemetry Snapshots ---
+  public async listConversations(): Promise<ConversationSummary[] | null> {
+    try {
+      const res = await fetch('/api/conversations');
+      if (!res.ok) return null;
+      const data = await res.json();
+      return Array.isArray(data.conversations) ? (data.conversations as ConversationSummary[]) : [];
+    } catch {
+      return null;
+    }
+  }
+
+  public async getConversation(convId: string): Promise<ConversationRecord | null> {
+    try {
+      const res = await fetch(`/api/conversations/${encodeURIComponent(convId)}`);
+      if (!res.ok) return null;
+      return (await res.json()) as ConversationRecord;
+    } catch {
+      return null;
+    }
+  }
+
+  public async saveConversation(record: ConversationRecord): Promise<ConversationSummary | null> {
+    try {
+      const res = await fetch(`/api/conversations/${encodeURIComponent(record.id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: record.title,
+          builderSessionId: record.builderSessionId,
+          chatTarget: record.chatTarget,
+          messages: record.messages,
+          spec: record.spec,
+          journey: record.journey,
+          decisionGroup: record.decisionGroup,
+          telemetry: record.telemetry,
+          createdAt: record.createdAt,
+          updatedAt: record.updatedAt,
+        }),
+      });
+      if (!res.ok) return null;
+      return (await res.json()) as ConversationSummary;
+    } catch {
+      return null;
+    }
+  }
+
+  public async renameConversation(convId: string, title: string): Promise<ConversationSummary | null> {
+    try {
+      const res = await fetch(`/api/conversations/${encodeURIComponent(convId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title }),
+      });
+      if (!res.ok) return null;
+      return (await res.json()) as ConversationSummary;
+    } catch {
+      return null;
+    }
+  }
+
+  public async deleteConversation(convId: string): Promise<boolean> {
+    try {
+      const res = await fetch(`/api/conversations/${encodeURIComponent(convId)}`, { method: 'DELETE' });
+      return res.ok;
+    } catch {
+      return false;
+    }
   }
 }
 

@@ -49,6 +49,18 @@ def get_connection() -> sqlite3.Connection:
     return conn
 
 
+def close_connections() -> None:
+    """Close the current thread's cached SQLite connection (used before DB restore/teardown)."""
+    conn = getattr(_local, "connection", None)
+    if conn is not None:
+        try:
+            conn.close()
+        except Exception:
+            pass
+    _local.connection = None
+    _local.connection_path = None
+
+
 def init_db() -> None:
     """Initialize schema tables and run legacy file migrations."""
     with _db_lock:
@@ -87,6 +99,25 @@ def init_db() -> None:
             conn.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id);")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_subscriptions_expires_at ON subscriptions(expires_at);")
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS conversations (
+                    id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL DEFAULT 'local',
+                    title TEXT NOT NULL DEFAULT 'New Conversation',
+                    builder_session_id TEXT,
+                    chat_target TEXT,
+                    messages_json TEXT NOT NULL DEFAULT '[]',
+                    spec_json TEXT NOT NULL DEFAULT '{}',
+                    journey_json TEXT,
+                    decision_group_json TEXT,
+                    telemetry_json TEXT NOT NULL DEFAULT '{}',
+                    created_at REAL NOT NULL,
+                    updated_at REAL NOT NULL
+                );
+                """
+            )
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_conversations_user_updated ON conversations(user_id, updated_at DESC);")
 
         _migrate_legacy_data(conn)
 
@@ -148,6 +179,16 @@ def _migrate_legacy_data(conn: sqlite3.Connection) -> None:
                             )
         except Exception:
             pass  # Fail-safe: don't crash on corrupted legacy json
+
+
+def _cloud_sync(*, immediate: bool = False) -> None:
+    """Persist SQLite snapshots to GCS when TECTONIC_GCS_BUCKET is configured."""
+    try:
+        from .cloud_storage import sync_db
+
+        sync_db(immediate=immediate)
+    except Exception:
+        pass
 
 
 # --- UserRepository -------------------------------------------------------------------------------
@@ -220,6 +261,7 @@ class UserRepository:
         user = UserRepository.get_by_id(user_id)
         if user is None:
             raise RuntimeError(f"Failed to create user record for {user_id}")
+        _cloud_sync(immediate=True)
         return user
 
     @staticmethod
@@ -233,6 +275,7 @@ class UserRepository:
                     "UPDATE users SET password_hash = ?, salt = ?, updated_at = ? WHERE id = ?",
                     (password_hash, salt, now, user_id),
                 )
+        _cloud_sync(immediate=True)
 
     @staticmethod
     def list_all() -> list[dict[str, Any]]:
@@ -297,6 +340,7 @@ class SubscriptionRepository:
         sub = SubscriptionRepository.get_by_user_id(user_id)
         if sub is None:
             raise RuntimeError(f"Failed to create subscription record for {user_id}")
+        _cloud_sync(immediate=True)
         return sub
 
     @staticmethod
@@ -365,6 +409,7 @@ class SubscriptionRepository:
         sub = SubscriptionRepository.get_by_user_id(user_id)
         if sub is None:
             raise RuntimeError(f"Failed to update subscription record for {user_id}")
+        _cloud_sync(immediate=True)
         return sub
 
     @staticmethod
@@ -378,3 +423,182 @@ class SubscriptionRepository:
                     "UPDATE subscriptions SET status = ?, updated_at = ? WHERE user_id = ?",
                     (status, now, user_id),
                 )
+        _cloud_sync(immediate=True)
+
+
+def _loads_json(raw: str | None, fallback: Any) -> Any:
+    if not raw:
+        return fallback
+    try:
+        return json.loads(raw)
+    except Exception:
+        return fallback
+
+
+# --- ConversationRepository -----------------------------------------------------------------------
+class ConversationRepository:
+    """Stores per-user chat conversations together with their 3D telemetry snapshots."""
+
+    @staticmethod
+    def _summary_from_row(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
+        messages = _loads_json(row["messages_json"], [])
+        telemetry = _loads_json(row["telemetry_json"], {})
+        if not isinstance(messages, list):
+            messages = []
+        if not isinstance(telemetry, dict):
+            telemetry = {}
+
+        user_msgs = [m for m in messages if isinstance(m, dict) and m.get("sender") == "user"]
+        last_msg = messages[-1] if messages and isinstance(messages[-1], dict) else None
+        preview = ""
+        if last_msg and isinstance(last_msg.get("content"), str):
+            preview = " ".join(last_msg["content"].split())[:120]
+
+        agent_order = telemetry.get("agentOrder")
+        module_order = telemetry.get("moduleOrder")
+        return {
+            "id": row["id"],
+            "title": row["title"] or "New Conversation",
+            "builderSessionId": row["builder_session_id"],
+            "chatTarget": row["chat_target"],
+            "messageCount": len(messages),
+            "userMessageCount": len(user_msgs),
+            "agentCount": len(agent_order) if isinstance(agent_order, list) else 0,
+            "moduleCount": len(module_order) if isinstance(module_order, list) else 0,
+            "preview": preview,
+            "createdAt": float(row["created_at"]),
+            "updatedAt": float(row["updated_at"]),
+        }
+
+    @staticmethod
+    def _record_from_row(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
+        summary = ConversationRepository._summary_from_row(row)
+        return {
+            **summary,
+            "messages": _loads_json(row["messages_json"], []),
+            "spec": _loads_json(row["spec_json"], {}),
+            "journey": _loads_json(row["journey_json"], None),
+            "decisionGroup": _loads_json(row["decision_group_json"], None),
+            "telemetry": _loads_json(row["telemetry_json"], {}),
+        }
+
+    @staticmethod
+    def list_by_user(user_id: str) -> list[dict[str, Any]]:
+        init_db()
+        conn = get_connection()
+        cur = conn.execute(
+            """
+            SELECT id, title, builder_session_id, chat_target, messages_json, telemetry_json, created_at, updated_at
+            FROM conversations
+            WHERE user_id = ?
+            ORDER BY updated_at DESC
+            """,
+            (user_id,),
+        )
+        return [ConversationRepository._summary_from_row(r) for r in cur.fetchall()]
+
+    @staticmethod
+    def get(user_id: str, conv_id: str) -> dict[str, Any] | None:
+        init_db()
+        conn = get_connection()
+        cur = conn.execute(
+            "SELECT * FROM conversations WHERE id = ? AND user_id = ?",
+            (conv_id, user_id),
+        )
+        row = cur.fetchone()
+        return ConversationRepository._record_from_row(row) if row else None
+
+    @staticmethod
+    def upsert(user_id: str, conv_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        init_db()
+        conn = get_connection()
+        now = time.time()
+        title = str(payload.get("title") or "New Conversation").strip()[:160] or "New Conversation"
+        builder_session_id = payload.get("builderSessionId") or payload.get("builder_session_id")
+        chat_target = payload.get("chatTarget") if "chatTarget" in payload else payload.get("chat_target")
+        messages_json = json.dumps(payload.get("messages") or [], default=str)
+        spec_json = json.dumps(payload.get("spec") or {}, default=str)
+        journey_val = payload.get("journey")
+        journey_json = json.dumps(journey_val, default=str) if journey_val is not None else None
+        decision_val = payload.get("decisionGroup") if "decisionGroup" in payload else payload.get("decision_group")
+        decision_group_json = json.dumps(decision_val, default=str) if decision_val is not None else None
+        telemetry_json = json.dumps(payload.get("telemetry") or {}, default=str)
+        created_at = float(payload.get("createdAt") or payload.get("created_at") or now)
+        updated_at = float(payload.get("updatedAt") or payload.get("updated_at") or now)
+
+        with _db_lock:
+            existing = conn.execute("SELECT user_id FROM conversations WHERE id = ?", (conv_id,)).fetchone()
+            if existing is not None and existing["user_id"] != user_id:
+                raise PermissionError("Conversation belongs to another user")
+            with conn:
+                conn.execute(
+                    """
+                    INSERT INTO conversations (
+                        id, user_id, title, builder_session_id, chat_target,
+                        messages_json, spec_json, journey_json, decision_group_json,
+                        telemetry_json, created_at, updated_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        title = excluded.title,
+                        builder_session_id = excluded.builder_session_id,
+                        chat_target = excluded.chat_target,
+                        messages_json = excluded.messages_json,
+                        spec_json = excluded.spec_json,
+                        journey_json = excluded.journey_json,
+                        decision_group_json = excluded.decision_group_json,
+                        telemetry_json = excluded.telemetry_json,
+                        updated_at = excluded.updated_at
+                    """,
+                    (
+                        conv_id, user_id, title, builder_session_id, chat_target,
+                        messages_json, spec_json, journey_json, decision_group_json,
+                        telemetry_json, created_at, updated_at,
+                    ),
+                )
+        row = conn.execute(
+            "SELECT id, title, builder_session_id, chat_target, messages_json, telemetry_json, created_at, updated_at FROM conversations WHERE id = ? AND user_id = ?",
+            (conv_id, user_id),
+        ).fetchone()
+        if row is None:
+            raise RuntimeError(f"Failed to save conversation {conv_id}")
+        _cloud_sync(immediate=False)
+        return ConversationRepository._summary_from_row(row)
+
+    @staticmethod
+    def rename(user_id: str, conv_id: str, title: str) -> dict[str, Any] | None:
+        init_db()
+        clean = (title or "").strip()[:160]
+        if not clean:
+            raise ValueError("Title cannot be empty")
+        conn = get_connection()
+        now = time.time()
+        with _db_lock:
+            with conn:
+                cur = conn.execute(
+                    "UPDATE conversations SET title = ?, updated_at = ? WHERE id = ? AND user_id = ?",
+                    (clean, now, conv_id, user_id),
+                )
+            if cur.rowcount == 0:
+                return None
+        row = conn.execute(
+            "SELECT id, title, builder_session_id, chat_target, messages_json, telemetry_json, created_at, updated_at FROM conversations WHERE id = ? AND user_id = ?",
+            (conv_id, user_id),
+        ).fetchone()
+        _cloud_sync(immediate=False)
+        return ConversationRepository._summary_from_row(row) if row else None
+
+    @staticmethod
+    def delete(user_id: str, conv_id: str) -> bool:
+        init_db()
+        conn = get_connection()
+        with _db_lock:
+            with conn:
+                cur = conn.execute(
+                    "DELETE FROM conversations WHERE id = ? AND user_id = ?",
+                    (conv_id, user_id),
+                )
+        if cur.rowcount > 0:
+            _cloud_sync(immediate=False)
+            return True
+        return False

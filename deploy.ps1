@@ -4,7 +4,8 @@
 param(
     [string]$ProjectId = "",
     [string]$Region = "us-central1",
-    [string]$ServiceName = "tectonic"
+    [string]$ServiceName = "tectonic",
+    [string]$StateBucket = ""
 )
 
 Write-Host "========================================" -ForegroundColor Cyan
@@ -40,7 +41,8 @@ $apis = @(
     "run.googleapis.com", 
     "secretmanager.googleapis.com",
     "containerregistry.googleapis.com",
-    "artifactregistry.googleapis.com"
+    "artifactregistry.googleapis.com",
+    "storage.googleapis.com"
 )
 
 foreach ($api in $apis) {
@@ -79,6 +81,27 @@ if (-not $authSecretExists) {
     -join ($bytes | ForEach-Object { $_.ToString("x2") }) | gcloud secrets create tectonic-auth-secret --data-file=- 2>$null
 }
 
+$apifySecretExists = gcloud secrets describe apify-token --format="value(name)" 2>$null
+if (-not $apifySecretExists) {
+    $apifyToken = $env:APIFY_TOKEN
+    if ([string]::IsNullOrWhiteSpace($apifyToken) -and (Test-Path ".env")) {
+        $match = Select-String -Path ".env" -Pattern "^APIFY_TOKEN=(.+)$" | Select-Object -First 1
+        if ($match) { $apifyToken = $match.Matches[0].Groups[1].Value.Trim() }
+    }
+    if ([string]::IsNullOrWhiteSpace($apifyToken)) {
+        $apifyToken = Read-Host "  Enter your Apify API token (or press Enter to skip)"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($apifyToken)) {
+        Write-Host "  Creating secret 'apify-token'..."
+        $apifyToken.Trim() | gcloud secrets create apify-token --data-file=- 2>$null
+        $apifySecretExists = "apify-token"
+    } else {
+        Write-Host "  Skipping 'apify-token' (not provided)." -ForegroundColor DarkYellow
+    }
+} else {
+    Write-Host "  Secret 'apify-token' exists." -ForegroundColor Green
+}
+
 # Step 3: Grant permissions
 Write-Host "[3/5] Setting up permissions..." -ForegroundColor Yellow
 $projectNumber = (gcloud projects describe $ProjectId --format="value(projectNumber)")
@@ -86,14 +109,42 @@ $serviceAccount = "$projectNumber-compute@developer.gserviceaccount.com"
 $cloudBuildSa = "$projectNumber@cloudbuild.gserviceaccount.com"
 
 # Grant Cloud Run service account access to secrets
-foreach ($secret in @("google-api-key", "tectonic-auth-secret")) {
+$secretsToBind = @("google-api-key", "tectonic-auth-secret")
+if ($apifySecretExists) { $secretsToBind += "apify-token" }
+foreach ($secret in $secretsToBind) {
     gcloud secrets add-iam-policy-binding $secret `
         --member="serviceAccount:$serviceAccount" `
         --role="roles/secretmanager.secretAccessor" `
         --quiet 2>$null
 }
+if ($apifySecretExists) {
+    gcloud secrets add-iam-policy-binding apify-token `
+        --member="serviceAccount:$cloudBuildSa" `
+        --role="roles/secretmanager.viewer" `
+        --quiet 2>$null
+}
 
 # Grant Cloud Build permission to deploy to Cloud Run
+if ([string]::IsNullOrEmpty($StateBucket)) {
+    $StateBucket = "$ProjectId-tectonic-state"
+}
+Write-Host "  Checking persistent state bucket (gs://$StateBucket)..."
+gcloud storage buckets describe "gs://$StateBucket" 2>$null | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "  Creating free-tier GCS state bucket in $Region..."
+    gcloud storage buckets create "gs://$StateBucket" --location=$Region --uniform-bucket-level-access --quiet
+}
+
+gcloud storage buckets add-iam-policy-binding "gs://$StateBucket" `
+    --member="serviceAccount:$serviceAccount" `
+    --role="roles/storage.objectAdmin" `
+    --quiet 2>$null
+
+gcloud storage buckets add-iam-policy-binding "gs://$StateBucket" `
+    --member="serviceAccount:$cloudBuildSa" `
+    --role="roles/storage.admin" `
+    --quiet 2>$null
+
 gcloud projects add-iam-policy-binding $ProjectId `
     --member="serviceAccount:$cloudBuildSa" `
     --role="roles/run.admin" `
@@ -110,7 +161,8 @@ Write-Host ""
 # Step 4: Build and deploy
 Write-Host "[4/5] Building and deploying (this takes 5-15 minutes)..." -ForegroundColor Yellow
 Write-Host "  Submitting build to Cloud Build..."
-gcloud builds submit --config=cloudbuild.yaml "--substitutions=_REGION=$Region,_SERVICE_NAME=$ServiceName"
+$apifySecretArg = if ($apifySecretExists) { "APIFY_TOKEN=apify-token:latest" } else { "" }
+gcloud builds submit --config=cloudbuild.yaml "--substitutions=_REGION=$Region,_SERVICE_NAME=$ServiceName,_STATE_BUCKET=$StateBucket,_APIFY_SECRET=$apifySecretArg"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Build failed. Check logs above." -ForegroundColor Red

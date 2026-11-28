@@ -10,6 +10,7 @@ import { useWorkspaceStore } from './useWorkspaceStore';
 export async function refreshAllViews(): Promise<void> {
   if (useAgentStudioStore.getState().isRefreshing) return;
   useWorkspaceStore.getState().remountWindows();
-  useTelemetryStore.getState().resync();
+  const telemetry = useTelemetryStore.getState();
+  if (telemetry.status === 'closed') telemetry.connect();
   await useAgentStudioStore.getState().refreshStudio();
 }

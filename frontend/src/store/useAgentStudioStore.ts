@@ -17,13 +17,18 @@ import type {
   ModelMode,
   FileWriteEvent,
   AgentEvent,
-  ChatAttachment
+  ChatAttachment,
+  ConversationSummary,
+  ConversationRecord
 } from '../types/agent';
+import type { TelemetrySnapshot } from '../types/telemetry';
 import { api, DEFAULT_MOCK_SPEC, SessionMissingError, type ChatResponse, type RuntimeChatResponse } from '../services/api';
 import { storageScope } from '../services/auth';
 import { fetchConnectorNotices, looksLikeCredential, noticeCursor } from '../services/connectorsApi';
 import { formatProjectReport, getPlanReport } from '../services/plans';
 import type { ConnectorNotice } from '../types/connectors';
+import { emptyTelemetrySnapshot, useTelemetryStore } from './useTelemetryStore';
+import { cancelSimulation } from '../services/telemetrySimulator';
 
 export type StudioTab = 'command' | 'visualizer' | 'sandbox' | 'inspector';
 
@@ -92,11 +97,21 @@ interface AgentStudioState {
   deleteDirectoryAgent: (id: string) => Promise<void>;
   agentsLoaded: boolean;
 
-  // Sessions
+  // Sessions & Conversation History (with per-conversation 3D snapshots)
   builderSessionId: string | null;
   sandboxSessionId: string | null;
   /** The agent the sandbox session belongs to. */
   sandboxAgentName: string | null;
+  activeConversationId: string | null;
+  conversations: ConversationSummary[];
+  conversationCache: Record<string, ConversationRecord>;
+  activeTelemetrySnapshot: TelemetrySnapshot;
+  isLoadingConversations: boolean;
+  loadConversations: () => Promise<void>;
+  selectConversation: (convId: string) => Promise<void>;
+  renameConversation: (convId: string, title: string) => Promise<void>;
+  deleteConversation: (convId: string) => Promise<void>;
+  syncActiveConversation: (opts?: { immediate?: boolean }) => void;
   startNewBuilderSession: () => Promise<void>;
   /** `keepHistory`: keep the sandbox conversation on screen and mark the new session with a `note`. */
   startNewSandboxSession: (agentAppName?: string, opts?: { keepHistory?: boolean; note?: string }) => Promise<string>;
@@ -108,7 +123,7 @@ interface AgentStudioState {
   refreshStudio: () => Promise<void>;
   isRefreshing: boolean;
   lastRefreshedAt: number | null;
-  restoreBuilderSession: () => Promise<void>;
+  restoreBuilderSession: (opts?: { silentMissing?: boolean }) => Promise<void>;
   restoreSandboxSession: () => Promise<void>;
   pendingTurns: PendingTurns;
   recoverPendingTurns: () => Promise<void>;
@@ -197,6 +212,7 @@ interface AgentStudioState {
 const PERSISTED_KEYS = [
   'builderSessionId', 'chatMessages', 'currentDecisionGroup', 'builderJourney', 'spec', 'chatTarget', 'hudCollapsed',
   'selectedAgentName', 'sandboxSessionId', 'sandboxAgentName', 'sandboxMessages', 'editSessionKey', 'pendingTurns',
+  'activeConversationId', 'conversations', 'conversationCache', 'activeTelemetrySnapshot',
 ] as const;
 type PersistedStudio = Pick<AgentStudioState, (typeof PERSISTED_KEYS)[number]>;
 
@@ -204,12 +220,73 @@ const MAX_PERSISTED_MESSAGES = 200;
 const pendingWrites = new Map<string, StorageValue<PersistedStudio>>();
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
+const DEFAULT_CONVERSATION_TITLE = 'New Conversation';
+
+const deriveConversationTitle = (messages: ChatMessage[], existingTitle?: string): string => {
+  if (existingTitle && existingTitle !== DEFAULT_CONVERSATION_TITLE) return existingTitle;
+  const firstUser = messages.find(
+    (m) => m.sender === 'user' && m.content?.trim() && !m.content.includes('DECISIONS_JSON:'),
+  );
+  if (!firstUser) return existingTitle || DEFAULT_CONVERSATION_TITLE;
+  const cleaned = firstUser.content
+    .replace(/^AUTOPILOT:\s*/i, '')
+    .replace(/^@[\w./-]+[\s,:]+/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!cleaned) return existingTitle || DEFAULT_CONVERSATION_TITLE;
+  return cleaned.length > 48 ? `${cleaned.slice(0, 47)}…` : cleaned;
+};
+
+const hasConversationActivity = (
+  messages: ChatMessage[],
+  snapshot?: Partial<TelemetrySnapshot> | null,
+): boolean => {
+  if (messages.some((m) => m.sender === 'user')) return true;
+  if (messages.length > 1) return true;
+  if ((snapshot?.agentOrder?.length ?? 0) > 0) return true;
+  if ((snapshot?.moduleOrder?.length ?? 0) > 0) return true;
+  if ((snapshot?.logs?.length ?? 0) > 0) return true;
+  return false;
+};
+
 const writeNow = (name: string, value: StorageValue<PersistedStudio>) => {
-  // Too big for the quota: keep the most recent messages rather than silently keeping a stale copy.
-  for (const keep of [MAX_PERSISTED_MESSAGES, 40, 10]) {
-    const state = { ...value.state, chatMessages: value.state.chatMessages.slice(-keep), sandboxMessages: value.state.sandboxMessages.slice(-keep) };
+  // Too big for the quota: drop offloaded cache entries first (SQLite holds full history), then trim messages.
+  const activeId = value.state.activeConversationId;
+  const attempts: PersistedStudio[] = [
+    value.state,
+    {
+      ...value.state,
+      conversationCache: activeId && value.state.conversationCache?.[activeId]
+        ? { [activeId]: value.state.conversationCache[activeId] }
+        : {},
+    },
+    {
+      ...value.state,
+      conversationCache: {},
+      activeTelemetrySnapshot: {
+        ...value.state.activeTelemetrySnapshot,
+        traces: {},
+        logs: (value.state.activeTelemetrySnapshot?.logs ?? []).slice(-60),
+      },
+      chatMessages: value.state.chatMessages.slice(-40),
+      sandboxMessages: value.state.sandboxMessages.slice(-40),
+    },
+    {
+      ...value.state,
+      conversationCache: {},
+      activeTelemetrySnapshot: emptyTelemetrySnapshot(),
+      chatMessages: value.state.chatMessages.slice(-10),
+      sandboxMessages: value.state.sandboxMessages.slice(-10),
+    },
+  ];
+  for (const state of attempts) {
     try {
-      localStorage.setItem(name, JSON.stringify({ ...value, state }));
+      const trimmed = {
+        ...state,
+        chatMessages: state.chatMessages.slice(-MAX_PERSISTED_MESSAGES),
+        sandboxMessages: state.sandboxMessages.slice(-MAX_PERSISTED_MESSAGES),
+      };
+      localStorage.setItem(name, JSON.stringify({ ...value, state: trimmed }));
       return;
     } catch { /* quota exceeded or storage blocked: retry smaller */ }
   }
@@ -224,9 +301,15 @@ const flushWrites = () => {
 };
 
 if (typeof window !== 'undefined') {
-  // A refresh right after sending must still persist that message.
-  window.addEventListener('pagehide', flushWrites);
-  window.addEventListener('beforeunload', flushWrites);
+  // A refresh right after sending or telemetry activity must persist both chat and 3D snapshot.
+  const onUnload = () => {
+    try {
+      useAgentStudioStore.getState().syncActiveConversation({ immediate: true });
+    } catch { /* store not initialized */ }
+    flushWrites();
+  };
+  window.addEventListener('pagehide', onUnload);
+  window.addEventListener('beforeunload', onUnload);
 }
 
 /** Each signed-in user keeps their own copy, so accounts sharing a browser never see each other's history. */
@@ -284,6 +367,33 @@ const editView = (r: AgentEditResult): SandboxEditView => {
 let restoring: Promise<void> | null = null;
 let recovering = false;
 let sandboxStarting: Promise<string> | null = null;
+let suppressTelemetrySync = false;
+let conversationSyncTimer: ReturnType<typeof setTimeout> | null = null;
+let telemetrySyncTimer: ReturnType<typeof setTimeout> | null = null;
+
+const summaryOfRecord = (rec: ConversationRecord): ConversationSummary => ({
+  id: rec.id,
+  title: rec.title,
+  builderSessionId: rec.builderSessionId,
+  chatTarget: rec.chatTarget,
+  messageCount: rec.messageCount,
+  userMessageCount: rec.userMessageCount,
+  agentCount: rec.agentCount,
+  moduleCount: rec.moduleCount,
+  preview: rec.preview,
+  createdAt: rec.createdAt,
+  updatedAt: rec.updatedAt,
+});
+
+const mergeSummaries = (local: ConversationSummary[], remote: ConversationSummary[]): ConversationSummary[] => {
+  const byId = new Map<string, ConversationSummary>();
+  for (const s of local) byId.set(s.id, s);
+  for (const s of remote) {
+    const prev = byId.get(s.id);
+    if (!prev || s.updatedAt >= prev.updatedAt) byId.set(s.id, s);
+  }
+  return Array.from(byId.values()).sort((a, b) => b.updatedAt - a.updatedAt);
+};
 
 export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get) => {
   const systemChat = (content: string): ChatMessage => ({ id: newId('msg-system'), sender: 'system', content, timestamp: stamp() });
@@ -299,8 +409,77 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
       : ({ id: newId('msg-conn'), sender: 'assistant', content: '', timestamp: stamp(), agentTarget: target, agentName: notice.agent, connectorNotice: view } as ChatMessage);
   };
 
+  /** Build a full ConversationRecord from the current active studio + 3D telemetry state. */
+  const snapshotActiveRecord = (telemetryOverride?: TelemetrySnapshot): ConversationRecord | null => {
+    const state = get();
+    const id = state.activeConversationId;
+    if (!id) return null;
+    const telemetry = telemetryOverride ?? useTelemetryStore.getState().exportSnapshot();
+    const existing = state.conversations.find((c) => c.id === id) ?? state.conversationCache[id];
+    const now = Date.now() / 1000;
+    const title = deriveConversationTitle(state.chatMessages, existing?.title);
+    const userMsgs = state.chatMessages.filter((m) => m.sender === 'user');
+    const lastMsg = state.chatMessages[state.chatMessages.length - 1];
+    const preview = lastMsg?.content ? lastMsg.content.replace(/\s+/g, ' ').trim().slice(0, 120) : '';
+    return {
+      id,
+      title,
+      builderSessionId: state.builderSessionId,
+      chatTarget: state.chatTarget,
+      messageCount: state.chatMessages.length,
+      userMessageCount: userMsgs.length,
+      agentCount: telemetry.agentOrder.length,
+      moduleCount: telemetry.moduleOrder.length,
+      preview,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+      messages: state.chatMessages,
+      spec: state.spec,
+      journey: state.builderJourney,
+      decisionGroup: state.currentDecisionGroup,
+      telemetry,
+    };
+  };
+
+  /** Persist a ConversationRecord into local list/cache and (when non-empty) SQLite backend. */
+  const commitConversationRecord = (record: ConversationRecord, opts?: { immediate?: boolean; skipBackend?: boolean }) => {
+    const summary = summaryOfRecord(record);
+    set((state) => {
+      const others = state.conversations.filter((c) => c.id !== record.id);
+      const nextList = [summary, ...others].sort((a, b) => b.updatedAt - a.updatedAt);
+      return {
+        conversations: nextList,
+        conversationCache: { ...state.conversationCache, [record.id]: record },
+        ...(state.activeConversationId === record.id ? { activeTelemetrySnapshot: record.telemetry } : {}),
+      };
+    });
+    if (opts?.skipBackend || !hasConversationActivity(record.messages, record.telemetry)) return;
+    if (opts?.immediate) {
+      if (conversationSyncTimer) {
+        clearTimeout(conversationSyncTimer);
+        conversationSyncTimer = null;
+      }
+      void api.saveConversation(record);
+      return;
+    }
+    if (conversationSyncTimer) clearTimeout(conversationSyncTimer);
+    conversationSyncTimer = setTimeout(() => {
+      conversationSyncTimer = null;
+      const latest = get().conversationCache[record.id] ?? record;
+      if (hasConversationActivity(latest.messages, latest.telemetry)) {
+        void api.saveConversation(latest);
+      }
+    }, 800);
+  };
+
   /** Show a Builder reply (live or recovered after a refresh) and resync what it may have changed. */
-  const applyBuilderResponse = async (resp: ChatResponse, userMsgId: string, recovered = false, noticesAfter: number | null = null) => {
+  const applyBuilderResponse = async (
+    resp: ChatResponse,
+    userMsgId: string,
+    recovered = false,
+    noticesAfter: number | null = null,
+    targetConvId?: string | null,
+  ) => {
     const assistantMsg: ChatMessage = {
       id: newId('msg'),
       sender: 'assistant',
@@ -318,6 +497,29 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
       images: resp.images,
       webSearchResults: resp.webSearchResults,
     };
+
+    // If the user switched to another conversation before this reply arrived, update that archived record instead.
+    if (targetConvId && get().activeConversationId !== targetConvId) {
+      const cached = get().conversationCache[targetConvId];
+      if (cached) {
+        const updatedRecord: ConversationRecord = {
+          ...cached,
+          messages: [
+            ...cached.messages.map((m) => (m.id === userMsgId && resp.routedTo ? { ...m, agentTarget: resp.routedTo } : m)),
+            assistantMsg,
+          ],
+          decisionGroup: resp.decisionGroup || cached.decisionGroup,
+          journey: resp.journey ?? cached.journey,
+          spec: resp.extractedSpec ? { ...cached.spec, ...resp.extractedSpec } : cached.spec,
+          updatedAt: Date.now() / 1000,
+        };
+        updatedRecord.messageCount = updatedRecord.messages.length;
+        updatedRecord.preview = assistantMsg.content.replace(/\s+/g, ' ').trim().slice(0, 120);
+        commitConversationRecord(updatedRecord, { immediate: true });
+      }
+      return;
+    }
+
     set((state) => ({
       // A question routed to an existing agent belongs to that agent (deleted together with it).
       chatMessages: [
@@ -333,7 +535,7 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
 
     // The Builder can generate, change or delete a project from any chat turn, so resync after every reply.
     const [added] = await Promise.all([get().refreshCreatedAgents(), get().refreshDirectory()]);
-    if (added.length > 0) {
+    if (added.length > 0 && (!targetConvId || get().activeConversationId === targetConvId)) {
       const names = added.map((a) => `**${a.name}**`).join(', ');
       let reportBlock = '';
       try {
@@ -358,6 +560,7 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
       const routed = get().agentDirectory.find((a) => a.id === resp.routedTo);
       if (routed?.project) await get().syncConnectorNotices('chat', routed.project, noticesAfter, routed.id);
     }
+    get().syncActiveConversation({ immediate: true });
   };
 
   const applySandboxResponse = async (resp: RuntimeChatResponse, recovered = false) => {
@@ -651,31 +854,223 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
     await Promise.all([get().refreshDirectory(), get().refreshCreatedAgents()]);
   },
 
-  // Sessions
+  // Sessions & Conversation History
   builderSessionId: null,
   sandboxSessionId: null,
   sandboxAgentName: null,
+  activeConversationId: null,
+  conversations: [],
+  conversationCache: {},
+  activeTelemetrySnapshot: emptyTelemetrySnapshot(),
+  isLoadingConversations: false,
+
+  syncActiveConversation: (opts) => {
+    const rec = snapshotActiveRecord();
+    if (!rec) return;
+    commitConversationRecord(rec, { immediate: opts?.immediate });
+  },
+
+  loadConversations: async () => {
+    set({ isLoadingConversations: true });
+    try {
+      const remote = await api.listConversations();
+      if (remote) {
+        set((state) => ({
+          conversations: mergeSummaries(
+            state.conversations.filter((c) => c.id === state.activeConversationId || c.userMessageCount > 0 || c.agentCount > 0 || c.moduleCount > 0),
+            remote,
+          ),
+        }));
+      }
+    } finally {
+      set({ isLoadingConversations: false });
+    }
+  },
+
+  selectConversation: async (convId: string) => {
+    const state = get();
+    if (convId === state.activeConversationId) return;
+
+    cancelSimulation();
+
+    // Save outgoing conversation if it has any activity; otherwise drop the untouched draft.
+    const outgoing = snapshotActiveRecord();
+    if (outgoing) {
+      if (hasConversationActivity(outgoing.messages, outgoing.telemetry)) {
+        commitConversationRecord(outgoing, { immediate: true });
+      } else {
+        set((s) => {
+          const nextCache = { ...s.conversationCache };
+          delete nextCache[outgoing.id];
+          return {
+            conversations: s.conversations.filter((c) => c.id !== outgoing.id),
+            conversationCache: nextCache,
+          };
+        });
+      }
+    }
+
+    let record: ConversationRecord | null = get().conversationCache[convId] ?? null;
+    const remote = await api.getConversation(convId);
+    if (remote && (!record || remote.updatedAt >= record.updatedAt)) {
+      record = remote;
+    }
+    if (!record) return;
+
+    const restoredTelemetry = record.telemetry ?? emptyTelemetrySnapshot();
+    suppressTelemetrySync = true;
+    try {
+      useTelemetryStore.getState().restoreSnapshot(restoredTelemetry);
+    } finally {
+      suppressTelemetrySync = false;
+    }
+
+    set((s) => ({
+      activeConversationId: record!.id,
+      builderSessionId: record!.builderSessionId,
+      chatMessages: record!.messages?.length
+        ? record!.messages
+        : [{
+            id: `msg-welcome-${Date.now()}`,
+            sender: 'assistant',
+            content: `👋 **Agent Architect Session Initialized!**\n\nI am the Agent Builder. Tell me what kind of agent you would like to build!`,
+            timestamp: stamp(),
+          }],
+      spec: record!.spec && Object.keys(record!.spec).length
+        ? record!.spec
+        : JSON.parse(JSON.stringify(DEFAULT_MOCK_SPEC)),
+      builderJourney: record!.journey ?? null,
+      currentDecisionGroup: record!.decisionGroup ?? null,
+      chatTarget: record!.chatTarget ?? null,
+      selectedToolNode: null,
+      activeTelemetrySnapshot: restoredTelemetry,
+      isChatLoading: false,
+      isStreaming: false,
+      isGeneratingAgent: false,
+      pendingTurns: { ...s.pendingTurns, builder: undefined },
+      conversationCache: { ...s.conversationCache, [record!.id]: record! },
+    }));
+
+    if (record.builderSessionId) {
+      void get().restoreBuilderSession({ silentMissing: true });
+    }
+  },
+
+  renameConversation: async (convId: string, title: string) => {
+    const clean = title.trim();
+    if (!clean) return;
+    const now = Date.now() / 1000;
+    set((state) => {
+      const nextConvs = state.conversations.map((c) => (c.id === convId ? { ...c, title: clean, updatedAt: now } : c));
+      const cached = state.conversationCache[convId];
+      const nextCache = cached
+        ? { ...state.conversationCache, [convId]: { ...cached, title: clean, updatedAt: now } }
+        : state.conversationCache;
+      return { conversations: nextConvs, conversationCache: nextCache };
+    });
+    await api.renameConversation(convId, clean);
+  },
+
+  deleteConversation: async (convId: string) => {
+    const wasActive = get().activeConversationId === convId;
+    set((state) => {
+      const nextCache = { ...state.conversationCache };
+      delete nextCache[convId];
+      return {
+        conversations: state.conversations.filter((c) => c.id !== convId),
+        conversationCache: nextCache,
+      };
+    });
+    void api.deleteConversation(convId);
+    if (wasActive) {
+      const next = get().conversations[0];
+      if (next) {
+        set({ activeConversationId: null });
+        await get().selectConversation(next.id);
+      } else {
+        set({ activeConversationId: null });
+        await get().startNewBuilderSession();
+      }
+    }
+  },
 
   startNewBuilderSession: async () => {
+    cancelSimulation();
+
+    // Persist the outgoing conversation (chat + 3D telemetry) before clearing for the new conversation.
+    const outgoing = snapshotActiveRecord();
+    if (outgoing) {
+      if (hasConversationActivity(outgoing.messages, outgoing.telemetry)) {
+        commitConversationRecord(outgoing, { immediate: true });
+      } else {
+        set((s) => {
+          const nextCache = { ...s.conversationCache };
+          delete nextCache[outgoing.id];
+          return {
+            conversations: s.conversations.filter((c) => c.id !== outgoing.id),
+            conversationCache: nextCache,
+          };
+        });
+      }
+    }
+
+    // Empty the 3D module immediately for the new conversation.
+    suppressTelemetrySync = true;
+    try {
+      useTelemetryStore.getState().clearForConversation();
+    } finally {
+      suppressTelemetrySync = false;
+    }
+
     set({ isChatLoading: true });
     try {
       const newSid = await api.createSession('agent_builder');
-      set((state) => ({
+      const convId = newId('conv');
+      const now = Date.now() / 1000;
+      const welcomeMsg: ChatMessage = {
+        id: `msg-welcome-${Date.now()}`,
+        sender: 'assistant',
+        content: `👋 **Agent Architect Session Initialized!**\n\nI am the Agent Builder. I use sub-agents (**guardrails**, **intent detection**, **requirement understanding**, and **code generator**) to interview you with cross-questions and build your custom Google ADK agent.\n\nTell me: What kind of agent would you like to build? (e.g. *"Create a local attendance manager"* or *"Build an offline flight booking coordinator"*).\n\nTo change an agent you already built, just describe the change (e.g. *"make library_management_system reply in bullet points"*), or use **Edit agent** in the Live Sandbox.`,
+        timestamp: stamp(),
+      };
+      const emptySpec = JSON.parse(JSON.stringify(DEFAULT_MOCK_SPEC)) as ExtractedAgentSpec;
+      const emptySnap = emptyTelemetrySnapshot();
+      const draft: ConversationRecord = {
+        id: convId,
+        title: DEFAULT_CONVERSATION_TITLE,
         builderSessionId: newSid,
-        chatMessages: [
-          {
-            id: `msg-welcome-${Date.now()}`,
-            sender: 'assistant',
-            content: `👋 **Agent Architect Session Initialized!**\n\nI am the Agent Builder. I use sub-agents (**guardrails**, **intent detection**, **requirement understanding**, and **code generator**) to interview you with cross-questions and build your custom Google ADK agent.\n\nTell me: What kind of agent would you like to build? (e.g. *"Create a local attendance manager"* or *"Build an offline flight booking coordinator"*).\n\nTo change an agent you already built, just describe the change (e.g. *"make library_management_system reply in bullet points"*), or use **Edit agent** in the Live Sandbox.`,
-            timestamp: stamp()
-          }
-        ],
+        chatTarget: null,
+        messageCount: 1,
+        userMessageCount: 0,
+        agentCount: 0,
+        moduleCount: 0,
+        preview: '',
+        createdAt: now,
+        updatedAt: now,
+        messages: [welcomeMsg],
+        spec: emptySpec,
+        journey: null,
+        decisionGroup: null,
+        telemetry: emptySnap,
+      };
+
+      set((state) => ({
+        activeConversationId: convId,
+        builderSessionId: newSid,
+        chatMessages: [welcomeMsg],
         currentDecisionGroup: null,
         builderJourney: null,
-        spec: JSON.parse(JSON.stringify(DEFAULT_MOCK_SPEC)),
+        spec: emptySpec,
+        chatTarget: null,
+        selectedToolNode: null,
+        isAgentReady: false,
+        generatedFiles: {},
+        activeTelemetrySnapshot: emptySnap,
         pendingTurns: { ...state.pendingTurns, builder: undefined },
         isChatLoading: false,
         isStreaming: false,
+        conversations: [summaryOfRecord(draft), ...state.conversations.filter((c) => c.userMessageCount > 0 || c.agentCount > 0 || c.moduleCount > 0)],
+        conversationCache: { ...state.conversationCache, [convId]: draft },
       }));
     } catch (err) {
       console.error('Error creating new session:', err);
@@ -720,16 +1115,76 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
   restoreStudio: () => {
     // React StrictMode runs mount effects twice in development: restore exactly once.
     restoring ??= (async () => {
+      // 1. Synchronously restore the active conversation's 3D view (or clear it for a fresh conversation).
+      const snap = get().activeTelemetrySnapshot;
+      const pendingBuilder = get().pendingTurns.builder;
+      if (pendingBuilder?.sentAt) {
+        useTelemetryStore.getState().setRecoverySince(pendingBuilder.sentAt);
+      }
+      suppressTelemetrySync = true;
+      try {
+        if (snap && (snap.agentOrder?.length || snap.moduleOrder?.length || snap.logs?.length)) {
+          useTelemetryStore.getState().restoreSnapshot(snap);
+        } else {
+          useTelemetryStore.getState().clearForConversation();
+        }
+      } finally {
+        suppressTelemetrySync = false;
+      }
+
+      // 2. Migrate an existing legacy conversation (pre-history) or initialize an active conversation id.
+      if (!get().activeConversationId) {
+        const legacySnap = useTelemetryStore.getState().exportSnapshot();
+        const initId = newId('conv');
+        set({ activeConversationId: initId });
+        const rec = snapshotActiveRecord(legacySnap);
+        if (rec) {
+          commitConversationRecord(rec, {
+            immediate: hasConversationActivity(get().chatMessages, legacySnap),
+            skipBackend: !hasConversationActivity(get().chatMessages, legacySnap),
+          });
+        }
+      }
+
       await Promise.all([
         (async () => {
           await get().refreshCreatedAgents();
           await get().restoreSandboxSession();
         })(),
-        get().restoreBuilderSession(),
+        get().loadConversations(),
+        get().restoreBuilderSession({ silentMissing: true }),
         get().refreshDirectory(),
         get().loadStudioSettings(),
       ]);
-      void get().recoverPendingTurns();
+
+      // 3. Reconcile active conversation with SQLite if server has a newer or missing-local copy.
+      const activeId = get().activeConversationId;
+      if (activeId) {
+        const remote = await api.getConversation(activeId);
+        const localUpdated = get().conversationCache[activeId]?.updatedAt ?? 0;
+        if (remote && (remote.updatedAt > localUpdated || (get().chatMessages.length <= 1 && remote.messages.length > 1))) {
+          const restoredTel = remote.telemetry ?? emptyTelemetrySnapshot();
+          suppressTelemetrySync = true;
+          try {
+            useTelemetryStore.getState().restoreSnapshot(restoredTel);
+          } finally {
+            suppressTelemetrySync = false;
+          }
+          set((s) => ({
+            builderSessionId: remote.builderSessionId || s.builderSessionId,
+            chatMessages: remote.messages?.length ? remote.messages : s.chatMessages,
+            spec: remote.spec && Object.keys(remote.spec).length ? remote.spec : s.spec,
+            builderJourney: remote.journey ?? s.builderJourney,
+            currentDecisionGroup: remote.decisionGroup ?? s.currentDecisionGroup,
+            chatTarget: remote.chatTarget ?? s.chatTarget,
+            activeTelemetrySnapshot: restoredTel,
+            conversationCache: { ...s.conversationCache, [activeId]: remote },
+          }));
+        }
+      }
+
+      await get().recoverPendingTurns();
+      useTelemetryStore.getState().setRecoverySince(null);
     })().finally(() => {
       restoring = null;
     });
@@ -748,7 +1203,8 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
           const agent = get().selectedAgent;
           if (agent) await Promise.all([get().loadAgentFiles(agent.name), get().checkSelectedAgentEnv(agent.name)]);
         })(),
-        get().restoreBuilderSession(),
+        get().loadConversations(),
+        get().restoreBuilderSession({ silentMissing: true }),
         get().refreshDirectory(),
         get().loadStudioSettings(),
       ]);
@@ -758,7 +1214,7 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
     }
   },
 
-  restoreBuilderSession: async () => {
+  restoreBuilderSession: async (opts) => {
     if (get().isChatLoading) return; // a reply is on its way and will bring the current state
     const sid = get().builderSessionId;
     if (!sid) {
@@ -773,10 +1229,12 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
         builderSessionId: newSid,
         builderJourney: null,
         currentDecisionGroup: null,
-        chatMessages: [
-          ...lockStaleCards(state.chatMessages, null),
-          systemChat('The previous Builder session is no longer on the server, so a new one was started. Your earlier conversation stays here for reference.'),
-        ],
+        chatMessages: opts?.silentMissing
+          ? lockStaleCards(state.chatMessages, null)
+          : [
+              ...lockStaleCards(state.chatMessages, null),
+              systemChat('The previous Builder session is no longer on the server, so a new one was started. Your earlier conversation stays here for reference.'),
+            ],
         pendingTurns: { ...state.pendingTurns, builder: undefined },
       }));
       return;
@@ -881,6 +1339,10 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
       sid = await api.createSession('agent_builder');
       set({ builderSessionId: sid });
     }
+    if (!get().activeConversationId) {
+      set({ activeConversationId: newId('conv') });
+    }
+    const convId = get().activeConversationId;
 
     // Who is this for? "@agent ..." or the picked target go straight to that agent; everything else
     // (and every decision-card answer) goes to the Agent Builder, which can still route to agents itself.
@@ -923,29 +1385,45 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
       isStreaming: true,
       currentAgentPhase: 'orchestrator'
     }));
+    get().syncActiveConversation();
 
     if (target) {
       try {
         const targetNotices = await noticeCursor();
         const result = await api.chatWithAgent(target.id, text, sid, attachments, signal);
         if (signal.aborted) return;
+        const replyMsg: ChatMessage = {
+          id: newId('msg'),
+          sender: 'assistant' as const,
+          content: result.reply,
+          timestamp: stamp(),
+          agentTarget: result.target,
+          agentName: result.agent,
+          trace: result.trace,
+          images: result.images?.length ? result.images : undefined,
+        };
+        if (convId && get().activeConversationId !== convId) {
+          const cached = get().conversationCache[convId];
+          if (cached) {
+            commitConversationRecord({
+              ...cached,
+              messages: [...cached.messages, replyMsg],
+              updatedAt: Date.now() / 1000,
+              messageCount: cached.messages.length + 1,
+            }, { immediate: true });
+          }
+          return;
+        }
         set((state) => ({
-          chatMessages: [...state.chatMessages, {
-            id: newId('msg'),
-            sender: 'assistant' as const,
-            content: result.reply,
-            timestamp: stamp(),
-            agentTarget: result.target,
-            agentName: result.agent,
-            trace: result.trace,
-            images: result.images?.length ? result.images : undefined,
-          }],
+          chatMessages: [...state.chatMessages, replyMsg],
           isChatLoading: false,
           isStreaming: false,
         }));
         if (result.project && targetNotices !== null) await get().syncConnectorNotices('chat', result.project, targetNotices, result.target);
+        get().syncActiveConversation({ immediate: true });
       } catch (err: any) {
         if (signal.aborted || err.name === 'AbortError') return;
+        if (convId && get().activeConversationId !== convId) return;
         set((state) => ({
           chatMessages: [...state.chatMessages, {
             id: newId('msg-err'),
@@ -958,6 +1436,7 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
           isChatLoading: false,
           isStreaming: false,
         }));
+        get().syncActiveConversation({ immediate: true });
       } finally {
         if (activeChatAbortController?.signal === signal) {
           activeChatAbortController = null;
@@ -990,11 +1469,11 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
         resp = await api.sendBuilderChat(content, sid, attachments, 'default_user', signal);
       }
       if (signal.aborted) return;
-      if (get().builderSessionId !== sid) return; // a new Builder session was started meanwhile
-      await applyBuilderResponse(resp, userMsg.id, false, builderNotices);
+      await applyBuilderResponse(resp, userMsg.id, false, builderNotices, convId);
     } catch (err: any) {
       if (signal.aborted || err.name === 'AbortError') return;
       console.error(err);
+      if (convId && get().activeConversationId !== convId) return;
       if (get().builderSessionId !== sid) return;
       const errMsg: ChatMessage = {
         id: newId('msg-err'),
@@ -1007,6 +1486,7 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
         isChatLoading: false,
         isStreaming: false
       }));
+      get().syncActiveConversation({ immediate: true });
     } finally {
       if (activeChatAbortController?.signal === signal) {
         activeChatAbortController = null;
@@ -1252,6 +1732,7 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
         isStreaming: false,
         pendingFiles: []
       });
+      get().syncActiveConversation({ immediate: true });
     } catch (err: any) {
       if (signal.aborted || err.name === 'AbortError') return;
       console.error(err);
@@ -1516,7 +1997,7 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
   };
 }, {
   name: 'tectonic-agent-studio',
-  version: 1,
+  version: 2,
   storage: studioStorage,
   // History, sessions and the open agent survive a page refresh; loading flags and live traces do not.
   partialize: (state) => ({
@@ -1533,6 +2014,33 @@ export const useAgentStudioStore = create<AgentStudioState>()(persist((set, get)
       chatMessages: saved.chatMessages?.length ? saved.chatMessages : current.chatMessages,
       sandboxMessages: saved.sandboxMessages ?? current.sandboxMessages,
       editSessionKey: saved.editSessionKey || current.editSessionKey,
+      conversations: Array.isArray(saved.conversations) ? saved.conversations : [],
+      conversationCache: saved.conversationCache ?? {},
+      activeTelemetrySnapshot: saved.activeTelemetrySnapshot ?? emptyTelemetrySnapshot(),
     };
   },
 }));
+
+// Keep the active conversation's 3D telemetry snapshot synced whenever the 3D scene changes.
+useTelemetryStore.subscribe((state, prev) => {
+  if (suppressTelemetrySync) return;
+  const changed =
+    state.agentOrder !== prev.agentOrder ||
+    state.moduleOrder !== prev.moduleOrder ||
+    state.agents !== prev.agents ||
+    state.modules !== prev.modules ||
+    state.logs !== prev.logs ||
+    state.toolCalls !== prev.toolCalls ||
+    state.moduleCalls !== prev.moduleCalls ||
+    state.extraEdges !== prev.extraEdges ||
+    state.moduleLinks !== prev.moduleLinks;
+  if (!changed) return;
+  if (!useAgentStudioStore.getState().activeConversationId) return;
+  if (telemetrySyncTimer) clearTimeout(telemetrySyncTimer);
+  telemetrySyncTimer = setTimeout(() => {
+    telemetrySyncTimer = null;
+    if (!suppressTelemetrySync) {
+      useAgentStudioStore.getState().syncActiveConversation();
+    }
+  }, 600);
+});

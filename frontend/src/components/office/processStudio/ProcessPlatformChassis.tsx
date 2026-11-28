@@ -150,7 +150,7 @@ export const ProcessPlatformChassis = memo(function ProcessPlatformChassis({
   });
 
   // `bridge-process` docks at front-left of +Z edge: local x ≈ -4.7 (spanning x ∈ [-5.8, -3.6])
-  const dockCenterX = -4.7;
+  const dockCenterX = -4.9;
 
   return (
     <group>

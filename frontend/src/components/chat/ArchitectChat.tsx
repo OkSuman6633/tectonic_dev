@@ -18,8 +18,10 @@ import {
   Play,
   Wand2,
   Square,
+  History,
 } from 'lucide-react';
 import { useAgentStudioStore } from '../../store/useAgentStudioStore';
+import { ConversationHistoryPanel } from './ConversationHistoryPanel';
 import { DecisionCardGroup } from './DecisionCardGroup';
 import { JourneyStepper } from './JourneyStepper';
 import { AgentTargetPicker, MentionSuggestions } from './AgentTargetPicker';
@@ -145,10 +147,12 @@ export const ArchitectChat: React.FC = () => {
     refreshCreatedAgents,
     setSelectedAgent,
     setActiveTab,
-    continueAfterConnect
+    continueAfterConnect,
+    conversations,
   } = useAgentStudioStore();
 
   const [inputVal, setInputVal] = useState('');
+  const [historyOpen, setHistoryOpen] = useState(false);
   const attach = useAttachments();
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -275,6 +279,23 @@ export const ArchitectChat: React.FC = () => {
           </div>
 
           <div className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setHistoryOpen((v) => !v)}
+              className={`flex h-7 items-center gap-1 rounded-full border px-2.5 text-[12px] font-medium leading-none transition-all shrink-0 ${
+                historyOpen
+                  ? 'border-sky-500/45 bg-sky-500/20 text-sky-900 dark:text-sky-100'
+                  : 'border-slate-900/10 dark:border-white/15 bg-white/75 dark:bg-white/[0.06] text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-white/10'
+              }`}
+              title="Toggle conversation history"
+            >
+              <History className="h-3.5 w-3.5 shrink-0" />
+              <span className="hidden sm:inline">History</span>
+              {conversations.length > 0 && (
+                <span className="font-mono text-[10px] opacity-80">{conversations.length}</span>
+              )}
+            </button>
+
             {/* Create Another Agent Button */}
             <button
               onClick={() => startNewBuilderSession()}
@@ -373,10 +394,22 @@ export const ArchitectChat: React.FC = () => {
       </div>
 
       {/* Chat Messages Stream */}
-      <div
-        ref={chatScrollRef}
-        className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden p-3.5 space-y-4 scroll-smooth min-h-0"
-      >
+      <div className="relative flex flex-1 min-h-0 overflow-hidden">
+        {historyOpen && (
+          <div className="absolute inset-0 z-30 flex">
+            <ConversationHistoryPanel isOverlay onClose={() => setHistoryOpen(false)} />
+            <div
+              className="flex-1 bg-slate-950/35 backdrop-blur-xs"
+              onClick={() => setHistoryOpen(false)}
+              aria-hidden="true"
+            />
+          </div>
+        )}
+
+        <div
+          ref={chatScrollRef}
+          className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden p-3.5 space-y-4 scroll-smooth min-h-0"
+        >
         {chatMessages.map((msg) => {
           const isUser = msg.sender === 'user';
           if (msg.sender === 'system') {
@@ -573,6 +606,7 @@ export const ArchitectChat: React.FC = () => {
             )}
           </div>
         )}
+        </div>
       </div>
 
       {/* Follow-ups for the latest reply */}

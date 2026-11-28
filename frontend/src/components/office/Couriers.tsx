@@ -281,9 +281,9 @@ const SeatedEmployeeActor = memo(function SeatedEmployeeActor({
       {showTag && (
         <Html position={[0, 2.95, 0]} center distanceFactor={14} zIndexRange={[25, 0]} style={{ pointerEvents: 'none' }}>
           <div
-            className={`office-tag relative flex min-w-[158px] max-w-[245px] flex-col rounded-xl border px-2.5 py-1.5 shadow-xl backdrop-blur-md transition-all ${selected
-              ? 'border-blue-500/90 dark:border-blue-400/90 bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-slate-100 shadow-blue-500/15'
-              : 'border-stone-300/90 dark:border-slate-700/80 bg-white/92 dark:bg-slate-900/90 text-slate-800 dark:text-slate-100'
+            className={`office-tag relative flex min-w-[158px] max-w-[245px] flex-col rounded-xl border px-2.5 py-1.5 shadow-lg transition-all ${selected
+              ? 'border-blue-500 dark:border-blue-400 bg-white dark:bg-slate-950 text-slate-950 dark:text-slate-50 shadow-blue-500/20'
+              : 'border-stone-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-50'
               }`}
           >
             <div className="flex items-center justify-between gap-2">
@@ -843,7 +843,7 @@ const OfficeRunnerActor = memo(function OfficeRunnerActor({
         {/* Floating badge for Office Boy / Courier */}
         {showRunnerTag && (
           <Html position={[0, 2.45, 0]} center distanceFactor={14} zIndexRange={[25, 0]} style={{ pointerEvents: 'none' }}>
-            <div className="office-tag relative flex min-w-[145px] max-w-[230px] flex-col rounded-xl border border-sky-400/80 dark:border-sky-500/80 bg-white/95 dark:bg-slate-900/95 px-2.5 py-1.5 text-slate-800 dark:text-slate-100 shadow-xl backdrop-blur-md transition-all">
+            <div className="office-tag relative flex min-w-[145px] max-w-[230px] flex-col rounded-xl border border-sky-500 dark:border-sky-400 bg-white dark:bg-slate-950 px-2.5 py-1.5 text-slate-900 dark:text-slate-50 shadow-lg transition-all">
               <div className="flex items-center justify-between gap-2">
                 <span className="truncate text-[11px] font-bold text-sky-800 dark:text-sky-300">
                   🏃 {appearance.displayFirstName}
@@ -887,11 +887,22 @@ function EmployeeWorkforceImpl({
   const sharedPositions = useRef<Record<string, Point2D>>({});
   const activitySlots = useRef<Record<string, AgentActivitySlot>>({});
   const agentIds = useMemo(() => Object.keys(layout.desks), [layout.desks]);
+  const hasStations = useMemo(() => Object.keys(layout.stations).length > 0, [layout.stations]);
+  const conversationEpoch = useTelemetryStore((s) => s.conversationEpoch);
 
   // Shared dispatches queue and status registers
   const dispatchesRef = useRef<Record<string, RunnerDispatch>>({});
   const runnerMissionsRef = useRef<Record<string, { runnerName: string; label: string; phase: string } | null>>({});
   const recentDeliveriesRef = useRef<Record<string, { label: string; time: number }>>({});
+
+  useEffect(() => {
+    dispatchesRef.current = {};
+    runnerMissionsRef.current = {};
+    recentDeliveriesRef.current = {};
+    sharedPositions.current = {};
+    activitySlots.current = {};
+    syncCampusActivity(activitySlots.current, activityRef);
+  }, [conversationEpoch, activityRef]);
 
   // Dynamic dispatch detection: Seated employees dispatch tasks to Office Boy runners
   useFrame(() => {
@@ -965,37 +976,40 @@ function EmployeeWorkforceImpl({
         />
       ))}
 
-      {/* 2. Primary Office Runner "Leo" (Tech Courier) */}
-      <OfficeRunnerActor
-        runnerId="runner-1"
-        appearance={RUNNER_APPEARANCES[0]}
-        standbyPos={runner1Standby}
-        layout={layout}
-        navGrid={navGrid}
-        sharedPositions={sharedPositions}
-        activitySlots={activitySlots}
-        activityRef={activityRef}
-        dispatchesRef={dispatchesRef}
-        runnerMissionsRef={runnerMissionsRef}
-        recentDeliveriesRef={recentDeliveriesRef}
-        laneOffset={0.18}
-      />
+      {/* 2. Primary Office Runner "Leo" & Secondary Runner "Sam" (only shown once the team/stations are online) */}
+      {(agentIds.length > 0 || hasStations) && (
+        <>
+          <OfficeRunnerActor
+            runnerId="runner-1"
+            appearance={RUNNER_APPEARANCES[0]}
+            standbyPos={runner1Standby}
+            layout={layout}
+            navGrid={navGrid}
+            sharedPositions={sharedPositions}
+            activitySlots={activitySlots}
+            activityRef={activityRef}
+            dispatchesRef={dispatchesRef}
+            runnerMissionsRef={runnerMissionsRef}
+            recentDeliveriesRef={recentDeliveriesRef}
+            laneOffset={0.18}
+          />
 
-      {/* 3. Secondary Office Runner "Sam" (Tech Courier) */}
-      <OfficeRunnerActor
-        runnerId="runner-2"
-        appearance={RUNNER_APPEARANCES[1]}
-        standbyPos={runner2Standby}
-        layout={layout}
-        navGrid={navGrid}
-        sharedPositions={sharedPositions}
-        activitySlots={activitySlots}
-        activityRef={activityRef}
-        dispatchesRef={dispatchesRef}
-        runnerMissionsRef={runnerMissionsRef}
-        recentDeliveriesRef={recentDeliveriesRef}
-        laneOffset={-0.18}
-      />
+          <OfficeRunnerActor
+            runnerId="runner-2"
+            appearance={RUNNER_APPEARANCES[1]}
+            standbyPos={runner2Standby}
+            layout={layout}
+            navGrid={navGrid}
+            sharedPositions={sharedPositions}
+            activitySlots={activitySlots}
+            activityRef={activityRef}
+            dispatchesRef={dispatchesRef}
+            runnerMissionsRef={runnerMissionsRef}
+            recentDeliveriesRef={recentDeliveriesRef}
+            laneOffset={-0.18}
+          />
+        </>
+      )}
     </group>
   );
 }

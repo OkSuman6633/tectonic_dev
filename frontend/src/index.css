@@ -37,25 +37,25 @@
     --leading-metadata: 1.45;
     --leading-code: 1.5;
 
-    --studio-bg: #08080D;
-    --studio-surface: rgba(30, 31, 40, 0.5);      /* window glass */
-    --studio-card: rgba(255, 255, 255, 0.055);    /* grouped content inside glass */
-    --studio-border: rgba(255, 255, 255, 0.1);
-    --studio-hover: rgba(255, 255, 255, 0.08);
-    --studio-text: #F2F3F7;
-    --studio-text-secondary: rgba(235, 237, 245, 0.66);
-    --studio-text-muted: rgba(235, 237, 245, 0.4);
-    --glass-bg: rgba(34, 35, 46, 0.55);
-    --glass-card-bg: rgba(255, 255, 255, 0.06);
-    --glass-card-hover: rgba(255, 255, 255, 0.1);
-    --glass-border: rgba(255, 255, 255, 0.1);
-    --glass-highlight: rgba(255, 255, 255, 0.14);
-    --glass-blur: blur(40px) saturate(185%);
-    --popover-bg: rgba(40, 41, 52, 0.78);
-    --window-header: rgba(255, 255, 255, 0.035);
-    --window-focus: rgba(255, 255, 255, 0.18);
-    --scrollbar-thumb: rgba(255, 255, 255, 0.16);
-    --scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
+    --studio-bg: #07090F;
+    --studio-surface: rgba(15, 18, 28, 0.94);      /* solid crisp window surface */
+    --studio-card: rgba(23, 27, 40, 0.92);         /* crisp elevated card surface */
+    --studio-border: rgba(255, 255, 255, 0.14);
+    --studio-hover: rgba(255, 255, 255, 0.1);
+    --studio-text: #F8FAFC;
+    --studio-text-secondary: #CBD5E1;
+    --studio-text-muted: #94A3B8;
+    --glass-bg: rgba(15, 18, 28, 0.95);
+    --glass-card-bg: rgba(23, 27, 40, 0.94);
+    --glass-card-hover: rgba(31, 37, 54, 0.98);
+    --glass-border: rgba(255, 255, 255, 0.14);
+    --glass-highlight: rgba(255, 255, 255, 0.16);
+    --glass-blur: blur(12px) saturate(140%);
+    --popover-bg: #131724;
+    --window-header: rgba(255, 255, 255, 0.04);
+    --window-focus: rgba(56, 189, 248, 0.45);
+    --scrollbar-thumb: rgba(255, 255, 255, 0.22);
+    --scrollbar-thumb-hover: rgba(255, 255, 255, 0.38);
     --accent-cyan: #2DD4FF;
     --accent-violet: #A78BFA;
     --accent-emerald: #34D399;
@@ -64,26 +64,26 @@
     --accent-rose: #FB7185;
   }
 
-  /* "Obsidian" — light, high-contrast corporate */
+  /* "Obsidian" — light, high-contrast solid corporate */
   .light {
     color-scheme: light;
-    --studio-bg: #F7F8FA;
-    --studio-surface: rgba(255, 255, 255, 0.62);
-    --studio-card: rgba(255, 255, 255, 0.55);
-    --studio-border: rgba(14, 17, 22, 0.09);
+    --studio-bg: #F3F5F8;
+    --studio-surface: rgba(255, 255, 255, 0.97);
+    --studio-card: #F8FAFC;
+    --studio-border: rgba(15, 23, 42, 0.14);
     --studio-hover: #E9ECF1;
-    --studio-text: #0E1116;
-    --studio-text-secondary: #4A5160;
-    --studio-text-muted: #8A909C;
-    --glass-bg: rgba(255, 255, 255, 0.86);
-    --glass-card-bg: rgba(241, 243, 246, 0.8);
-    --glass-card-hover: rgba(233, 236, 241, 0.92);
-    --glass-border: rgba(14, 17, 22, 0.08);
-    --window-header: rgba(255, 255, 255, 0.5);
-    --window-focus: rgba(14, 17, 22, 0.14);
-    --glass-highlight: rgba(255, 255, 255, 0.9);
-    --glass-blur: blur(40px) saturate(170%);
-    --popover-bg: rgba(255, 255, 255, 0.86);
+    --studio-text: #0B0F19;
+    --studio-text-secondary: #334155;
+    --studio-text-muted: #64748B;
+    --glass-bg: rgba(255, 255, 255, 0.97);
+    --glass-card-bg: #F8FAFC;
+    --glass-card-hover: #EFF3F8;
+    --glass-border: rgba(15, 23, 42, 0.14);
+    --window-header: #F8FAFC;
+    --window-focus: rgba(37, 99, 235, 0.35);
+    --glass-highlight: rgba(255, 255, 255, 0.96);
+    --glass-blur: blur(12px) saturate(135%);
+    --popover-bg: #FFFFFF;
     --scrollbar-thumb: rgba(0, 0, 0, 0.14);
     --scrollbar-thumb-hover: rgba(0, 0, 0, 0.26);
     --accent-cyan: #0891B2;
@@ -437,68 +437,70 @@
 }
 .workspace-grid .react-grid-item.window-maximized > .react-resizable-handle { display: none; }
 
-/* ---- Glass material (macOS vibrancy) ---------------------------------------------------------- */
+/* ---- Solid High-Clarity Surfaces -------------------------------------------------------------- */
 .glass {
   background: var(--studio-surface);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
-  box-shadow: inset 0 1px 0 0 var(--glass-highlight), 0 0 0 0.5px rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 1px 0 0 var(--glass-highlight), 0 0 0 0.5px rgba(0, 0, 0, 0.45);
 }
 .studio-window {
   background: var(--studio-surface);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
-  border-radius: 14px;
+  border-radius: 12px;
   box-shadow:
     inset 0 1px 0 0 var(--glass-highlight),
-    0 0 0 0.5px rgba(0, 0, 0, 0.45),
-    0 18px 40px -18px rgba(0, 0, 0, 0.55),
-    0 6px 14px -8px rgba(0, 0, 0, 0.35);
-  transition: box-shadow 220ms ease, background-color 220ms ease;
+    0 0 0 0.5px rgba(0, 0, 0, 0.55),
+    0 18px 40px -16px rgba(0, 0, 0, 0.65),
+    0 6px 14px -8px rgba(0, 0, 0, 0.4);
+  transition: box-shadow 200ms ease, border-color 200ms ease, background-color 200ms ease;
 }
 .studio-window.is-focused {
+  border-color: var(--window-focus);
   box-shadow:
     inset 0 1px 0 0 var(--glass-highlight),
-    0 0 0 0.5px rgba(0, 0, 0, 0.5),
-    0 30px 70px -22px rgba(0, 0, 0, 0.75),
-    0 10px 24px -10px rgba(0, 0, 0, 0.45);
+    0 0 0 1px rgba(56, 189, 248, 0.18),
+    0 28px 64px -20px rgba(0, 0, 0, 0.82),
+    0 10px 24px -10px rgba(0, 0, 0, 0.5);
 }
 .light .studio-window {
-  box-shadow: inset 0 1px 0 0 var(--glass-highlight), 0 0 0 0.5px rgba(15, 23, 42, 0.12), 0 18px 40px -20px rgba(15, 23, 42, 0.25);
+  box-shadow: inset 0 1px 0 0 var(--glass-highlight), 0 0 0 0.5px rgba(15, 23, 42, 0.14), 0 16px 36px -18px rgba(15, 23, 42, 0.22);
 }
 .light .studio-window.is-focused {
-  box-shadow: inset 0 1px 0 0 var(--glass-highlight), 0 0 0 0.5px rgba(15, 23, 42, 0.16), 0 28px 60px -22px rgba(15, 23, 42, 0.35);
+  border-color: var(--window-focus);
+  box-shadow: inset 0 1px 0 0 var(--glass-highlight), 0 0 0 1px rgba(37, 99, 235, 0.15), 0 24px 52px -18px rgba(15, 23, 42, 0.28);
 }
 .studio-window-header {
   background: var(--window-header);
-  border-color: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
 }
-.light .studio-window-header { border-color: rgba(14, 17, 22, 0.07) !important; }
-.studio-window:not(.is-focused) .studio-window-header h2 { opacity: 0.6; }
+.light .studio-window-header { border-color: rgba(15, 23, 42, 0.1) !important; }
+.studio-window:not(.is-focused) .studio-window-header h2 { opacity: 0.78; }
 @keyframes window-attention {
   0%, 100% { box-shadow: inset 0 1px 0 0 var(--glass-highlight), 0 0 0 1px rgba(45, 212, 255, 0.0); }
-  50% { box-shadow: inset 0 1px 0 0 var(--glass-highlight), 0 0 0 2px rgba(45, 212, 255, 0.55), 0 0 40px -6px rgba(45, 212, 255, 0.6); }
+  50% { box-shadow: inset 0 1px 0 0 var(--glass-highlight), 0 0 0 2px rgba(45, 212, 255, 0.65), 0 0 40px -6px rgba(45, 212, 255, 0.6); }
 }
 .studio-window.attention { animation: window-attention 0.9s ease-in-out 2; }
 
 /* Menu bar + floating dock */
 .menu-bar {
-  background: rgba(20, 20, 28, 0.42);
-  backdrop-filter: blur(30px) saturate(180%);
-  -webkit-backdrop-filter: blur(30px) saturate(180%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(11, 14, 22, 0.96);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
-.light .menu-bar { background: rgba(255, 255, 255, 0.55); border-bottom-color: rgba(14, 17, 22, 0.08); }
+.light .menu-bar { background: rgba(255, 255, 255, 0.98); border-bottom-color: rgba(15, 23, 42, 0.12); }
 .dock-shelf {
-  background: rgba(40, 40, 52, 0.42);
-  backdrop-filter: blur(30px) saturate(190%);
-  -webkit-backdrop-filter: blur(30px) saturate(190%);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.12), 0 20px 50px -20px rgba(0, 0, 0, 0.7);
+  background: rgba(15, 19, 30, 0.95);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.14), 0 20px 50px -16px rgba(0, 0, 0, 0.78);
 }
-.light .dock-shelf { background: rgba(255, 255, 255, 0.5); border-color: rgba(255, 255, 255, 0.8); box-shadow: 0 16px 40px -18px rgba(15, 23, 42, 0.35); }
+.light .dock-shelf { background: rgba(255, 255, 255, 0.97); border-color: rgba(15, 23, 42, 0.15); box-shadow: 0 16px 40px -16px rgba(15, 23, 42, 0.25); }
 
 /* Traffic lights: grey when the window isn't focused, colored when it is, glyphs on hover. */
 .traffic { display: flex; gap: 8px; align-items: center; }
@@ -517,27 +519,27 @@
 .studio-window.is-focused .traffic .tl-zoom, .traffic:hover .tl-zoom { background: #28C840; }
 .traffic:hover button svg { opacity: 1; }
 
-/* Popovers and modals: frosted and more opaque so text stays legible over busy content. */
+/* Popovers and modals: solid crisp surface so text stays ultra-legible over busy content. */
 .absolute.bg-studio-card, .fixed .bg-studio-card {
   background: var(--popover-bg) !important;
-  backdrop-filter: blur(30px) saturate(180%);
-  -webkit-backdrop-filter: blur(30px) saturate(180%);
-  border-color: rgba(255, 255, 255, 0.12) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-color: var(--glass-border) !important;
 }
 
-/* React Flow sits directly on the glass. */
+/* React Flow sits cleanly on the workspace surface. */
 .command-flow {
   --xy-background-color: transparent;
-  --xy-minimap-background-color: rgba(20, 21, 28, 0.55);
-  --xy-controls-button-background-color: rgba(40, 41, 52, 0.7);
-  --xy-controls-button-background-color-hover: rgba(60, 61, 74, 0.8);
-  --xy-controls-button-border-color: rgba(255, 255, 255, 0.08);
+  --xy-minimap-background-color: rgba(15, 18, 28, 0.92);
+  --xy-controls-button-background-color: rgba(23, 27, 40, 0.95);
+  --xy-controls-button-background-color-hover: rgba(36, 42, 62, 0.98);
+  --xy-controls-button-border-color: rgba(255, 255, 255, 0.14);
 }
 .light .command-flow {
-  --xy-minimap-background-color: rgba(255, 255, 255, 0.6);
-  --xy-controls-button-background-color: rgba(255, 255, 255, 0.75);
-  --xy-controls-button-background-color-hover: rgba(255, 255, 255, 0.95);
-  --xy-controls-button-border-color: rgba(14, 17, 22, 0.08);
+  --xy-minimap-background-color: rgba(255, 255, 255, 0.95);
+  --xy-controls-button-background-color: rgba(255, 255, 255, 0.98);
+  --xy-controls-button-background-color-hover: #F1F5F9;
+  --xy-controls-button-border-color: rgba(15, 23, 42, 0.14);
 }
 .command-flow .react-flow__controls { border-radius: 10px; overflow: hidden; box-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.5); }
 
@@ -586,7 +588,12 @@
   from { opacity: 0; transform: translateY(6px) scale(0.92); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
-.office-tag { animation: office-tag-in 160ms ease-out; }
+.office-tag {
+  animation: office-tag-in 160ms ease-out;
+  backface-visibility: hidden;
+  -webkit-font-smoothing: subpixel-antialiased;
+  text-rendering: geometricPrecision;
+}
 
 /* ---- Alignment system --------------------------------------------------------------------------
    Window/panel chrome snaps to one set of measurements so nothing drifts between modules:

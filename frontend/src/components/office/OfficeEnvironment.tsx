@@ -750,13 +750,13 @@ function OfficeEnvironmentImpl({ layout, isDark = false }: { layout: OfficeLayou
   const lounge = layout.satellites.find((s) => s.feature === 'lounge');
   const cafe = layout.satellites.find((s) => s.feature === 'cafe');
 
-  // Back wall (-Z) spans between the 3 open bridge doorways at x = -9.2, 0.0, +9.2
-  // Each doorway is ~2.6 wide so employees walk cleanly through into the illuminated skybridges.
+  // Back wall (-Z) spans between the 3 open bridge doorways at x = -11.2, 0.0, +11.2
+  // Each doorway is ~2.2-2.7 wide so employees walk cleanly through into the illuminated skybridges.
   const northWallSegments: { x0: number; x1: number; hasWindow?: boolean }[] = [
-    { x0: minX, x1: -10.5 },
-    { x0: -7.9, x1: -1.35, hasWindow: true },
-    { x0: 1.35, x1: 7.9, hasWindow: true },
-    { x0: 10.5, x1: maxX },
+    { x0: minX, x1: -12.3 },
+    { x0: -10.1, x1: -1.35, hasWindow: true },
+    { x0: 1.35, x1: 10.1, hasWindow: true },
+    { x0: 12.3, x1: maxX },
   ];
 
   // Left wall (-X) spans around the West bridge doorway at z = 1.8 (doorway z = 0.5..3.1)
@@ -1111,8 +1111,8 @@ function OfficeEnvironmentImpl({ layout, isDark = false }: { layout: OfficeLayou
       </group>
 
       {/* Lush Indoor Trees & Potted Greenery throughout the central human office */}
-      <IndoorTree position={[minX + 0.95, 0, minZ + 0.95]} scale={1.15} potColor="#C67855" />
-      <IndoorTree position={[maxX - 0.95, 0, minZ + 0.95]} scale={1.15} potColor="#E5DDD0" />
+      <IndoorTree position={[minX + 0.72, 0, minZ + 1.65]} scale={1.15} potColor="#C67855" />
+      <IndoorTree position={[maxX - 0.72, 0, minZ + 1.65]} scale={1.15} potColor="#E5DDD0" />
       <IndoorTree position={[minX + 0.95, 0, maxZ - 0.95]} scale={1.1} potColor="#B86C4B" />
       <IndoorTree position={[maxX - 0.95, 0, maxZ - 0.95]} scale={1.15} potColor="#E2D9CB" />
       <IndoorTree position={[-6.8, 0, -7.5]} scale={0.95} potColor="#C87D58" />

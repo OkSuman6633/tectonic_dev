@@ -254,15 +254,14 @@ function StationImpl({
         {(showLabel || inAction || hovered || selected) && (
           <Html position={[0, isCoreTarget ? 4.25 : 2.65, 0]} center distanceFactor={15} zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
             <div
-              className={`office-tag flex min-w-[152px] max-w-[225px] flex-col rounded-xl border px-2.5 py-1.5 shadow-xl backdrop-blur-md transition-all ${
-                selected
-                  ? isMemory || isProcess
-                    ? isStm || id === 'finops'
-                      ? 'border-cyan-400/95 bg-white/95 dark:bg-slate-950/92 text-slate-900 dark:text-slate-100 shadow-cyan-500/20'
-                      : 'border-purple-400/95 bg-white/95 dark:bg-slate-950/92 text-slate-900 dark:text-slate-100 shadow-purple-500/20'
-                    : 'border-amber-400/95 bg-white/95 dark:bg-slate-950/92 text-slate-900 dark:text-slate-100 shadow-amber-500/20'
-                  : 'border-slate-200/90 dark:border-slate-700/80 bg-white/90 dark:bg-slate-950/86 text-slate-900 dark:text-slate-100'
-              }`}
+              className={`office-tag flex min-w-[152px] max-w-[225px] flex-col rounded-xl border px-2.5 py-1.5 shadow-lg transition-all ${selected
+                ? isMemory || isProcess
+                  ? isStm || id === 'finops'
+                    ? 'border-cyan-500 bg-white dark:bg-slate-950 text-slate-950 dark:text-slate-50 shadow-cyan-500/20'
+                    : 'border-purple-500 bg-white dark:bg-slate-950 text-slate-950 dark:text-slate-50 shadow-purple-500/20'
+                  : 'border-amber-500 bg-white dark:bg-slate-950 text-slate-950 dark:text-slate-50 shadow-amber-500/20'
+                : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-50'
+                }`}
             >
               <div className="flex items-center justify-between gap-1.5">
                 <span className="truncate text-[11.5px] font-semibold text-slate-900 dark:text-white">{mod.label}</span>
@@ -409,11 +408,10 @@ function StationImpl({
       {(showLabel || inAction || hovered || selected) && (
         <Html position={[0, towerHeight + 0.9, 0]} center distanceFactor={15} zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
           <div
-            className={`office-tag flex min-w-[152px] max-w-[225px] flex-col rounded-xl border px-2.5 py-1.5 shadow-xl backdrop-blur-md transition-all ${
-              selected
-                ? 'border-cyan-400/90 bg-white/95 dark:bg-slate-950/92 text-slate-900 dark:text-slate-100 shadow-cyan-500/10'
-                : 'border-slate-200/90 dark:border-slate-700/80 bg-white/90 dark:bg-slate-950/86 text-slate-900 dark:text-slate-100'
-            }`}
+            className={`office-tag flex min-w-[152px] max-w-[225px] flex-col rounded-xl border px-2.5 py-1.5 shadow-lg transition-all ${selected
+              ? 'border-cyan-500 bg-white dark:bg-slate-950 text-slate-950 dark:text-slate-50 shadow-cyan-500/15'
+              : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-50'
+              }`}
           >
             <div className="flex items-center justify-between gap-1.5">
               <span className="truncate text-[11.5px] font-semibold text-slate-900 dark:text-white">{mod.label}</span>

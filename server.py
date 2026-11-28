@@ -173,6 +173,11 @@ async def server_stop_run(body: dict = Body(default_factory=dict)) -> dict:
 
 @app.get("/directory/agents")
 async def directory_agents() -> dict:
+    from agent_builder import builtin_agents
+
+    uid = current_user() if studio_api.auth_enabled() else None
+    if not studio_api.auth_enabled() or uid:
+        builtin_agents.ensure_default_agents(uid)
     return {"agents": directory.list_entries()}
 
 

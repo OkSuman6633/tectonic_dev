@@ -21,7 +21,7 @@ const FALLBACK_PROCESS_ZONE: CampusZone = {
   label: 'PROCESS STUDIO',
   subtitle: 'PROCESSING & GOVERNANCE',
   kind: 'process',
-  center: [22.5, 0.62, -16.2],
+  center: [16.1, 0.62, -18.0],
   width: 12.2,
   depth: 8.4,
   height: 0.62,

@@ -55,7 +55,7 @@ export function Button({ children, onClick, busy, variant = 'default', disabled,
  * always share a common baseline. Text areas opt out and grow vertically.
  */
 export const CONTROL_H = 'h-7';
-export const controlClass = 'inline-flex items-center rounded-lg border border-studio-border bg-black/20 px-2.5 text-[13px] text-[var(--studio-text)] focus:border-sky-400/60 focus:outline-none';
+export const controlClass = 'inline-flex items-center rounded-lg border border-studio-border bg-black/35 px-2.5 text-[13px] text-[var(--studio-text)] focus:border-sky-400/75 focus:outline-none';
 
 const field = `w-full ${controlClass} placeholder:text-[var(--studio-text-muted)]`;
 
@@ -135,7 +135,7 @@ export function Select({
       {open && (
         <div
           role="listbox"
-          className="absolute left-0 top-full z-50 mt-1.5 max-h-60 min-w-full overflow-y-auto rounded-xl border border-studio-border bg-studio-card p-1.5 shadow-2xl backdrop-blur-2xl"
+          className="absolute left-0 top-full z-50 mt-1.5 max-h-60 min-w-full overflow-y-auto rounded-xl border border-studio-border bg-[var(--popover-bg)] p-1.5 shadow-2xl"
         >
           {options.map((opt) => {
             const active = opt.value === currentVal;
